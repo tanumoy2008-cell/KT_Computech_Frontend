@@ -9,7 +9,7 @@ const Navbar = () => {
     const navigate = useNavigate()
   return (
     <div className='w-full fixed bg-black text-white top-0 z-[999]'>
-        <div className='w-full py-2 px-4 flex lg:hidden xl:hidden 2xl:hidden items-center justify-between'>
+        <div className='w-full py-2 px-4 flex lg:hidden xl:hidden text-black 2xl:hidden items-center justify-between'>
             <div className='flex items-center gap-x-2'>
             <div className='w-12 h-12 rounded-full overflow-hidden border-2 border-amber-400'>
                 <img className='w-full h-full object-cover shadow-2xl' src="/Logo.webp" alt="logo" />
