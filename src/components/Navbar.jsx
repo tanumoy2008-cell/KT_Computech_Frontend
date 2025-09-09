@@ -17,7 +17,7 @@ const Navbar = () => {
                 <h1 className='text-xl uppercase font-Syne font-semibold'>KT Computech</h1>
             </div>
             <div>
-                <IoMdMenu onClick={()=>setMenuShow(true)} className='text-4xl' />
+                <IoMdMenu onClick={()=>setMenuShow(true)} className='text-4xl text-white' />
             </div>
             <div className={`fixed transition-all duration-200 w-full h-screen top-0 ${ MenuShow ? "right-0" : "-right-[100%]"} bg-white`}>
                 <IoClose onClick={()=>setMenuShow(false)} className='absolute top-10 right-10 text-5xl' />
