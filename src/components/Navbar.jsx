@@ -7,9 +7,19 @@ import { HiMiniShoppingCart } from "react-icons/hi2";
 const Navbar = () => {
     const [MenuShow, setMenuShow] = useState(false);
     const navigate = useNavigate()
+    const [sidemenu, setsidemenu] = useState(false)
   return (
     <div className='w-full fixed bg-black text-white top-0 z-[999]'>
         <div className='w-full py-2 px-4 flex lg:hidden xl:hidden text-black 2xl:hidden items-center justify-between'>
+            <div className={`absolute flex flex-col justify-center gap-y-10 top-0 transition-all duration-500 shadow-2xl shadow-black ${sidemenu ? "left-0" : "left-[105%]"} text-center text-4xl bg-white w-full h-screen z-[99]`}>
+            <button onClick={()=>setsidemenu(false)} className='absolute top-5 left-5 font-Syne uppercase text-xl bg-black text-white px-10 py-2 rounded outline-none border-none'>Back</button>
+            <Link to="/product/school" className='cursor-pointer py-2 px-2 hover:bg-zinc-300'>School Stationery</Link>
+            <Link to="/product/office"  className='cursor-pointer py-2 px-2 hover:bg-zinc-300'>Office Stationery</Link>
+            <Link to="/product/art" className='cursor-pointer py-2 px-2 hover:bg-zinc-300'>Art & Carft Items</Link>
+            <Link to="/product/gift" className='cursor-pointer py-2 px-2 hover:bg-zinc-300'>Gift Items</Link>
+            <Link to="/product/house"  className='cursor-pointer py-2 px-2 hover:bg-zinc-300'>House Hold Products</Link>
+            <Link to="/product/all"  className='cursor-pointer py-2 px-2 hover:bg-zinc-300'>All Products</Link>
+            </div>
             <div className='flex items-center gap-x-2'>
             <div className='w-12 h-12 rounded-full overflow-hidden border-2 border-amber-400'>
                 <img className='w-full h-full object-cover shadow-2xl' src="/Logo.webp" alt="logo" />
@@ -24,7 +34,7 @@ const Navbar = () => {
                 <div className='flex flex-col items-center justify-center gap-y-20 uppercase font-semibold tracking-wide text-5xl w-full h-full'>
                     <Link to="/user" >Profile</Link>
                     <Link to="/" >Home</Link>
-                    <Link to="/product">Product</Link>
+                    <h1 onClick={()=>setsidemenu(true)}>Product</h1>
                     <h1>About</h1>
                     <h1>Contact Us</h1>
                 </div>

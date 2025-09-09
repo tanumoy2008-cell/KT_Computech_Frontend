@@ -16,7 +16,6 @@ const ProductDets = () => {
     },[])
     console.log(Product.price,Product.off )
     const newPrice = calculateDiscountedPrice(Product.price,Product.off);
-    console.log(newPrice)
   return (
     <div id='productDets' className='w-full min-h-screen'>
       <button onClick={()=>navigate(-1)} className='fixed top-5 left-5 bg-black text-white rounded px-10 py-2 flex items-center gap-x-4'><FaLongArrowAltLeft />Back</button>
