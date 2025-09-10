@@ -2,7 +2,7 @@ import React from 'react'
 
 const PlaceOrder = () => {
   return (
-    <div>PlaceOrder</div>
+    <div>No Product Placed Yet.</div>
   )
 }
 

@@ -11,7 +11,8 @@ const Dashbord = () => {
             phone: "9876543210",
             email: "abc@gmail.com",
             Altphone: "9876543210",
-            pin: "700135"
+            pin: "700135",
+            address: "123, ABC Street, XYZ City, Country"
         }
     })
     const onSubmit = (data) => {
@@ -20,7 +21,7 @@ const Dashbord = () => {
     }
 
   return (
-    <div className='w-full h-full flex flex-col gap-y-5 pt-15 lg:pt-0'>
+    <div className='w-full h-full flex flex-col gap-y-5 px-10 pt-15 lg:pt-5'>
         <div className='flex items-center justify-between'>
         <h1 className='font-Syne text-2xl lg:text-6xl font-semibold'>Dashboard</h1>
         <div className='flex flex-col gap-y-2 items-center'>
@@ -43,7 +44,7 @@ const Dashbord = () => {
                     value: 20,
                     message: "Maximum 20 characters allowed"
                 }
-            })} readOnly={!editMode}  className='w-full text-lg py-2 outline-none'/>
+            })} readOnly={!editMode} placeholder='FirstName Here. . . '  className='w-full text-lg py-2 outline-none'/>
             </fieldset>
             <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
                 <legend className='px-2 font-ZenRegular font-semibold leading-2'>Last Name</legend>
@@ -58,7 +59,7 @@ const Dashbord = () => {
                     value: 20,
                     message: "Maximum 20 characters allowed"
                 }
-            })} readOnly={!editMode} className='w-full text-lg py-2 outline-none'/>
+            })} readOnly={!editMode} placeholder='LastName Here. . . ' className='w-full text-lg py-2 outline-none'/>
             </fieldset>
             </div>
             <div className='flex gap-x-10 gap-y-5 font-ZenMeduim flex-col lg:flex-row mt-5'>
@@ -79,7 +80,7 @@ const Dashbord = () => {
                     },
                     validate: (value) => 
                         !isNaN(value) && value > 0 || "Phone must be a valid positive number"
-                })} readOnly={!editMode} className='w-full text-lg  py-2 outline-none'/>
+                })} readOnly={!editMode} placeholder='Phone Number Here. . . ' className='w-full text-lg  py-2 outline-none'/>
             </fieldset>
             <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
                 <legend className='px-2 font-ZenRegular font-semibold leading-2'>Email</legend>
@@ -91,13 +92,13 @@ const Dashbord = () => {
                      value: "^[^\s@]+@[^\s@]+\.[^\s@]{2,}$",
                      message: "fill proper email"
                     }
-                })} readOnly={!editMode} className='w-full text-lg py-2 outline-none'/>
+                })} readOnly={!editMode} placeholder='Email Here. . . ' className='w-full text-lg py-2 outline-none'/>
             </fieldset>
             </div>
             <div className='flex gap-x-10 gap-y-5 font-ZenMeduim flex-col lg:flex-row mt-5'>
             <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
                 <legend className='px-2 font-ZenRegular font-semibold leading-2'>Alternate Number</legend>
-            {errors.phone && <p className='font-mono text-red-500'>{errors.phone.message}</p>}
+            {errors.Altphone && <p className='font-mono text-red-500'>{errors.Altphone.message}</p>}
             <input type="number"
              {...register("Altphone",{
                  validAsNumber: true,
@@ -111,11 +112,11 @@ const Dashbord = () => {
                 },
                 validate: (value) => 
                     !isNaN(value) && value > 0 || "Phone must be a valid positive number"
-            })} readOnly={!editMode} className='w-full text-lg py-2 outline-none'/>
+            })} readOnly={!editMode} placeholder='Alternate Number Here. . . ' className='w-full text-lg py-2 outline-none'/>
             </fieldset>
             <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
                 <legend className='px-2 font-ZenRegular font-semibold leading-2'>Pin Code</legend>
-            {errors.email && <p className='font-mono text-red-500'>{errors.email.message}</p>}
+            {errors.pin && <p className='font-mono text-red-500'>{errors.pin.message}</p>}
             <input type="number"
              {...register("pin",{
                  validAsNumber: true,
@@ -130,9 +131,26 @@ const Dashbord = () => {
                 },
                 validate: (value) => 
                     !isNaN(value) && value > 0 || "Pin must be a valid positive number"
-                })} readOnly={!editMode} className='w-full text-lg py-2 outline-none'/>
+                })} readOnly={!editMode} placeholder='PinCode Here. . . ' className='w-full text-lg py-2 outline-none'/>
             </fieldset>
             </div>
+            <fieldset className='w-full border border-black rounded-lg mt-5 px-3 py-2'>
+                <legend className='px-2 font-ZenRegular font-semibold leading-2'>Address</legend>
+            {errors.address && <p className='font-mono text-red-500'>{errors.address.message}</p>}
+            <textarea type="text"
+             {...register("address",{
+                 validAsNumber: true,
+                 required: "Pin is required",
+                 min:{
+                     value: 6,
+                    message: "Minimum 2 characters required"
+                },
+                max:{
+                    value: 50,
+                    message: "Maximum 50 characters allowed"
+                },
+                })} readOnly={!editMode} placeholder='Address Here. . . ' className='w-full resize-none h-40 text-lg py-2 outline-none'></ textarea>
+            </fieldset>
             {editMode && <div className='flex gap-x-5 mt-5 w-full md:w-1/2'>
                 <button type='submit' className='px-4 py-2 md:text-xl w-full rounded-md bg-green-400 text-white'>Save</button>
                 <button onClick={()=>{

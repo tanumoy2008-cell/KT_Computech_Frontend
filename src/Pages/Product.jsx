@@ -53,17 +53,14 @@ const Product = () => {
             <input value={query}
           onChange={(e) => setQuery(e.target.value)} type="text" placeholder='search product here. . .' className='w-11/12 text-lg placeholder:text-zinc-700 py-2 rounded outline-none text-black px-4 bg-white' />
         <div className='w-full hidden xl:flex justify-around items-center text-xl'>
-        <h1 onClick={()=> setCategory("")} className='cursor-pointer'>All</h1>
-        <h1 onClick={()=> setCategory("Pencil")} className='cursor-pointer'>Pencil</h1>
-        <h1 onClick={()=> setCategory("Eraser")} className='cursor-pointer'>Eraser</h1>
-        <h1 onClick={()=> setCategory("Sharpner")} className='cursor-pointer'>Sharpner</h1>
-        <h1 onClick={()=> setCategory("NoteBook")} className='cursor-pointer'>NoteBook</h1>
-        <h1 onClick={()=> setCategory("Colors")} className='cursor-pointer'>Colors</h1>
-        <h1 onClick={()=> setCategory("Files")} className='cursor-pointer'>Files</h1>
-        <h1 onClick={()=> setCategory("Gift")} className='cursor-pointer'>Gift Items</h1>
-        <h1 onClick={()=> setCategory("Electronics")} className='cursor-pointer'>Electronics</h1>
-        <h1 onClick={()=> setCategory("Pencil_Box")} className='cursor-pointer'>Bag & Pencil Box</h1>
-        <h1 onClick={()=> setCategory("Peper")} className='cursor-pointer'>Paper</h1>
+        <h1 onClick={()=> setCategory("")} className={`cursor-pointer px-4 ${Subcategory === "" && "border-b-2"}`}>All</h1>
+        <h1 onClick={()=> setCategory("Pencil")} className={`cursor-pointer px-4 ${Subcategory === "Pencil" && "border-b-2"}`}>Pencil</h1>
+        <h1 onClick={()=> setCategory("Eraser")} className={`cursor-pointer px-4 ${Subcategory === "Eraser" && "border-b-2"}`}>Eraser</h1>
+        <h1 onClick={()=> setCategory("Sharpner")} className={`cursor-pointer px-4 ${Subcategory === "Sharpner" && "border-b-2"}`}>Sharpner</h1>
+        <h1 onClick={()=> setCategory("notebook")} className={`cursor-pointer px-4 ${Subcategory === "notebook" && "border-b-2"}`}>NoteBook</h1>
+        <h1 onClick={()=> setCategory("color")} className={`cursor-pointer px-4 ${Subcategory === "color" && "border-b-2"}`}>Colors</h1>
+        <h1 onClick={()=> setCategory("pen")} className={`cursor-pointer px-4 ${Subcategory === "pen" && "border-b-2"}`}>Pen</h1>
+        <h1 onClick={()=> setCategory("Pencil_Box")} className={`cursor-pointer px-4 ${Subcategory === "Pencil_Box" && "border-b-2"}`}>Bag & Pencil Box</h1>
         </div>
         </div>
         <div id="scrollDiv" className='w-full py-4 px-6 h-[77vh] overflow-y-auto'>
@@ -73,9 +70,8 @@ const Product = () => {
                 hasMore={hasMore}
                 scrollableTarget="scrollDiv"
                 loader={
-                  Array.from({length: 8}).map((_,i) =>(<div className='w-full h-full animate-pulse bg-white border border-zinc-500 p-4 rounded flex flex-col gap-y-4 justify-between group'>
-                      <div className='w-full h-60 border border-zinc-500 overflow-hidden'>
-                      <img className='w-full h-full object-cover group-hover:scale-110 transition-all animate-pulse duration-200' src="" alt="" />
+                  Array.from({length: 8}).map((_,i) =>(<div key={i} className='w-full h-full animate-pulse bg-white border border-zinc-500 p-4 rounded flex flex-col gap-y-4 justify-between group'>
+                      <div className='w-full h-60 border border-zinc-500 overflow-hidden bg-zinc-400'>
                       </div>
                       <h1 className='text-center text-2xl font-Jura font-bold bg-zinc-400 py-4 animate-pulse'></h1>
                       <button className='py-4 text-zinc-400 bg-zinc-400 font-Jura text-xl animate-pulse text-center cursor-pointer'>

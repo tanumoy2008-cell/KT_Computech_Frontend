@@ -41,7 +41,7 @@ const UserProfle = () => {
                 <h4 className='w-full text-center cursor-pointer'>LogOut</h4>
             </div>
         </div>
-        <div className='h-full px-5 lg:px-10 py-5 w-full md:w-[60%] lg:w-[70%] 2xl:w-[75%]'>
+        <div className='h-full px-5 lg:px-0 xl:px-0 2xl:px-0 py-5 lg:py-0 xl:py-0 2xl:py-0 w-full md:w-[60%] lg:w-[70%] 2xl:w-[75%]'>
           <div className='fixed top-0 left-0 w-full md:hidden'>
             <Navbar />
           </div>
