@@ -31,6 +31,16 @@
     --font-ZenBold: "ZenBold";
     --font-ZenRegular: "ZenRegular";
     --font-ZenMeduim: "ZenMeduim";
+    --animate-wiggle: wiggle 1.5s ease-in-out infinite;
+  @keyframes wiggle {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.2);
+    }
+  }
 }
 #productSection, #productDets{
     background-image: url(./Abstract.webp);

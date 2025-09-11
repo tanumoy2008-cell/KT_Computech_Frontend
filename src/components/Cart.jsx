@@ -1,18 +1,23 @@
 import React, { useEffect, useState } from 'react'
 import CartCard from './CartCard'
 import {useSelector} from "react-redux"
+import { useNavigate } from 'react-router-dom'
 const Cart = () => {
   const cart = useSelector(state => state.CartReducer)
   const [carts, setcarts] = useState(cart);
   useEffect(()=>{
     setcarts(cart);
   },[cart]);
+  const navigate= useNavigate()
 
   return (
     <div className='flex flex-col h-screen w-full px-10 py-5'>
       <div className='flex w-full justify-between items-center'>
       <h1 className='font-Syne text-2xl lg:text-6xl font-semibold'>Your Cart</h1>
-      <button className='bg-black text-white px-10 py-2 font-ZenMeduim text-lg rounded-md'>Buy Now</button>
+      <div className='flex gap-x-4 items-center'>
+      <button onClick={()=>navigate("/product/all")} className='bg-black text-white cursor-pointer px-10 py-2 font-ZenMeduim text-lg rounded-md'>Add More Product</button>
+      <button className='bg-black text-white px-10 py-2 font-ZenMeduim text-lg cursor-pointer rounded-md'>Buy Now</button>
+      </div>
       </div>
       <div className='w-full mt-5 h-full overflow-y-scroll'>
         <div className='grid grid-cols-3 gap-5'>

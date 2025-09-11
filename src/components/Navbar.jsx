@@ -4,10 +4,19 @@ import { IoClose } from "react-icons/io5";
 import { Link, useNavigate } from 'react-router-dom';
 import { FaRegUserCircle } from "react-icons/fa";
 import { HiMiniShoppingCart } from "react-icons/hi2";
+import { useDispatch, useSelector } from "react-redux"
+import calculateDiscountedPrice from '../utils/PercentageCalculate';
+import { IoTrash } from "react-icons/io5";
+import { removeProductFromCart } from '../Store/reducers/CartReducer';
 const Navbar = () => {
     const [MenuShow, setMenuShow] = useState(false);
+    const dispatch = useDispatch();
     const navigate = useNavigate()
-    const [sidemenu, setsidemenu] = useState(false)
+    const [sidemenu, setsidemenu] = useState(false);
+    const cart = useSelector(state=>state.CartReducer);
+    const cancelItem = (id) => {
+    dispatch(removeProductFromCart({ _id: id }));
+  };
   return (
     <div className='w-full fixed bg-black text-white top-0 z-[999]'>
         <div className='w-full py-2 px-4 flex lg:hidden xl:hidden text-black 2xl:hidden items-center justify-between'>
@@ -62,11 +71,49 @@ const Navbar = () => {
                 <abbr title="Profile">
                 <FaRegUserCircle onClick={()=>navigate("/user")} className='cursor-pointer' />
                 </abbr>
-                <HiMiniShoppingCart />
+                <div className="relative w-fit h-fit group py-2">
+                {cart.length !== 0 && <small className="bg-red-600 absolute text-sm px-2 rounded-full -top-2 -right-3 leading-4 py-1">
+                    {cart.length}
+                </small>}
+                <HiMiniShoppingCart className="cursor-pointer" />
+                { cart.length > 0 ?
+                    <div className="absolute right-0 p-2 hidden group-hover:flex flex-col gap-y-2 bg-white shadow-2xl shadow-black border-1 border-black/30">
+                    <div className=' max-h-[40vh] overflow-y-auto'>
+                    {cart.map((items, index) => (
+                        <div
+                        key={index}
+                        className="w-full cursor-pointer border-1 flex p-2 items-center justify-between gap-x-4 rounded-md text-black border-black"
+                    >
+                        <div className="w-20 h-20 overflow-hidden rounded-md border-1">
+                        <img
+                            className="w-full h-full object-cover"
+                            src={items.productPic}
+                            alt=""
+                        />
+                        </div>
+                        <div onClick={() => navigate(`/product-dets/${items._id}`)} className="flex flex-col items-start">
+                        <p className="text-lg whitespace-nowrap">
+                            {items.name.slice(0, 15)}...
+                        </p>
+                        <small>{calculateDiscountedPrice(items.price, items.off)}</small>
+                        </div>
+                        <button onClick={() => cancelItem(items._id)} className="bg-black cursor-pointer text-white h-20 w-20 rounded-md flex justify-center items-center text-3xl">
+                        <IoTrash />
+                        </button>
+                    </div>
+                    ))}
+                    </div>
+                <button onClick={()=>navigate("/user")} className='w-full py-2 cursor-pointer bg-black rounded-md font-Syne'>Buy Now</button>
+                </div> : (
+                    <div className="absolute right-0 py-2 px-4 text-black whitespace-nowrap hidden group-hover:flex flex-col gap-y-2 bg-white shadow-2xl shadow-black border-1 border-black/30">
+                        <h1 className='text-lg font-Syne font-semibold lg:text-2xl'>No Product added in cart</h1>
+                    </div>
+                )}
+                </div>
+                </div>
             </div>
         </div>
         </div>
-    </div>
   )
 }
 

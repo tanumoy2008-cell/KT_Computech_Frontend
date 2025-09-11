@@ -6,6 +6,7 @@ import calculateDiscountedPrice from '../utils/PercentageCalculate';
 import {useDispatch} from "react-redux"
 import { addProductToCart } from '../Store/reducers/CartReducer';
 import { toast } from 'react-toastify';
+import Navbar from '../components/Navbar';
 const ProductDets = () => {
   const dispatch = useDispatch()
   const navigate = useNavigate();
@@ -26,7 +27,8 @@ const ProductDets = () => {
 
   return (
     <div id='productDets' className='w-full min-h-screen'>
-      <button onClick={()=>navigate(-1)} className='fixed top-5 left-5 bg-black text-white rounded px-10 py-2 flex items-center gap-x-4'><FaLongArrowAltLeft />Back</button>
+      <Navbar />
+      <button onClick={()=>navigate(-1)} className='fixed top-25 left-5 z-40 bg-black text-white rounded px-10 py-2 flex items-center gap-x-4'><FaLongArrowAltLeft />Back</button>
     {Object.keys(Product).length === 0 ? (        
         <div className='w-full pt-30 pb-10 px-5  md:px-25 lg:px-10 2xl:px-40'>
             <div className='flex flex-col items-start md:flex-col lg:flex-row xl:flex-row 2xl:flex-row gap-y-10 lg:gap-x-20 xl:gap-x-20 2xl:gap-x-40 lg:items-start xl:items-start 2xl:items-start'>
@@ -55,7 +57,7 @@ const ProductDets = () => {
               </div>
             </div>
         </div> ) : (
-            <div className='w-full pt-30 pb-10 px-5 md:px-25 lg:px-20 2xl:px-40'>
+            <div className='w-full pt-40 pb-10 px-5 md:px-25 lg:px-20 2xl:px-40'>
             <div className='flex flex-col items-start md:flex-col lg:flex-col xl:flex-row 2xl:flex-row gap-y-10 lg:gap-x-5 xl:gap-x-20 2xl:gap-x-40 lg:items-center xl:items-start 2xl:items-start'>
               <div className="flex flex-col gap-y-10 md:w-full lg:w-[80%] xl:w-[600px] 2xl:w-[750px]">
               <div className='w-full md:h-[500px] lg:h-[500px] xl:h-[500px] 2xl:h-[500px] overflow-hidden object-cover border rounded-lg group'>

@@ -8,14 +8,14 @@ import Navbar from '../components/Navbar';
 
 const UserProfle = () => {
 
-  const [tab, setTab] = useState("Dashbord");
+  const [tab, setTab] = useState("Cart");
   let content;
   switch (tab) {
-    case "Dashbord":
-      content = <Dashbord />;
-      break;
     case "Cart":
       content = <Cart />;
+      break;
+      case "Dashbord":
+        content = <Dashbord />;
       break;
     case "Place Order":
       content = <PlaceOrder />;
@@ -33,8 +33,8 @@ const UserProfle = () => {
         <div className='min-h-screen hidden md:w-[40%] lg:w-[30%] 2xl:w-[25%] bg-black md:flex flex-col py-10 text-white font-Syne'>
             <h1 className='text-center text-4xl uppercase font-bold'>KT Computech</h1>
             <div className='flex flex-col gap-y-20 mt-30 uppercase text-3xl'>
-                <h4 onClick={()=>setTab("Dashbord")} className='w-full text-center cursor-pointer'>Dashbord</h4>
                 <h4 onClick={()=>setTab("Cart")} className='w-full text-center cursor-pointer'>Cart</h4>
+                <h4 onClick={()=>setTab("Dashbord")} className='w-full text-center cursor-pointer'>Dashbord</h4>
                 <h4 onClick={()=>setTab("Place Order")} className='w-full text-center cursor-pointer'>Place Order</h4>
                 <h4 onClick={()=>setTab("Settings")} className='w-full text-center cursor-pointer'>Settings</h4>
                 <Link to="/" className='w-full text-center cursor-pointer'>Home</Link>
