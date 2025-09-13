@@ -29,7 +29,7 @@ const LandingPage = () => {
       {/* Centered Swiper */}
       <div className="absolute w-[90%] h-[40vh] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
         <Swiper
-          slidesPerView={3}
+          slidesPerView={1}
           spaceBetween={100}
           pagination={{ clickable: true }}
           modules={[Pagination,Autoplay]}
@@ -37,6 +37,14 @@ const LandingPage = () => {
             delay: 2500,
             disableOnInteraction: false,
              pauseOnMouseEnter: false,
+          }}
+           breakpoints={{
+            640: { 
+              slidesPerView: 1,
+            },
+            1024: {
+              slidesPerView: 3,
+            },
           }}
           loop={true} 
           className="w-full h-full"
@@ -48,9 +56,9 @@ const LandingPage = () => {
               <div className='w-full h-full'>
               <img className='w-full h-full object-cover contrast-125 brightness-20 transition-all duration-200 group-hover:scale-105 group-hover:brightness-30' src={items.productPic} alt="" />
               </div>
-              <div className='absolute w-full h-full flex flex-col items-center text-white text-5xl font-Syne font-semibold justify-center gap-y-10 top-0 left-0 backdrop-blur-[3px]'>
-                <h1 className='drop-shadow-white drop-shadow-xs text-center px-4'>{items.name}</h1>
-                 <p className='text-5xl font-ZenRegular'><del className='text-zinc-300'>₹{items.price}/-</del> ₹{calculateDiscountedPrice(items.price,items.off)}/- <sup className='text-green-600'>{items.off}%Off</sup></p>
+              <div className='absolute w-full h-full flex flex-col items-center text-white font-Syne font-semibold justify-center gap-y-10 top-0 left-0 backdrop-blur-[3px]'>
+                <h1 className='drop-shadow-white drop-shadow-xs text-center text-3xl 2xl:text-5xl px-4'>{items.name}</h1>
+                 <p className='text-2xl 2xl:text-5xl font-ZenRegular'><del className='text-zinc-300'>₹{items.price}/-</del> ₹{calculateDiscountedPrice(items.price,items.off)}/- <sup className='text-green-600'>{items.off}%Off</sup></p>
               </div>
             </Link>
             </SwiperSlide>
