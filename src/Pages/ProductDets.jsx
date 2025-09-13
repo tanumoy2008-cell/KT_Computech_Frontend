@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import axios from "../config/axios"
 import { FaLongArrowAltLeft } from "react-icons/fa";
@@ -20,10 +20,33 @@ const ProductDets = () => {
       fetchData()
     },[])
     const newPrice = calculateDiscountedPrice(Product.price,Product.off);
-
+    
     const handelProductCart = (product)=>{
       dispatch(addProductToCart(product));
     }
+    
+    const [pinCode, setPinCode] = useState("");
+    const [pinMessage, setPinMessage] = useState("");
+    const [pinColor, setPinColor] = useState("");
+    const cheackPinCode = async () => {
+      if (!pinCode || pinCode.toString().length !== 6) {
+        setPinMessage("Enter a valid 6-digit PinCode.");
+        setPinColor("text-red-500");
+        return;
+      }
+
+      try {
+        const result = await axios.post("/api/pinCode/check-avaliable-pincode", { pinCode });
+        setPinMessage(result.data.message);
+        setPinColor(result.data.message.includes("Not") ? "text-red-500 text-lg font-ZenMeduim font-semibold" : "text-green-700 text-lg font-ZenMeduim font-semibold");
+      } catch (error) {
+        setPinMessage("Server error, please try again.");
+        setPinColor("text-red-500 text-lg font-ZenMeduim font-semibold");
+      }
+    };
+
+
+
 
   return (
     <div id='productDets' className='w-full min-h-screen'>
@@ -79,9 +102,12 @@ const ProductDets = () => {
               </div>
               <div className='flex flex-col gap-y-2'>
               <h1 className='text-2xl font-Syne font-semibold'>Check Delivery Details</h1>
-              <div className='flex gap-x-5 font-Syne'>
-                <input type="number" placeholder='Enter your PinCode. . . ' className='border outline-none font-ZenMeduim tracking-wider font-semibold w-[80%] py-2 text-xl px-2 rounded' />
-                <button className='bg-blue-600 px-6 py-2 text-white rounded'>Check</button>
+              <div className='flex gap-x-5 font-Syne items-end'>
+                <div className='w-[80%]'>
+                  <small className={pinColor}>{pinMessage}</small>
+                <input onChange={(e)=>setPinCode(e.target.value)} value={pinCode} type="number" placeholder='Enter your PinCode. . . ' className='border outline-none font-ZenMeduim tracking-wider font-semibold w-full py-2 text-xl px-2 rounded' />
+                </div>
+                <button type='button' onClick={cheackPinCode} className='bg-blue-600 px-6 py-3 h-fit text-white rounded'>Check</button>
               </div>
               </div>
               <div className="flex flex-col gap-y-5 md:flex-row w-full justify-center gap-x-4 text-white">

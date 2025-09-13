@@ -3,7 +3,7 @@ const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && i
 
 const axiosInstance = axios.create({
 	baseURL: API_BASE_URL,
-	timeout: 15000,
+	timeout: 55000,
 	withCredentials: true,
 	headers: {
 		'Content-Type': 'application/json',
