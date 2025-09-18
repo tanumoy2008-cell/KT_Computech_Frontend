@@ -97,7 +97,7 @@ const Products = () => {
             </select>
         </div>
         <div className='w-full h-[85vh] py-4 px-4 rounded-md bg-white'>
-            <div className='flex w-full bg-white font-bold gap-x-2 text-center mb-2 font-Syne text-lg'>
+            <div className='flex w-full bg-white font-bold gap-x-2 text-center mb-2 font-ArvoBold text-lg'>
                 <h1 className='w-[40%] border-1 py-2 rounded bg-sky-200'>Name</h1>
                 <h1 className='w-[40%] border-1 py-2 rounded bg-yellow-200'>Company</h1>
                 <h1 className='w-[40%] border-1 py-2 rounded bg-orange-200'>Category</h1>

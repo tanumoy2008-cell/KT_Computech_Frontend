@@ -189,7 +189,7 @@ const ProductEditPage = () => {
             />
                 
                 <div className='h-full w-[50%]'>
-                    <h1 className='text-center font-Syne text-4xl mb-2'>Product Detais</h1>
+                    <h1 className='text-center font-ArvoBold text-4xl mb-2'>Product Detais</h1>
                     <form onSubmit={handleSubmit(formSubmit)} className='flex flex-col gap-y-10'>
                         <div>
                         {errors.name && <p className='font-mono text-red-500'>{errors.name.message}</p>}

@@ -16,7 +16,7 @@ const UserAuth = () => {
         let currentUser = user;
         if (!user) {
           const res = await axios.get("/api/user/profile");
-          currentUser = res.data.hiddenDetsUser;
+          currentUser = res.data.metaData;
           dispatch(authData(currentUser));
         }
         setReady(true);

@@ -43,7 +43,7 @@ const Settings = () => {
                     <input ref={imageTaker} onChange={handleImageSelect} type="file" accept="image/*" className='hidden'/>
           </div>
           <div className='w-1/2 py-10 flex flex-col itmes-end gap-y-5'>
-          <h1 className='font-Syne text-4xl text-center'>Edit Details</h1>
+          <h1 className='font-ArvoBold text-4xl text-center'>Edit Details</h1>
           <input type="text" placeholder='Company Name. . .' className='w-full outline-none px-4 py-4 rounded border-zinc-500 border-2'/>
           <input type="email" placeholder='Company Email. . .' className='w-full outline-none px-4 py-4 rounded border-zinc-500 border-2'/>
           <div className='w-full flex items-center pr-5 rounded border-zinc-500 border-2'>

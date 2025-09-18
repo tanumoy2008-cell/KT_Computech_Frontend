@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import Dashbord from '../components/Dashbord';
+import Dashboard from '../components/Dashboard';
 import Cart from '../components/Cart';
 import PlaceOrder from '../components/PlaceOrder';
 import UserSettings from '../components/UserSettings';
@@ -15,7 +15,7 @@ const UserProfle = () => {
       content = <Cart />;
       break;
       case "Dashbord":
-        content = <Dashbord />;
+        content = <Dashboard />;
       break;
     case "Place Order":
       content = <PlaceOrder />;
@@ -24,17 +24,17 @@ const UserProfle = () => {
       content = <UserSettings />;
       break;
     default:
-      content = <Dashbord />;
+      content = <Dashboard />;
       break;
   }
 
   return (
     <div className='w-full min-h-screen flex'>
-        <div className='min-h-screen hidden md:w-[40%] lg:w-[30%] 2xl:w-[25%] bg-black md:flex flex-col py-10 text-white font-Syne'>
-            <h1 className='text-center text-4xl uppercase font-bold'>KT Computech</h1>
-            <div className='flex flex-col gap-y-20 mt-30 uppercase text-3xl'>
+        <div className='min-h-screen hidden md:w-[40%] lg:w-[30%] 2xl:w-[25%] bg-black md:flex flex-col py-10 tracking-wider text-white font-ArvoRegular'>
+            <h1 className='text-center xl:text-4xl 2xl:text-4xl uppercase font-Geist font-black'>KT Computech</h1>
+            <div className='flex flex-col xl:gap-y-10 2xl:gap-y-20 mt-10 2xl:mt-20 uppercase text-3xl'>
                 <h4 onClick={()=>setTab("Cart")} className='w-full text-center cursor-pointer'>Cart</h4>
-                <h4 onClick={()=>setTab("Dashbord")} className='w-full text-center cursor-pointer'>Dashbord</h4>
+                <h4 onClick={()=>setTab("Dashbord")} className='w-full text-center cursor-pointer'>Dashboard</h4>
                 <h4 onClick={()=>setTab("Place Order")} className='w-full text-center cursor-pointer'>Place Order</h4>
                 <h4 onClick={()=>setTab("Settings")} className='w-full text-center cursor-pointer'>Settings</h4>
                 <Link to="/" className='w-full text-center cursor-pointer'>Home</Link>

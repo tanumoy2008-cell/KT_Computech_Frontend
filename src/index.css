@@ -1,36 +1,31 @@
 @import "tailwindcss";
 @font-face {
-    font-family: "Jura";
-    src: url(assets/Jura-VariableFont_wght.ttf);
+    font-family: "ArvoBold";
+    src: url(assets/Arvo-Bold.ttf);
 }
 @font-face {
-    font-family: "Roboto";
-    src: url(assets/RobotoFlex-VariableFont_GRAD\,XOPQ\,XTRA\,YOPQ\,YTAS\,YTDE\,YTFI\,YTLC\,YTUC\,opsz\,slnt\,wdth\,wght.ttf);
+    font-family: "ArvoBoldItalic";
+    src: url(assets/Arvo-BoldItalic.ttf);
 }
 @font-face {
-    font-family: "Syne";
-    src: url(assets/Syne-VariableFont_wght.ttf);
+    font-family: "ArvoItalic";
+    src: url(assets/Arvo-Italic.ttf);
 }
 @font-face {
-    font-family: "ZenBold";
-    src: url(assets/ZenKakuGothicNew-Bold.ttf);
+    font-family: "ArvoRegular";
+    src: url(assets/Arvo-Regular.ttf);
 }
 @font-face {
-    font-family: "ZenRegular";
-    src: url(assets/ZenKakuGothicNew-Regular.ttf);
-}
-@font-face {
-    font-family: "ZenMeduim";
-    src: url(assets/ZenKakuGothicNew-Medium.ttf);
+    font-family: "Geist";
+    src: url(assets/Geist-VariableFont_wght.ttf);
 }
 
 @theme{
-    --font-Jura: "Jura";
-    --font-Roboto: "Roboto";
-    --font-Syne: "Syne";
-    --font-ZenBold: "ZenBold";
-    --font-ZenRegular: "ZenRegular";
-    --font-ZenMeduim: "ZenMeduim";
+    --font-ArvoBold: "ArvoBold";
+    --font-ArvoBoldItalic: "ArvoBoldItalic";
+    --font-ArvoItalic: "ArvoItalic";
+    --font-ArvoRegular: "ArvoRegular";
+    --font-Geist: "Geist";
     --animate-wiggle: wiggle 1.5s ease-in-out infinite;
   @keyframes wiggle {
     0%,

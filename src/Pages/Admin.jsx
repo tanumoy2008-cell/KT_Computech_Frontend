@@ -23,7 +23,7 @@ const Admin = () => {
     }
   return (
     <div className='relative w-full min-h-screen flex'>
-        <div className='h-screen w-96 flex flex-col gap-y-20 items-center justify-center font-Syne text-4xl'>
+        <div className='h-screen w-96 flex flex-col gap-y-20 items-center justify-center font-ArvoBold text-4xl'>
             <h1 onClick={()=>setcontextViewer("home")} className='cursor-pointer font-Jura font-black mb-10 italic text-5xl w-full text-center'>KT Computech</h1>
             <h1 onClick={()=>navigate("/")} className='cursor-pointer w-full text-center'>Home</h1>
             <h1 onClick={()=>setcontextViewer("home")} className='cursor-pointer w-full text-center'>Product Add</h1>

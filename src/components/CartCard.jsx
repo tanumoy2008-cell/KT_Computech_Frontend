@@ -28,7 +28,7 @@ const CartCard = ({ data }) => {
           alt={data.name}
         />
       </div>
-      <h1 className='text-2xl leading-5 font-Syne'>{data.name}</h1>
+      <h1 className='text-2xl leading-5 font-ArvoBold'>{data.name}</h1>
       <div className='flex w-full rounded-md overflow-hidden border'>
         <button
           onClick={() => decreaseQuantity(data._id)}
@@ -38,7 +38,7 @@ const CartCard = ({ data }) => {
         </button>
         <input
           readOnly
-          className='bg-white w-[60%] px-4 py-2 text-xl font-ZenBold font-semibold text-center outline-none'
+          className='bg-white w-[60%] px-4 py-2 text-xl font-Geist font-semibold text-center outline-none'
           value={data.quantity}
           type='number'
         />
@@ -52,7 +52,7 @@ const CartCard = ({ data }) => {
       </div>
       <button
         onClick={() => cancelItem(data._id)}
-        className='bg-black text-white py-3 font-Syne text-xl rounded-md'
+        className='bg-black text-white py-3 font-ArvoBold text-xl rounded-md'
       >
         Cancel
       </button>

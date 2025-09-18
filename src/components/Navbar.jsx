@@ -21,7 +21,7 @@ const Navbar = () => {
     <div className='w-full fixed bg-black text-amber-400 top-0 z-[999]'>
         <div className='w-full py-2 px-4 flex lg:hidden xl:hidden text-black 2xl:hidden items-center justify-between'>
             <div className={`absolute flex flex-col justify-center gap-y-10 top-0 transition-all duration-500 shadow-2xl shadow-black ${sidemenu ? "left-0" : "left-[105%]"} text-center text-4xl bg-white w-full h-screen z-[99]`}>
-            <button onClick={()=>setsidemenu(false)} className='absolute top-5 left-5 font-Syne uppercase text-xl bg-black text-amber-400 px-10 py-2 rounded outline-none border-none'>Back</button>
+            <button onClick={()=>setsidemenu(false)} className='absolute top-5 left-5 font-ArvoBold uppercase text-xl bg-black text-amber-400 px-10 py-2 rounded outline-none border-none'>Back</button>
             <Link to="/product/school" className='cursor-pointer py-2 px-2 hover:bg-zinc-300'>School Stationery</Link>
             <Link to="/product/office"  className='cursor-pointer py-2 px-2 hover:bg-zinc-300'>Office Stationery</Link>
             <Link to="/product/art" className='cursor-pointer py-2 px-2 hover:bg-zinc-300'>Art & Carft Items</Link>
@@ -33,7 +33,7 @@ const Navbar = () => {
             <div className='w-12 h-12 rounded-full overflow-hidden border-2 border-amber-400'>
                 <img className='w-full h-full object-cover shadow-2xl' src="/Logo.webp" alt="logo" />
             </div>
-                <h1 className='text-xl uppercase font-Syne font-semibold text-amber-400'>KT Computech</h1>
+                <h1 className='text-xl uppercase font-ArvoBold font-semibold text-amber-400'>KT Computech</h1>
             </div>
             <div>
                 <IoMdMenu onClick={()=>setMenuShow(true)} className='text-4xl text-amber-400' />
@@ -54,11 +54,11 @@ const Navbar = () => {
         <div className='w-20 h-20 overflow-hidden rounded-full border-2 border-amber-400'>
             <img className='w-full h-full object-cover shadow-2xl' src="/Logo.webp" alt="" />
         </div>
-        <h1 className='text-4xl uppercase font-Syne font-semibold text-amber-400'>KT Computech</h1>
+        <h1 className='text-3xl uppercase font-ArvoBold font-semibold text-amber-400'>KT Computech</h1>
         </div>
-        <div className='flex font-ZenRegular text-center items-center md:text-xl xl:text-2xl'>
-            <Link to="/" className='border-r w-50 cursor-pointer'>Home</Link>
-            <div className='border-r w-50 cursor-pointer relative group'>
+        <div className='flex font-Geist text-center items-center md:text-xl xl:text-xl'>
+            <Link to="/" className='border-r w-30 2xl:w-50 cursor-pointer'>Home</Link>
+            <div className='border-r w-30 2xl:w-50 cursor-pointer relative group'>
             <Link to={`/product/all`}>Product</Link>
             <div className='absolute top-[100%] left-0 bg-white text-black whitespace-nowrap hidden group-hover:flex flex-col'>
             <Link to="/product/school" className='cursor-pointer border-1 border-b-0 py-2 px-20 hover:bg-zinc-300'>School Stationery</Link>
@@ -68,8 +68,8 @@ const Navbar = () => {
             <Link to="/product/house"  className='cursor-pointer border-1 py-2 px-20 hover:bg-zinc-300'>House Hold Products</Link>
             </div>
             </div>
-            <h1 className='border-r w-50 cursor-pointer'>About</h1>
-            <h1 className='cursor-pointer w-50'>Contact Us</h1>
+            <h1 className='border-r w-30 2xl:w-50 cursor-pointer'>About</h1>
+            <h1 className='cursor-pointer w-30 2xl:w-50'>Contact Us</h1>
             <div className='h-full flex ml-5 items-center gap-x-5'>
                 <abbr title="Profile">
                 <FaRegUserCircle onClick={()=>navigate("/user")} className='cursor-pointer' />
@@ -106,10 +106,10 @@ const Navbar = () => {
                     </div>
                     ))}
                     </div>
-                <button onClick={()=>navigate("/user")} className='w-full py-2 cursor-pointer bg-black rounded-md font-Syne'>Buy Now</button>
+                <button onClick={()=>navigate("/user")} className='w-full py-2 cursor-pointer bg-black rounded-md font-ArvoBold'>Buy Now</button>
                 </div> : (
                     <div className="absolute right-0 py-2 px-4 text-black whitespace-nowrap hidden group-hover:flex flex-col gap-y-2 bg-white shadow-2xl shadow-black border-1 border-black/30">
-                        <h1 className='text-lg font-Syne font-semibold lg:text-2xl'>No Product added in cart</h1>
+                        <h1 className='text-lg font-ArvoBold font-semibold lg:text-2xl'>No Product added in cart</h1>
                     </div>
                 )}
                 </div>

@@ -13,10 +13,10 @@ const Cart = () => {
   return (
     <div className='flex flex-col h-screen w-full px-10 py-5'>
       <div className='flex w-full justify-between items-center'>
-      <h1 className='font-Syne text-2xl lg:text-6xl font-semibold'>Your Cart</h1>
+      <h1 className='font-ArvoBold text-2xl lg:text-6xl font-semibold'>Your Cart</h1>
       <div className='flex gap-x-4 items-center'>
-      <button onClick={()=>navigate("/product/all")} className='bg-black text-white cursor-pointer px-10 py-2 font-ZenMeduim text-lg rounded-md'>Add More Product</button>
-      <button className='bg-black text-white px-10 py-2 font-ZenMeduim text-lg cursor-pointer rounded-md'>Buy Now</button>
+      <button onClick={()=>navigate("/product/all")} className='bg-black text-white cursor-pointer px-10 py-2 font-Geist text-lg rounded-md'>Add More Product</button>
+      <button className='bg-black text-white px-10 py-2 font-Geist text-lg cursor-pointer rounded-md'>Buy Now</button>
       </div>
       </div>
       <div className='w-full mt-5 h-full overflow-y-scroll'>

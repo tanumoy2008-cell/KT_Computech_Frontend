@@ -38,10 +38,10 @@ const ProductDets = () => {
       try {
         const result = await axios.post("/api/pinCode/check-avaliable-pincode", { pinCode });
         setPinMessage(result.data.message);
-        setPinColor(result.data.message.includes("Not") ? "text-red-500 text-lg font-ZenMeduim font-semibold" : "text-green-700 text-lg font-ZenMeduim font-semibold");
+        setPinColor(result.data.message.includes("Not") ? "text-red-500 text-lg font-Geist font-semibold" : "text-green-700 text-lg font-Geist font-semibold");
       } catch (error) {
         setPinMessage("Server error, please try again.");
-        setPinColor("text-red-500 text-lg font-ZenMeduim font-semibold");
+        setPinColor("text-red-500 text-lg font-Geist font-semibold");
       }
     };
 
@@ -60,12 +60,12 @@ const ProductDets = () => {
                 <img className='w-full h-full group-hover:scale-110 transition-scale animate-pulse object-cover duration-200' src="../imgBack.jpg" alt="no image" />
               </div>
               <div className="bg-amber-300 py-3 px-4 w-full rounded-lg border-amber-900 border-l-6 border-2">
-                <h1 className="font-Syne font-semibold uppercase text-2xl">Note:</h1>
-                <p className="font-ZenMeduim text-xl">We always try our best to deliver the product in the same color as shown in the images. However, due to availability, sometimes the color may vary. Rest assured, the product quality and features will remain the same. Thank you for your kind understanding. 🙏</p>
+                <h1 className="font-ArvoBold font-semibold uppercase text-2xl">Note:</h1>
+                <p className="font-Geist text-xl">We always try our best to deliver the product in the same color as shown in the images. However, due to availability, sometimes the color may vary. Rest assured, the product quality and features will remain the same. Thank you for your kind understanding. 🙏</p>
               </div>
               </div>
               <div className='flex flex-col items-start gap-y-5 w-full xl:w-[40%] md:gap-y-10 lg:gap-y-20 xl:gap-y-15 2xl:gap-y-20'>
-              <h1 className='text-4xl sm:text-6xl md:text-7xl lg:text-5xl xl:text-5xl 2xl:text-7xl font-Syne opacity-30 font-semibold animate-pulse'>Product Name</h1>
+              <h1 className='text-4xl sm:text-6xl md:text-7xl lg:text-5xl xl:text-5xl 2xl:text-7xl font-ArvoBold opacity-30 font-semibold animate-pulse'>Product Name</h1>
               <div className="flex w-full gap-y-10 flex-col-reverse xl:flex-col" >
               <div className='flex flex-col gap-y-4'>
               {Array.from({length: 4}).map((_,i)=>(
@@ -83,16 +83,16 @@ const ProductDets = () => {
             <div className='w-full pt-40 pb-10 px-5 md:px-25 lg:px-20 2xl:px-40'>
             <div className='flex flex-col items-start md:flex-col lg:flex-col xl:flex-row 2xl:flex-row gap-y-10 lg:gap-x-5 xl:gap-x-20 2xl:gap-x-40 lg:items-center xl:items-start 2xl:items-start'>
               <div className="flex flex-col gap-y-10 md:w-full lg:w-[80%] xl:w-[600px] 2xl:w-[750px]">
-              <div className='w-full md:h-[500px] lg:h-[500px] xl:h-[500px] 2xl:h-[500px] overflow-hidden object-cover border rounded-lg group'>
+              <div className='w-full md:h-[500px] lg:h-[500px] xl:h-[400px] 2xl:h-[500px] overflow-hidden object-cover border rounded-lg group'>
                 <img className='w-full h-full group-hover:scale-110 contrast-150 brightness-80 transition-scale duration-200' src={Product.productPic} alt={Product.name} />
               </div>
               <div className="bg-amber-300 py-3 px-4 w-full rounded-lg border-amber-900 border-l-6 border-2">
-                <h1 className="font-Syne font-semibold uppercase text-2xl">Note:</h1>
-                <p className="font-ZenMeduim text-xl">We always try our best to deliver the product in the same color as shown in the images. However, due to availability, sometimes the color may vary. Rest assured, the product quality and features will remain the same. Thank you for your kind understanding. 🙏</p>
+                <h1 className="font-ArvoBold font-semibold uppercase text-2xl">Note:</h1>
+                <p className="font-Geist text-xl">We always try our best to deliver the product in the same color as shown in the images. However, due to availability, sometimes the color may vary. Rest assured, the product quality and features will remain the same. Thank you for your kind understanding. 🙏</p>
               </div>
               </div>
-              <div className='flex flex-col items-start gap-y-5 w-full xl:w-[40%] md:gap-y-10 lg:gap-y-20 xl:gap-y-15 2xl:gap-y-20'>
-              <h1 className='text-4xl sm:text-6xl md:text-7xl lg:text-5xl xl:text-5xl 2xl:text-7xl font-Syne font-semibold'>{Product.name}</h1>
+              <div className='flex flex-col items-start gap-y-5 w-full xl:w-[40%] md:gap-y-10 lg:gap-y-20 xl:gap-y-5 2xl:gap-y-20'>
+              <h1 className='text-4xl sm:text-6xl md:text-7xl lg:text-5xl xl:text-4xl 2xl:text-7xl font-ArvoBold font-semibold'>{Product.name}</h1>
               <div className="flex w-full gap-y-10 flex-col-reverse xl:flex-col" >
                 <p className='text-4xl'>{Product.off !== 0 && <del className='text-zinc-500'>₹{Product.price}/-</del>} ₹{newPrice}/- {Product.off !== 0 && <sup className='text-green-600'>{Product.off}%Off</sup>}</p>
               <div className='flex flex-col gap-y-4'>
@@ -101,21 +101,21 @@ const ProductDets = () => {
               ))}
               </div>
               <div className='flex flex-col gap-y-2'>
-              <h1 className='text-2xl font-Syne font-semibold'>Check Delivery Details</h1>
-              <div className='flex gap-x-5 font-Syne items-end'>
+              <h1 className='text-2xl font-ArvoBold font-semibold'>Check Delivery Details</h1>
+              <div className='flex gap-x-5 font-ArvoBold items-end'>
                 <div className='w-[80%]'>
                   <small className={pinColor}>{pinMessage}</small>
-                <input onChange={(e)=>setPinCode(e.target.value)} value={pinCode} type="number" placeholder='Enter your PinCode. . . ' className='border outline-none font-ZenMeduim tracking-wider font-semibold w-full py-2 text-xl px-2 rounded' />
+                <input onChange={(e)=>setPinCode(e.target.value)} value={pinCode} type="number" placeholder='Enter your PinCode. . . ' className='border outline-none font-Geist tracking-wider font-semibold w-full py-2 text-xl px-2 rounded' />
                 </div>
                 <button type='button' onClick={cheackPinCode} className='bg-blue-600 px-6 py-3 h-fit text-white rounded'>Check</button>
               </div>
               </div>
-              <div className="flex flex-col gap-y-5 md:flex-row w-full justify-center gap-x-4 text-white">
-                <button className="bg-black px-20 py-4 w-full rounded-full text-xl">Buy Now</button>
+              <div className="flex flex-col gap-y-5 w-full justify-center text-white">
+                <button className="bg-black px-20 py-2 w-full rounded-full text-xl">Buy Now</button>
                 <button onClick={()=> {
                   handelProductCart(Product)
                   toast.success("Product Added to Cart")
-                  }} className="bg-black px-20 py-4 w-full rounded-full whitespace-nowrap text-xl">Add to Cart</button>
+                  }} className="bg-black px-20 py-2 w-full rounded-full whitespace-nowrap text-xl">Add to Cart</button>
               </div>
               </div>
               </div>

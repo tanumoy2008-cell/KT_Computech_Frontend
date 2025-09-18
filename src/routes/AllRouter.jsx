@@ -10,6 +10,8 @@ import ProductEditPage from '../Pages/ProductEditPage'
 import UserProfle from '../Pages/UserProfle'
 import UserLogin from '../Pages/UserLogin'
 import UserRegister from '../Pages/UserRegister'
+import OtpValidationPage from '../Pages/OtpValidationPage'
+import UserAuth from '../auth/UserAuth'
 
 const AllRouter = () => {
   return (
@@ -20,7 +22,10 @@ const AllRouter = () => {
         <Route path="/admin/login" element={<AdminLogin />}/>
         <Route path="/user/login" element={<UserLogin />}/>
         <Route path="/user/register" element={<UserRegister />}/>
+        <Route path="/user/otp" element={<OtpValidationPage />}/>
+        <Route element={<UserAuth />} >
         <Route path="/user" element={<UserProfle />}/>
+        </Route>
 
         <Route element={<AdminAuth />}>
         <Route path="/admin" element={<Admin />}/>

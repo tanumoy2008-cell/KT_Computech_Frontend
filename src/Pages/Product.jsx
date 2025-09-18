@@ -49,7 +49,7 @@ const Product = () => {
   return (
     <div className='w-full h-screen pt-40 xl:pt-52'>
         <Navbar />
-        <div className='flex flex-col fixed z-20 top-16 w-full gap-y-6 px-4 pt-8 pb-4 items-center font-Syne text-white bg-blue-950'>
+        <div className='flex flex-col fixed z-20 top-16 w-full gap-y-6 px-4 pt-8 pb-4 items-center font-ArvoBold text-white bg-blue-950'>
             <input value={query}
           onChange={(e) => setQuery(e.target.value)} type="text" placeholder='search product here. . .' className='w-11/12 text-lg placeholder:text-zinc-700 py-2 rounded outline-none text-black px-4 bg-white' />
         <div className='w-full hidden xl:flex justify-around items-center text-xl'>

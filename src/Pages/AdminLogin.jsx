@@ -26,7 +26,7 @@ const AdminLogin = () => {
     <div className='w-full h-screen bg-zinc-300 flex justify-center items-center'>
         <div className='bg-white px-10 py-15 rounded-lg w-[80%] sm:w-[70%] md:w-[60%] lg:w-[50%] xl:w-[40%] 2xl:w-[30%] border-1 border-zinc-500'>
             <h1 className='font-Jura text-4xl font-bold mb-2 text-center'>Admin Login</h1>
-            <p className='text-center font-Syne text-lg mb-5'>Wellcome Admin</p>
+            <p className='text-center font-ArvoBold text-lg mb-5'>Wellcome Admin</p>
             <form onSubmit={handleSubmit(adminLogin)} className='flex flex-col gap-y-5'>
                 <div>
                 {errors.email && <p className='font-mono text-red-500'>{errors.email.message}</p>}
@@ -51,11 +51,11 @@ const AdminLogin = () => {
                     {passShow ? <FaRegEye onClick={()=>setpassShow(false)} className='text-2xl cursor-pointer text-green-500' /> : <FaRegEyeSlash onClick={()=>setpassShow(true)} className='text-2xl cursor-pointer text-red-500' />}
                 </div>
                 </div>
-                <button type='submit' className='bg-blue-500 py-3 font-Syne rounded text-2xl mt-4 text-white'>Login</button>
+                <button type='submit' className='bg-blue-500 py-3 font-ArvoBold rounded text-2xl mt-4 text-white'>Login</button>
             </form>
             <div className='w-full py-2 mt-6 flex justify-end'>
                 <abbr title="Forget password" className='no-underline'>
-                <h1 className='w-fit font-Syne text-xl text-blue-700 cursor-pointer transition-colors duration-200 hover:text-sky-600'>Forget Password?</h1>
+                <h1 className='w-fit font-ArvoBold text-xl text-blue-700 cursor-pointer transition-colors duration-200 hover:text-sky-600'>Forget Password?</h1>
                 </abbr>
             </div>
         </div>

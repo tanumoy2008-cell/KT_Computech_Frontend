@@ -1,18 +1,21 @@
 import React, { useState } from 'react'
 import { GoPencil } from "react-icons/go";
 import { useForm } from 'react-hook-form';
-const Dashbord = () => {
+import { useSelector } from "react-redux"
+const Dashboard = () => {
+    const user = useSelector(state=>state.UserReducer);
+
     const [editMode, setEditMode] = useState(false);
 
     const {register, handleSubmit, reset, formState:{errors}} = useForm({
         defaultValues: {
-            firstName: "Suvam",
-            lastName: "Chakraborti",
-            phone: "9876543210",
-            email: "abc@gmail.com",
-            Altphone: "9876543210",
-            pin: "700135",
-            address: "123, ABC Street, XYZ City, Country"
+            firstName: user.fullName.firstName,
+            lastName: user.fullName.lastName,
+            phone: user.phoneNumber,
+            email: user.email,
+            Altphone: user.alternateNumber,
+            pin: user.pinCode,
+            address: user.address
         }
     })
     const onSubmit = (data) => {
@@ -23,16 +26,16 @@ const Dashbord = () => {
   return (
     <div className='w-full h-full flex flex-col gap-y-5 px-10 pt-15 lg:pt-5'>
         <div className='flex items-center justify-between'>
-        <h1 className='font-Syne text-2xl lg:text-6xl font-semibold'>Dashboard</h1>
+        <h1 className='font-ArvoBold text-2xl lg:text-6xl font-semibold'>Dashboard</h1>
         <div className='flex flex-col gap-y-2 items-center'>
         <button onClick={()=>setEditMode(true)} className='flex gap-x-2 items-center bg-sky-500 px-4 py-2 rounded text-white'><GoPencil/><span>Edit Profile</span></button>
         {editMode && <small className='text-red-500 font-semibold text-lg'>Edit Mode On</small>}
         </div>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} >
-            <div className='flex gap-x-10 gap-y-5 font-ZenMeduim flex-col  lg:flex-row'>
+            <div className='flex gap-x-10 gap-y-5 font-Geist flex-col  lg:flex-row'>
             <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
-            <legend className='px-2 font-ZenRegular font-semibold leading-2'>First Name</legend>
+            <legend className='px-2 font-Geist font-semibold leading-2'>First Name</legend>
             {errors.firstName && <p className='font-mono text-red-500'>{errors.firstName.message}</p>}
             <input type="text" {...register("firstName",{
                 required: "First Name is required",
@@ -47,7 +50,7 @@ const Dashbord = () => {
             })} readOnly={!editMode} placeholder='FirstName Here. . . '  className='w-full text-lg py-2 outline-none'/>
             </fieldset>
             <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
-                <legend className='px-2 font-ZenRegular font-semibold leading-2'>Last Name</legend>
+                <legend className='px-2 font-Geist font-semibold leading-2'>Last Name</legend>
             {errors.lastName && <p className='font-mono text-red-500'>{errors.lastName.message}</p>}
             <input type="text" {...register("lastName",{
                 required: "Last Name is required",
@@ -62,9 +65,9 @@ const Dashbord = () => {
             })} readOnly={!editMode} placeholder='LastName Here. . . ' className='w-full text-lg py-2 outline-none'/>
             </fieldset>
             </div>
-            <div className='flex gap-x-10 gap-y-5 font-ZenMeduim flex-col lg:flex-row mt-5'>
+            <div className='flex gap-x-10 gap-y-5 font-Geist flex-col lg:flex-row mt-5'>
             <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
-                <legend className='px-2 font-ZenRegular font-semibold leading-2'>Number</legend>
+                <legend className='px-2 font-Geist font-semibold leading-2'>Number</legend>
             {errors.phone && <p className='font-mono text-red-500'>{errors.phone.message}</p>}
             <input type="number"
              {...register("phone",{
@@ -83,7 +86,7 @@ const Dashbord = () => {
                 })} readOnly={!editMode} placeholder='Phone Number Here. . . ' className='w-full text-lg  py-2 outline-none'/>
             </fieldset>
             <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
-                <legend className='px-2 font-ZenRegular font-semibold leading-2'>Email</legend>
+                <legend className='px-2 font-Geist font-semibold leading-2'>Email</legend>
             {errors.email && <p className='font-mono text-red-500'>{errors.email.message}</p>}
             <input type="email"
              {...register("email",{
@@ -95,9 +98,9 @@ const Dashbord = () => {
                 })} readOnly={!editMode} placeholder='Email Here. . . ' className='w-full text-lg py-2 outline-none'/>
             </fieldset>
             </div>
-            <div className='flex gap-x-10 gap-y-5 font-ZenMeduim flex-col lg:flex-row mt-5'>
+            <div className='flex gap-x-10 gap-y-5 font-Geist flex-col lg:flex-row mt-5'>
             <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
-                <legend className='px-2 font-ZenRegular font-semibold leading-2'>Alternate Number</legend>
+                <legend className='px-2 font-Geist font-semibold leading-2'>Alternate Number</legend>
             {errors.Altphone && <p className='font-mono text-red-500'>{errors.Altphone.message}</p>}
             <input type="number"
              {...register("Altphone",{
@@ -115,7 +118,7 @@ const Dashbord = () => {
             })} readOnly={!editMode} placeholder='Alternate Number Here. . . ' className='w-full text-lg py-2 outline-none'/>
             </fieldset>
             <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
-                <legend className='px-2 font-ZenRegular font-semibold leading-2'>Pin Code</legend>
+                <legend className='px-2 font-Geist font-semibold leading-2'>Pin Code</legend>
             {errors.pin && <p className='font-mono text-red-500'>{errors.pin.message}</p>}
             <input type="number"
              {...register("pin",{
@@ -135,7 +138,7 @@ const Dashbord = () => {
             </fieldset>
             </div>
             <fieldset className='w-full border border-black rounded-lg mt-5 px-3 py-2'>
-                <legend className='px-2 font-ZenRegular font-semibold leading-2'>Address</legend>
+                <legend className='px-2 font-Geist font-semibold leading-2'>Address</legend>
             {errors.address && <p className='font-mono text-red-500'>{errors.address.message}</p>}
             <textarea type="text"
              {...register("address",{
@@ -163,4 +166,4 @@ const Dashbord = () => {
   )
 }
 
-export default Dashbord
+export default Dashboard
