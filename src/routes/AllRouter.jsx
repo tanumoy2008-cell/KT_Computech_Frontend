@@ -12,9 +12,15 @@ import UserLogin from '../Pages/UserLogin'
 import UserRegister from '../Pages/UserRegister'
 import OtpValidationPage from '../Pages/OtpValidationPage'
 import UserAuth from '../auth/UserAuth'
+import Dashboard from '../components/Dashboard'
+import Cart from '../components/Cart'
+import PlaceOrder from '../components/PlaceOrder'
+import ScrollTop from '../utils/ScrollTop'
 
 const AllRouter = () => {
   return (
+    <>
+    <ScrollTop />
     <Routes>
         <Route path="/" element={<MainPage />}/>
         <Route path="/product/:Maincategory" element={<Product />}/>
@@ -24,7 +30,11 @@ const AllRouter = () => {
         <Route path="/user/register" element={<UserRegister />}/>
         <Route path="/user/otp" element={<OtpValidationPage />}/>
         <Route element={<UserAuth />} >
-        <Route path="/user" element={<UserProfle />}/>
+        <Route path="/user" element={<UserProfle />}>
+         <Route index element={<Dashboard />} />
+        <Route path="cart" element={<Cart />} />
+        <Route path="order-history" element={<PlaceOrder />} />
+        </Route>
         </Route>
 
         <Route element={<AdminAuth />}>
@@ -32,6 +42,7 @@ const AllRouter = () => {
         <Route path="/product-edit/:id" element={<ProductEditPage />}/>
         </Route>
     </Routes>
+    </>
   )
 }
 

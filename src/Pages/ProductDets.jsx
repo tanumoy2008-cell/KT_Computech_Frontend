@@ -1,130 +1,216 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import axios from "../config/axios"
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import axios from "../config/axios";
 import { FaLongArrowAltLeft } from "react-icons/fa";
-import calculateDiscountedPrice from '../utils/PercentageCalculate';
-import {useDispatch} from "react-redux"
-import { addProductToCart } from '../Store/reducers/CartReducer';
-import { toast } from 'react-toastify';
-import Navbar from '../components/Navbar';
+import calculateDiscountedPrice from "../utils/PercentageCalculate";
+import { useDispatch } from "react-redux";
+import { addProductToCart } from "../Store/reducers/CartReducer";
+import { toast } from "react-toastify";
+import Navbar from "../components/Navbar";
+import { motion } from "framer-motion";
+
 const ProductDets = () => {
-  const dispatch = useDispatch()
+  const dispatch = useDispatch();
   const navigate = useNavigate();
-    const {id} = useParams();
-    const [Product, setproduct] = useState({})
-    const fetchData = async ()=>{
-      const res = await axios.get(`/api/product/productDetail/${id}`);
-      setproduct(res.data);
+  const { id } = useParams();
+  const [Product, setProduct] = useState({});
+  const [pinCode, setPinCode] = useState("");
+  const [pinMessage, setPinMessage] = useState("");
+  const [pinColor, setPinColor] = useState("");
+
+  const fetchData = async () => {
+    const res = await axios.get(`/api/product/productDetail/${id}`);
+    setProduct(res.data);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const newPrice = calculateDiscountedPrice(Product.price, Product.off);
+
+  const handelProductCart = (product) => {
+    dispatch(addProductToCart(product));
+  };
+
+  const cheackPinCode = async () => {
+    if (!pinCode || pinCode.toString().length !== 6) {
+      setPinMessage("Enter a valid 6-digit PinCode.");
+      setPinColor("text-red-500");
+      return;
     }
-    useEffect(()=>{
-      fetchData()
-    },[])
-    const newPrice = calculateDiscountedPrice(Product.price,Product.off);
-    
-    const handelProductCart = (product)=>{
-      dispatch(addProductToCart(product));
+
+    try {
+      const result = await axios.post(
+        "/api/pinCode/check-avaliable-pincode",
+        { pinCode }
+      );
+      setPinMessage(result.data.message);
+      setPinColor(
+        result.data.message.includes("Not")
+          ? "text-red-500 text-lg font-Geist font-semibold"
+          : "text-green-700 text-lg font-Geist font-semibold"
+      );
+    } catch (error) {
+      setPinMessage("Server error, please try again.");
+      setPinColor("text-red-500 text-lg font-Geist font-semibold");
     }
-    
-    const [pinCode, setPinCode] = useState("");
-    const [pinMessage, setPinMessage] = useState("");
-    const [pinColor, setPinColor] = useState("");
-    const cheackPinCode = async () => {
-      if (!pinCode || pinCode.toString().length !== 6) {
-        setPinMessage("Enter a valid 6-digit PinCode.");
-        setPinColor("text-red-500");
-        return;
-      }
-
-      try {
-        const result = await axios.post("/api/pinCode/check-avaliable-pincode", { pinCode });
-        setPinMessage(result.data.message);
-        setPinColor(result.data.message.includes("Not") ? "text-red-500 text-lg font-Geist font-semibold" : "text-green-700 text-lg font-Geist font-semibold");
-      } catch (error) {
-        setPinMessage("Server error, please try again.");
-        setPinColor("text-red-500 text-lg font-Geist font-semibold");
-      }
-    };
-
-
-
+  };
 
   return (
-    <div id='productDets' className='w-full min-h-screen'>
+    <div id="productDets" className="w-full min-h-screen bg-gray-50">
       <Navbar />
-      <button onClick={()=>navigate(-1)} className='fixed top-25 left-5 z-40 bg-black text-white rounded px-10 py-2 flex items-center gap-x-4'><FaLongArrowAltLeft />Back</button>
-    {Object.keys(Product).length === 0 ? (        
-        <div className='w-full pt-30 pb-10 px-5  md:px-25 lg:px-10 2xl:px-40'>
-            <div className='flex flex-col items-start md:flex-col lg:flex-row xl:flex-row 2xl:flex-row gap-y-10 lg:gap-x-20 xl:gap-x-20 2xl:gap-x-40 lg:items-start xl:items-start 2xl:items-start'>
-              <div className="flex flex-col gap-y-10 md:w-full lg:w-[80%] xl:w-[600px] 2xl:w-[750px]">
-              <div className='w-full md:h-[500px] lg:h-[500px] xl:h-[500px] 2xl:h-[500px] overflow-hidden border rounded-lg group'>
-                <img className='w-full h-full group-hover:scale-110 transition-scale animate-pulse object-cover duration-200' src="../imgBack.jpg" alt="no image" />
-              </div>
-              <div className="bg-amber-300 py-3 px-4 w-full rounded-lg border-amber-900 border-l-6 border-2">
-                <h1 className="font-ArvoBold font-semibold uppercase text-2xl">Note:</h1>
-                <p className="font-Geist text-xl">We always try our best to deliver the product in the same color as shown in the images. However, due to availability, sometimes the color may vary. Rest assured, the product quality and features will remain the same. Thank you for your kind understanding. 🙏</p>
-              </div>
-              </div>
-              <div className='flex flex-col items-start gap-y-5 w-full xl:w-[40%] md:gap-y-10 lg:gap-y-20 xl:gap-y-15 2xl:gap-y-20'>
-              <h1 className='text-4xl sm:text-6xl md:text-7xl lg:text-5xl xl:text-5xl 2xl:text-7xl font-ArvoBold opacity-30 font-semibold animate-pulse'>Product Name</h1>
-              <div className="flex w-full gap-y-10 flex-col-reverse xl:flex-col" >
-              <div className='flex flex-col gap-y-4'>
-              {Array.from({length: 4}).map((_,i)=>(
-                <p key={i} className='text-xl sm:text-2xl md:text-2xl lg:text-2xl xl:text-2xl 2xl:text-2xl font-Jura font-medium transition-all duration-200 cursor-pointer opacity-30 animate-pulse hover:font-bold'>※ Description</p>
+      <button
+        onClick={() => navigate(-1)}
+        className="fixed top-24 left-5 z-40 bg-black text-white rounded px-6 py-2 flex items-center gap-x-3 shadow-lg hover:scale-105 transition-transform"
+      >
+        <FaLongArrowAltLeft /> Back
+      </button>
+
+      {Object.keys(Product).length === 0 ? (
+        // Skeleton Loader
+        <div className="w-full pt-32 pb-10 px-5 md:px-20 lg:px-32 2xl:px-40">
+          <div className="flex flex-col lg:flex-row gap-10">
+            <motion.div
+              className="w-full lg:w-[50%] h-[400px] bg-gray-300 animate-pulse rounded-lg"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            />
+            <div className="flex flex-col gap-6 w-full lg:w-[50%]">
+              <h1 className="text-5xl font-ArvoBold opacity-30 animate-pulse">
+                Product Name
+              </h1>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <p
+                  key={i}
+                  className="text-2xl opacity-30 animate-pulse bg-gray-300 h-6 w-3/4 rounded"
+                />
               ))}
-              </div>
-              <div className="flex flex-col gap-y-5 md:flex-row w-full justify-center gap-x-4 text-white">
-                <button className="bg-black px-20 py-4 rounded-full text-xl opacity-30 animate-pulse">Buy Now</button>
-                <button className="bg-black px-20 py-4 rounded-full text-xl whitespace-nowrap opacity-30 animate-pulse">Add to Cart</button>
-              </div>
-              </div>
+              <div className="flex gap-4">
+                <div className="bg-gray-400 h-12 w-32 animate-pulse rounded" />
+                <div className="bg-gray-400 h-12 w-32 animate-pulse rounded" />
               </div>
             </div>
-        </div> ) : (
-            <div className='w-full pt-40 pb-10 px-5 md:px-25 lg:px-20 2xl:px-40'>
-            <div className='flex flex-col items-start md:flex-col lg:flex-col xl:flex-row 2xl:flex-row gap-y-10 lg:gap-x-5 xl:gap-x-20 2xl:gap-x-40 lg:items-center xl:items-start 2xl:items-start'>
-              <div className="flex flex-col gap-y-10 md:w-full lg:w-[80%] xl:w-[600px] 2xl:w-[750px]">
-              <div className='w-full md:h-[500px] lg:h-[500px] xl:h-[400px] 2xl:h-[500px] overflow-hidden object-cover border rounded-lg group'>
-                <img className='w-full h-full group-hover:scale-110 contrast-150 brightness-80 transition-scale duration-200' src={Product.productPic} alt={Product.name} />
-              </div>
-              <div className="bg-amber-300 py-3 px-4 w-full rounded-lg border-amber-900 border-l-6 border-2">
-                <h1 className="font-ArvoBold font-semibold uppercase text-2xl">Note:</h1>
-                <p className="font-Geist text-xl">We always try our best to deliver the product in the same color as shown in the images. However, due to availability, sometimes the color may vary. Rest assured, the product quality and features will remain the same. Thank you for your kind understanding. 🙏</p>
-              </div>
-              </div>
-              <div className='flex flex-col items-start gap-y-5 w-full xl:w-[40%] md:gap-y-10 lg:gap-y-20 xl:gap-y-5 2xl:gap-y-20'>
-              <h1 className='text-4xl sm:text-6xl md:text-7xl lg:text-5xl xl:text-4xl 2xl:text-7xl font-ArvoBold font-semibold'>{Product.name}</h1>
-              <div className="flex w-full gap-y-10 flex-col-reverse xl:flex-col" >
-                <p className='text-4xl'>{Product.off !== 0 && <del className='text-zinc-500'>₹{Product.price}/-</del>} ₹{newPrice}/- {Product.off !== 0 && <sup className='text-green-600'>{Product.off}%Off</sup>}</p>
-              <div className='flex flex-col gap-y-4'>
-              {Product.description && Product.description.map((item,i)=>(
-                <p key={i} className='text-xl sm:text-2xl md:text-2xl lg:text-2xl xl:text-2xl 2xl:text-2xl font-Jura font-medium transition-all duration-200 cursor-pointer hover:font-bold'>※ {item}</p>
-              ))}
-              </div>
-              <div className='flex flex-col gap-y-2'>
-              <h1 className='text-2xl font-ArvoBold font-semibold'>Check Delivery Details</h1>
-              <div className='flex gap-x-5 font-ArvoBold items-end'>
-                <div className='w-[80%]'>
-                  <small className={pinColor}>{pinMessage}</small>
-                <input onChange={(e)=>setPinCode(e.target.value)} value={pinCode} type="number" placeholder='Enter your PinCode. . . ' className='border outline-none font-Geist tracking-wider font-semibold w-full py-2 text-xl px-2 rounded' />
-                </div>
-                <button type='button' onClick={cheackPinCode} className='bg-blue-600 px-6 py-3 h-fit text-white rounded'>Check</button>
-              </div>
-              </div>
-              <div className="flex flex-col gap-y-5 w-full justify-center text-white">
-                <button className="bg-black px-20 py-2 w-full rounded-full text-xl">Buy Now</button>
-                <button onClick={()=> {
-                  handelProductCart(Product)
-                  toast.success("Product Added to Cart")
-                  }} className="bg-black px-20 py-2 w-full rounded-full whitespace-nowrap text-xl">Add to Cart</button>
-              </div>
-              </div>
-              </div>
-            </div>
+          </div>
         </div>
-        )}
+      ) : (
+        // Product Details
+        <div className="w-full pt-32 pb-10 px-5 md:px-20 lg:px-32 2xl:px-40">
+          <div className="flex flex-col xl:flex-row gap-10">
+            {/* Image Section */}
+            <motion.div
+              className="flex-1 shadow-lg"
+              initial={{ x: -50, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="h-[400px] md:h-[500px] rounded-lg overflow-hidden border">
+              <img
+                src={Product.productPic}
+                alt={Product.name}
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                />
+                </div>
+              <div className="bg-amber-300 py-3 px-4 mt-5 rounded-lg border-2 border-amber-900">
+                <h1 className="font-ArvoBold uppercase text-xl">Note:</h1>
+                <p className="font-Geist text-lg">
+                  We always try our best to deliver the product in the same
+                  color as shown in the images. However, due to availability,
+                  sometimes the color may vary. Rest assured, the product
+                  quality and features will remain the same. 🙏
+                </p>
+              </div>
+            </motion.div>
 
+            {/* Info Section */}
+            <motion.div
+              className="flex-1 flex flex-col gap-6"
+              initial={{ x: 50, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h1 className="text-3xl sm:text-5xl font-ArvoBold font-semibold">
+                {Product.name}
+              </h1>
+              <p className="text-3xl font-semibold">
+                {Product.off !== 0 && (
+                  <del className="text-zinc-500 mr-2">₹{Product.price}/-</del>
+                )}
+                ₹{newPrice}/-
+                {Product.off !== 0 && (
+                  <sup className="text-green-600 ml-2">{Product.off}% Off</sup>
+                )}
+              </p>
+
+              {/* Description */}
+              <div className="flex flex-col gap-2">
+                {Product.description?.map((item, i) => (
+                  <motion.p
+                    key={i}
+                    className="text-lg font-Jura cursor-pointer hover:font-bold"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.2 }}
+                  >
+                    ※ {item}
+                  </motion.p>
+                ))}
+              </div>
+
+              {/* Pin Code */}
+              <motion.div
+                className="flex flex-col gap-3"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                <h1 className="text-xl font-ArvoBold">Check Delivery Details</h1>
+                <div className="flex gap-3 items-end">
+                  <div className="w-[70%]">
+                    <small className={pinColor}>{pinMessage}</small>
+                    <input
+                      onChange={(e) => setPinCode(e.target.value)}
+                      value={pinCode}
+                      type="number"
+                      placeholder="Enter your PinCode..."
+                      className="border w-full py-2 px-3 rounded text-lg outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={cheackPinCode}
+                    className="bg-blue-600 px-6 py-2 text-white rounded hover:scale-105 transition-transform"
+                  >
+                    Check
+                  </button>
+                </div>
+              </motion.div>
+
+              {/* Buttons */}
+              <div className="flex flex-col gap-4 mt-4">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  className="bg-black text-white py-3 rounded-full text-lg"
+                >
+                  Buy Now
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  onClick={() => {
+                    handelProductCart(Product);
+                    toast.success("Product Added to Cart");
+                  }}
+                  className="bg-black text-white py-3 rounded-full text-lg"
+                >
+                  Add to Cart
+                </motion.button>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      )}
     </div>
-  )
-}
+  );
+};
 
-export default ProductDets
+export default ProductDets;
