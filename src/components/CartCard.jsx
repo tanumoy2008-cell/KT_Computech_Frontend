@@ -16,7 +16,7 @@ const CartCard = ({ data }) => {
 
   const increaseQuantity = async (id) => {
   try {
-    const res = await axios.post("/api/cart/increase-quantity", { productId: id });
+    const res = await axios.patch("/api/cart/increase-quantity", { productId: id });
     dispatch(addQuantity({ data: res.data.product }));
   } catch (err) {
     const errorMessage = err.response?.data?.message || "Something went wrong";
@@ -30,7 +30,7 @@ const CartCard = ({ data }) => {
 
   const decreaseQuantity = async (id) => {
     try{
-      const res = await axios.post("/api/cart/decrease-quantity", {productId: id});
+      const res = await axios.patch("/api/cart/decrease-quantity", {productId: id});
       dispatch(reduceQuantity({ data : res.data.product }));
     } catch (err){
       const errorMessage = err.response?.data?.message || "Something went wrong";
@@ -42,8 +42,18 @@ const CartCard = ({ data }) => {
     }
   };
 
-  const cancelItem = (id) => {
-    dispatch(removeProductFromCart({ _id: id }));
+  const cancelItem = async (id) => {
+    try{
+      const res = await axios.delete("/api/cart/delete-product", { data: { productId: id } })
+      if(res.status === 200){
+        dispatch(removeProductFromCart({ _id: id }));
+        toast.success("Product remove successfully.")
+      } else {
+        toast.info("Some problem occur from our side!")
+      }
+    } catch(err){
+      toast.error("Something went wrong!")
+    }
   };
 
   return (
