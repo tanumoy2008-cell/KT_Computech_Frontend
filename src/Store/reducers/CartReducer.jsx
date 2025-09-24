@@ -34,13 +34,11 @@ const CartSlice = createSlice({
     },
 
     reduceQuantity: (state, action) => {
-      return state
-        .map(product =>
-          product._id === action.payload._id
-            ? { ...product, quantity: product.quantity - 1 }
-            : product
-        )
-        .filter(product => product.quantity > 0);
+      return state.map(product =>
+        product._id === action.payload._id
+          ? { ...product, quantity: Math.max(product.quantity - 1, 1) }
+          : product
+      );
     }
   }
 });

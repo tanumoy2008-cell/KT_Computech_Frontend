@@ -16,6 +16,7 @@ import Dashboard from '../components/Dashboard'
 import Cart from '../components/Cart'
 import PlaceOrder from '../components/PlaceOrder'
 import ScrollTop from '../utils/ScrollTop'
+import Contact from '../Pages/Contact'
 
 const AllRouter = () => {
   return (
@@ -23,20 +24,22 @@ const AllRouter = () => {
     <ScrollTop />
     <Routes>
         <Route path="/" element={<MainPage />}/>
+        <Route path="/contact" element={<Contact />}/>
         <Route path="/product/:Maincategory" element={<Product />}/>
         <Route path="/product-dets/:id" element={<ProductDets />}/>
-        <Route path="/admin/login" element={<AdminLogin />}/>
+
         <Route path="/user/login" element={<UserLogin />}/>
         <Route path="/user/register" element={<UserRegister />}/>
         <Route path="/user/otp" element={<OtpValidationPage />}/>
         <Route element={<UserAuth />} >
-        <Route path="/user" element={<UserProfle />}>
-         <Route index element={<Dashboard />} />
-        <Route path="cart" element={<Cart />} />
-        <Route path="order-history" element={<PlaceOrder />} />
-        </Route>
+          <Route path="/user" element={<UserProfle />}>
+          <Route index element={<Dashboard />} />
+          <Route path="cart" element={<Cart />} />
+          <Route path="order-history" element={<PlaceOrder />} />
+          </Route>
         </Route>
 
+        <Route path="/admin/login" element={<AdminLogin />}/>
         <Route element={<AdminAuth />}>
         <Route path="/admin" element={<Admin />}/>
         <Route path="/product-edit/:id" element={<ProductEditPage />}/>

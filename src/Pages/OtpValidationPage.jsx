@@ -34,7 +34,7 @@ const OtpValidationPage = () => {
       localStorage.removeItem("identifier")
       toast.success(res.data.message);
       dispatch(login(res.data.metaData));
-      navigate("/user");
+      navigate("/product/all");
     } catch(err){
        toast.error(err.response.data.message)
     }
@@ -42,9 +42,9 @@ const OtpValidationPage = () => {
   return (
     <div className='flex justify-center items-center w-full h-screen'>
         <form onSubmit={handleSubmit(submitForm)} className='border-1 flex flex-col items-center gap-y-8 rounded-md border-black/50 py-10 px-10'>
-        <h1 className='mb-2 font-ArvoBold uppercase tracking-wide text-4xl'>otp varification</h1>
-        <div className='flex flex-col items-center font-ArvoRegular'>
-        <p className='font-Geist font-semibold text-xl'>{formatTime(timeLeft)}</p>
+        <h1 className='mb-2 font-PublicSans uppercase tracking-wide text-4xl'>otp varification</h1>
+        <div className='flex flex-col items-center font-PublicSans'>
+        <p className='font-Inter font-semibold text-xl'>{formatTime(timeLeft)}</p>
         <p>OTP send to this account (Check the Inbox or Spam section)</p>
         <p className='text-lg font-semibold leading-5'>{EmailMasker(email)}</p>
         </div>

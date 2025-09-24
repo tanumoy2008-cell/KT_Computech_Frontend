@@ -22,8 +22,8 @@ const UserRegister = () => {
   return (
     <div className='w-full min-h-screen flex justify-center items-center py-10 md:py-0'>
         <form onSubmit={handleSubmit(submitHandel)} className='flex flex-col gap-4 border-1 rounded-md items-center border-black/50 w-[90%] md:w-[80%] py-5 px-4 lg:px-15'>
-            <h1 className='text-4xl text-center leading-10 font-ArvoBold font-semibold w-full'>Wellcome to KTC Store</h1>
-            <p className='font-Geist leading-0 mt-3 text-xl font-semibold uppercase'>Register Yourself</p>
+            <h1 className='text-4xl text-center leading-10 font-PublicSans font-semibold w-full'>Wellcome to KTC Store</h1>
+            <p className='font-Inter leading-0 mt-3 text-xl font-semibold uppercase'>Register Yourself</p>
             <div className='flex w-full flex-col gap-y-4'>
                 <div className='w-full flex flex-col md:flex-row gap-y-4 gap-x-4'>
                     <div className='w-full'>
@@ -202,7 +202,7 @@ const UserRegister = () => {
                     </div>
                 </div>
             </div>
-            <button type='submit' className='w-full bg-sky-500 py-2 rounded text-white font-ArvoBold text-xl'>Register</button>
+            <button type='submit' className='w-full bg-sky-500 py-2 rounded text-white font-PublicSans text-xl'>Register</button>
             <div className='w-full flex justify-center items-center mt-2 '>
                 <p className='text-lg text-center'>Already have an account? <Link to="/user/login" className='text-blue-500 underline cursor-pointer'>Login</Link></p>
             </div>

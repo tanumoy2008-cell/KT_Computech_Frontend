@@ -1,169 +1,259 @@
-import React, { useState } from 'react'
+import React, { useState } from "react";
 import { GoPencil } from "react-icons/go";
-import { useForm } from 'react-hook-form';
-import { useSelector } from "react-redux"
+import { useForm } from "react-hook-form";
+import { useSelector } from "react-redux";
+
 const Dashboard = () => {
-    const user = useSelector(state=>state.UserReducer);
+  const user = useSelector((state) => state.UserReducer);
+  const [editMode, setEditMode] = useState(false);
 
-    const [editMode, setEditMode] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      firstName: user.fullName.firstName,
+      lastName: user.fullName.lastName,
+      phone: user.phoneNumber,
+      email: user.email,
+      Altphone: user.alternateNumber,
+      pin: user.pinCode,
+      address: user.address,
+    },
+  });
 
-    const {register, handleSubmit, reset, formState:{errors}} = useForm({
-        defaultValues: {
-            firstName: user.fullName.firstName,
-            lastName: user.fullName.lastName,
-            phone: user.phoneNumber,
-            email: user.email,
-            Altphone: user.alternateNumber,
-            pin: user.pinCode,
-            address: user.address
-        }
-    })
-    const onSubmit = (data) => {
-        console.log(data);
-        
-    }
+  const onSubmit = (data) => {
+    console.log("Updated Profile:", data);
+  };
 
   return (
-    <div className='w-full h-full flex flex-col gap-y-5 px-10 pt-15 lg:pt-5'>
-        <div className='flex items-center justify-between'>
-        <h1 className='font-ArvoBold text-2xl lg:text-6xl font-semibold'>Dashboard</h1>
-        <div className='flex flex-col gap-y-2 items-center'>
-        <button onClick={()=>setEditMode(true)} className='flex gap-x-2 items-center bg-sky-500 px-4 py-2 rounded text-white'><GoPencil/><span>Edit Profile</span></button>
-        {editMode && <small className='text-red-500 font-semibold text-lg'>Edit Mode On</small>}
+    <div className="w-full h-screen flex flex-col bg-gray-50">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-10 bg-white border-b px-6 py-4 flex items-center justify-between">
+        <h1 className="font-PublicSans text-2xl md:text-4xl font-bold text-gray-800">
+          Dashboard
+        </h1>
+        <div className="flex flex-col items-center gap-y-1">
+          <button
+            onClick={() => setEditMode(true)}
+            className="flex gap-x-2 items-center bg-sky-600 hover:bg-sky-700 transition px-4 py-2 rounded-lg text-white shadow"
+          >
+            <GoPencil className="text-lg" />
+            <span>Edit Profile</span>
+          </button>
+          {editMode && (
+            <small className="text-red-500 font-medium text-xs">Edit Mode On</small>
+          )}
         </div>
-        </div>
-        <form onSubmit={handleSubmit(onSubmit)} >
-            <div className='flex gap-x-10 gap-y-5 font-Geist flex-col  lg:flex-row'>
-            <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
-            <legend className='px-2 font-Geist font-semibold leading-2'>First Name</legend>
-            {errors.firstName && <p className='font-mono text-red-500'>{errors.firstName.message}</p>}
-            <input type="text" {...register("firstName",{
-                required: "First Name is required",
-                min:{
-                    value: 2,
-                    message: "Minimum 2 characters required"
-                },
-                max:{
-                    value: 20,
-                    message: "Maximum 20 characters allowed"
-                }
-            })} readOnly={!editMode} placeholder='FirstName Here. . . '  className='w-full text-lg py-2 outline-none'/>
-            </fieldset>
-            <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
-                <legend className='px-2 font-Geist font-semibold leading-2'>Last Name</legend>
-            {errors.lastName && <p className='font-mono text-red-500'>{errors.lastName.message}</p>}
-            <input type="text" {...register("lastName",{
-                required: "Last Name is required",
-                min:{
-                    value: 2,
-                    message: "Minimum 2 characters required"
-                },
-                max:{
-                    value: 20,
-                    message: "Maximum 20 characters allowed"
-                }
-            })} readOnly={!editMode} placeholder='LastName Here. . . ' className='w-full text-lg py-2 outline-none'/>
-            </fieldset>
-            </div>
-            <div className='flex gap-x-10 gap-y-5 font-Geist flex-col lg:flex-row mt-5'>
-            <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
-                <legend className='px-2 font-Geist font-semibold leading-2'>Number</legend>
-            {errors.phone && <p className='font-mono text-red-500'>{errors.phone.message}</p>}
-            <input type="number"
-             {...register("phone",{
-                 validAsNumber: true,
-                 required: "Phone number is required",
-                 min:{
-                     value: 10,
-                     message: "Minimum 2 characters required"
-                    },
-                    max:{
-                        value: 10,
-                        message: "Maximum 10 characters allowed"
-                    },
-                    validate: (value) => 
-                        !isNaN(value) && value > 0 || "Phone must be a valid positive number"
-                })} readOnly={!editMode} placeholder='Phone Number Here. . . ' className='w-full text-lg  py-2 outline-none'/>
-            </fieldset>
-            <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
-                <legend className='px-2 font-Geist font-semibold leading-2'>Email</legend>
-            {errors.email && <p className='font-mono text-red-500'>{errors.email.message}</p>}
-            <input type="email"
-             {...register("email",{
-                 required: "Email is required",
-                 pattern:{
-                     value: "^[^\s@]+@[^\s@]+\.[^\s@]{2,}$",
-                     message: "fill proper email"
-                    }
-                })} readOnly={!editMode} placeholder='Email Here. . . ' className='w-full text-lg py-2 outline-none'/>
-            </fieldset>
-            </div>
-            <div className='flex gap-x-10 gap-y-5 font-Geist flex-col lg:flex-row mt-5'>
-            <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
-                <legend className='px-2 font-Geist font-semibold leading-2'>Alternate Number</legend>
-            {errors.Altphone && <p className='font-mono text-red-500'>{errors.Altphone.message}</p>}
-            <input type="number"
-             {...register("Altphone",{
-                 validAsNumber: true,
-                 min:{
-                     value: 10,
-                    message: "Minimum 2 characters required"
-                },
-                max:{
-                    value: 10,
-                    message: "Maximum 10 characters allowed"
-                },
-                validate: (value) => 
-                    !isNaN(value) && value > 0 || "Phone must be a valid positive number"
-            })} readOnly={!editMode} placeholder='Alternate Number Here. . . ' className='w-full text-lg py-2 outline-none'/>
-            </fieldset>
-            <fieldset className='w-full border border-black rounded-lg px-3 py-2'>
-                <legend className='px-2 font-Geist font-semibold leading-2'>Pin Code</legend>
-            {errors.pin && <p className='font-mono text-red-500'>{errors.pin.message}</p>}
-            <input type="number"
-             {...register("pin",{
-                 validAsNumber: true,
-                 required: "Pin is required",
-                 min:{
-                     value: 6,
-                    message: "Minimum 2 characters required"
-                },
-                max:{
-                    value: 6,
-                    message: "Maximum 10 characters allowed"
-                },
-                validate: (value) => 
-                    !isNaN(value) && value > 0 || "Pin must be a valid positive number"
-                })} readOnly={!editMode} placeholder='PinCode Here. . . ' className='w-full text-lg py-2 outline-none'/>
-            </fieldset>
-            </div>
-            <fieldset className='w-full border border-black rounded-lg mt-5 px-3 py-2'>
-                <legend className='px-2 font-Geist font-semibold leading-2'>Address</legend>
-            {errors.address && <p className='font-mono text-red-500'>{errors.address.message}</p>}
-            <textarea type="text"
-             {...register("address",{
-                 validAsNumber: true,
-                 required: "Pin is required",
-                 min:{
-                     value: 6,
-                    message: "Minimum 2 characters required"
-                },
-                max:{
-                    value: 50,
-                    message: "Maximum 50 characters allowed"
-                },
-                })} readOnly={!editMode} placeholder='Address Here. . . ' className='w-full resize-none h-40 text-lg py-2 outline-none'></ textarea>
-            </fieldset>
-            {editMode && <div className='flex gap-x-5 mt-5 w-full md:w-1/2'>
-                <button type='submit' className='px-4 py-2 md:text-xl w-full rounded-md bg-green-400 text-white'>Save</button>
-                <button onClick={()=>{
-                    setEditMode(false);
-                    reset();
-                }} type="button" className='px-4 py-2 md:text-xl w-full rounded-md bg-zinc-400 text-white'>Cancel</button>
-            </div>}
-        </form>
-    </div>
-  )
-}
+      </div>
 
-export default Dashboard
+      {/* Scrollable Form */}
+      <div className="flex-1 overflow-y-scroll px-6 py-6">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="bg-white shadow-lg rounded-2xl p-6 flex flex-col gap-y-6"
+        >
+          {/* First + Last Name */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-gray-600 font-medium mb-1">
+                First Name
+              </label>
+              <input
+                type="text"
+                {...register("firstName", {
+                  required: "First Name is required",
+                  minLength: { value: 2, message: "Minimum 2 characters" },
+                  maxLength: { value: 20, message: "Maximum 20 characters" },
+                })}
+                readOnly={!editMode}
+                placeholder="Enter first name..."
+                className={`w-full px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
+                  editMode
+                    ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                    : "bg-gray-100 cursor-not-allowed"
+                }`}
+              />
+              {errors.firstName && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.firstName.message}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-gray-600 font-medium mb-1">
+                Last Name
+              </label>
+              <input
+                type="text"
+                {...register("lastName", {
+                  required: "Last Name is required",
+                  minLength: { value: 2, message: "Minimum 2 characters" },
+                  maxLength: { value: 20, message: "Maximum 20 characters" },
+                })}
+                readOnly={!editMode}
+                placeholder="Enter last name..."
+                className={`w-full px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
+                  editMode
+                    ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                    : "bg-gray-100 cursor-not-allowed"
+                }`}
+              />
+              {errors.lastName && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.lastName.message}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Phone + Email */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-gray-600 font-medium mb-1">
+                Phone Number
+              </label>
+              <input
+                type="number"
+                {...register("phone", {
+                  required: "Phone number is required",
+                  validate: (v) =>
+                    String(v).length === 10 || "Phone must be 10 digits",
+                })}
+                readOnly={!editMode}
+                placeholder="Enter phone number..."
+                className={`w-full px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
+                  editMode
+                    ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                    : "bg-gray-100 cursor-not-allowed"
+                }`}
+              />
+              {errors.phone && (
+                <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-gray-600 font-medium mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: {
+                    value: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,
+                    message: "Invalid email format",
+                  },
+                })}
+                readOnly={!editMode}
+                placeholder="Enter email..."
+                className={`w-full px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
+                  editMode
+                    ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                    : "bg-gray-100 cursor-not-allowed"
+                }`}
+              />
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Alt Phone + Pin */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-gray-600 font-medium mb-1">
+                Alternate Number
+              </label>
+              <input
+                type="number"
+                {...register("Altphone")}
+                readOnly={!editMode}
+                placeholder="Enter alternate number..."
+                className={`w-full px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
+                  editMode
+                    ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                    : "bg-gray-100 cursor-not-allowed"
+                }`}
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-600 font-medium mb-1">
+                Pin Code
+              </label>
+              <input
+                type="number"
+                {...register("pin", {
+                  required: "Pin code is required",
+                  validate: (v) =>
+                    String(v).length === 6 || "Pin must be 6 digits",
+                })}
+                readOnly={!editMode}
+                placeholder="Enter pin code..."
+                className={`w-full px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
+                  editMode
+                    ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                    : "bg-gray-100 cursor-not-allowed"
+                }`}
+              />
+              {errors.pin && (
+                <p className="text-red-500 text-sm mt-1">{errors.pin.message}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Address */}
+          <div>
+            <label className="block text-gray-600 font-medium mb-1">Address</label>
+            <textarea
+              {...register("address", {
+                required: "Address is required",
+                minLength: { value: 6, message: "Minimum 6 characters" },
+                maxLength: { value: 100, message: "Maximum 100 characters" },
+              })}
+              readOnly={!editMode}
+              placeholder="Enter address..."
+              className={`w-full resize-none h-32 px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
+                editMode
+                  ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                  : "bg-gray-100 cursor-not-allowed"
+              }`}
+            ></textarea>
+            {errors.address && (
+              <p className="text-red-500 text-sm mt-1">{errors.address.message}</p>
+            )}
+          </div>
+
+          {/* Buttons */}
+          {editMode && (
+            <div className="flex gap-4 mt-2">
+              <button
+                type="submit"
+                className="w-full md:w-auto px-6 py-3 rounded-lg bg-green-500 hover:bg-green-600 text-white font-medium shadow transition"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditMode(false);
+                  reset();
+                }}
+                className="w-full md:w-auto px-6 py-3 rounded-lg bg-gray-400 hover:bg-gray-500 text-white font-medium shadow transition"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;

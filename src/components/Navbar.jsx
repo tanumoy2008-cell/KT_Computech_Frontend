@@ -23,9 +23,7 @@ const Navbar = () => {
 
   return (
     <div className="w-full fixed bg-black text-amber-400 top-0 z-[999]">
-      {/* -------- Mobile Navbar -------- */}
       <div className="w-full py-2 px-4 flex lg:hidden items-center justify-between">
-        {/* Side menu (categories) */}
         <AnimatePresence>
           {sidemenu && (
             <motion.div
@@ -34,11 +32,11 @@ const Navbar = () => {
               exit={{ x: "100%" }}
               transition={{ type: "tween", duration: 0.4 }}
               className="absolute flex flex-col justify-center gap-y-10 top-0 shadow-2xl shadow-black 
-              text-center text-3xl bg-white w-full h-screen z-[99]"
+              text-center text-3xl bg-black/60 backdrop-blur-3xl w-full h-screen z-[100]"
             >
               <button
                 onClick={() => setsidemenu(false)}
-                className="absolute top-5 left-5 font-ArvoBold uppercase text-xl bg-black text-amber-400 px-10 py-2 rounded"
+                className="absolute top-5 left-5 font-PublicSans uppercase text-xl bg-black text-amber-400 px-10 py-2 rounded"
               >
                 Back
               </button>
@@ -53,8 +51,11 @@ const Navbar = () => {
                 <Link
                   key={i}
                   to={item.link}
-                  onClick={() => setsidemenu(false)}
-                  className="cursor-pointer py-2 px-2 hover:bg-zinc-300"
+                  onClick={() => {
+                    setsidemenu(false)
+                    setMenuShow(false)
+                  }}
+                  className="cursor-pointer py-2 px-2"
                 >
                   {item.name}
                 </Link>
@@ -63,7 +64,6 @@ const Navbar = () => {
           )}
         </AnimatePresence>
 
-        {/* Logo */}
         <div className="flex items-center gap-x-2">
           <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-amber-400">
             <img
@@ -72,10 +72,9 @@ const Navbar = () => {
               alt="logo"
             />
           </div>
-          <h1 className="text-xl uppercase font-ArvoBold">KT Computech</h1>
+          <h1 className="text-xl uppercase font-PublicSans">KT Computech</h1>
         </div>
 
-        {/* Cart + Menu */}
         <div className="flex items-center gap-x-4">
           <div className="relative w-fit h-fit py-2">
             {cart.length !== 0 && (
@@ -94,7 +93,6 @@ const Navbar = () => {
           />
         </div>
 
-        {/* Main menu */}
         <AnimatePresence>
           {MenuShow && (
             <motion.div
@@ -102,7 +100,7 @@ const Navbar = () => {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ duration: 0.4 }}
-              className="fixed w-full h-screen top-0 right-0 bg-white z-[100]"
+              className="fixed w-full h-screen top-0 right-0 bg-black/50 backdrop-blur-3xl z-[99]"
             >
               <IoClose
                 onClick={() => setMenuShow(false)}
@@ -117,14 +115,13 @@ const Navbar = () => {
                 </Link>
                 <h1 onClick={() => setsidemenu(true)}>Product</h1>
                 <h1>About</h1>
-                <h1>Contact Us</h1>
+                <h1 onClick={()=>navigate("/contact")}>Contact Us</h1>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* -------- Desktop Navbar -------- */}
       <div className="hidden lg:flex justify-between items-center w-full pl-10 md:pr-10 xl:pr-30 py-1">
         {/* Logo */}
         <div className="flex gap-x-4 items-center">
@@ -135,11 +132,11 @@ const Navbar = () => {
               alt=""
             />
           </div>
-          <h1 className="text-3xl uppercase font-ArvoBold">KT Computech</h1>
+          <h1 className="text-3xl uppercase font-PublicSans">KT Computech</h1>
         </div>
 
         {/* Links */}
-        <div className="flex font-Geist text-center items-center md:text-xl">
+        <div className="flex font-PublicSans text-center items-center md:text-xl">
           <motion.div whileHover={{ scale: 1.05 }}>
             <Link to="/" className="border-r w-40 2xl:w-50 pr-4 cursor-pointer">
               Home
@@ -148,7 +145,7 @@ const Navbar = () => {
 
           <div className="border-r w-30 2xl:w-50 cursor-pointer relative group">
             <Link to={`/product/all`}>Product</Link>
-            <div className="absolute top-[100%] left-0 bg-white text-black hidden group-hover:flex flex-col shadow-lg">
+            <div className="absolute top-[100%] left-0 overflow-hidden bg-black/40 text-amber-400 backdrop-blur-2xl rounded-sm hidden group-hover:flex flex-col shadow-lg">
               {[
                 { name: "School Stationery", link: "/product/school" },
                 { name: "Office Stationery", link: "/product/office" },
@@ -159,7 +156,7 @@ const Navbar = () => {
                 <Link
                   key={i}
                   to={item.link}
-                  className="cursor-pointer border-b whitespace-nowrap py-2 px-10 hover:bg-zinc-200"
+                  className={`cursor-pointer font-PublicSans ${i != 4 && "border-b"} whitespace-nowrap py-2 px-10 transition-colors duration-150 hover:bg-black/80`}
                 >
                   {item.name}
                 </Link>
@@ -170,7 +167,7 @@ const Navbar = () => {
           <motion.h1 whileHover={{ scale: 1.05 }} className="border-r w-30 cursor-pointer">
             About
           </motion.h1>
-          <motion.h1 whileHover={{ scale: 1.05 }} className="w-30 cursor-pointer">
+          <motion.h1 onClick={()=>navigate("/contact")} whileHover={{ scale: 1.05 }} className="w-30 cursor-pointer">
             Contact Us
           </motion.h1>
 
@@ -223,7 +220,7 @@ const Navbar = () => {
                             }
                             className="flex flex-col items-start"
                           >
-                            <p className="text-sm lg:text-lg">
+                            <p className="text-sm lg:text-lg whitespace-nowrap">
                               {items.name.slice(0, 15)}...
                             </p>
                             <small>
@@ -240,8 +237,8 @@ const Navbar = () => {
                       ))}
                     </div>
                     <button
-                      onClick={() => navigate("/user")}
-                      className="w-full py-2 bg-black text-amber-400 rounded-md font-ArvoBold"
+                      onClick={() => navigate("/user/cart")}
+                      className="w-full py-2 bg-black text-amber-400 rounded-md font-PublicSans"
                     >
                       Buy Now
                     </button>
@@ -254,7 +251,7 @@ const Navbar = () => {
                     transition={{ duration: 0.3 }}
                     className="absolute right-0 py-2 px-4 text-black hidden group-hover:flex bg-white shadow-2xl border border-black/30"
                   >
-                    <h1 className="text-lg font-ArvoBold">
+                    <h1 className="text-lg font-PublicSans whitespace-nowrap">
                       No Product added in cart
                     </h1>
                   </motion.div>

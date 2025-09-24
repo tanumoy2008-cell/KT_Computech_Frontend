@@ -31,7 +31,7 @@ const UserLogin = () => {
     <div className='w-full h-screen bg-zinc-400 flex justify-center items-center'>
         <div className='bg-white px-10 py-15 rounded-lg w-[80%] sm:w-[70%] md:w-[60%] lg:w-[50%] xl:w-[40%] 2xl:w-[30%] border-1 border-zinc-500'>
             <h1 className='font-Jura text-4xl font-bold mb-2 text-center'>User Login</h1>
-            <p className='text-center font-ArvoBold text-lg mb-5'>Wellcome User</p>
+            <p className='text-center font-PublicSans text-lg mb-5'>Wellcome User</p>
             <form onSubmit={handleSubmit(userLogin)} className='flex flex-col gap-y-5'>
                 <div>
                 <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-blue-400'>
@@ -60,9 +60,9 @@ const UserLogin = () => {
                 </div>
                 {errors.password && <p className='font-mono text-red-500'>{errors.password.message}</p>}
                 </div>
-                <button type='submit' className='bg-blue-500 py-3 font-ArvoRegular uppercase tracking-wide rounded text-xl mt-4 text-white'>Login</button>
+                <button type='submit' className='bg-blue-500 py-3 font-PublicSans uppercase tracking-wide rounded text-xl mt-4 text-white'>Login</button>
             </form>
-            <div className='w-full py-2 mt-6 flex justify-between font-ArvoRegular text-lg'>
+            <div className='w-full py-2 mt-6 flex justify-between font-PublicSans text-lg'>
                 <Link to="/user/register">
                 <abbr title="Register" className='no-underline'>
                     <span className='text-blue-700'>Register Now</span>

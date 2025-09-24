@@ -92,8 +92,8 @@ const ProductAdder = () => {
   return (
     <div className='h-screen w-full bg-zinc-800 px-10 py-5 flex flex-col gap-y-5'>
             <div className='w-full py-10 px-10 bg-white rounded-2xl text-5xl flex items-center justify-between'>
-                <h1 className='font-ArvoBold uppercase font-semibold'>Total Products</h1>
-                <p className='font-Geist font-semibold'>{totalProduct}</p>
+                <h1 className='font-PublicSans uppercase font-semibold'>Total Products</h1>
+                <p className='font-Inter font-semibold'>{totalProduct}</p>
             </div>
             <div className='w-full h-full py-6 px-10 bg-white rounded-2xl flex items-center gap-x-10'>
                 <div className='h-[55vh] overflow-hidden bg-zinc-300 border-10 border-zinc-400 border-dashed rounded-2xl w-[60%] flex items-center'>
@@ -125,7 +125,7 @@ const ProductAdder = () => {
             />
                 
                 <div className='h-full w-[40%]'>
-                    <h1 className='text-center font-ArvoBold text-4xl mb-2'>Product Detais</h1>
+                    <h1 className='text-center font-PublicSans text-4xl mb-2'>Product Detais</h1>
                     <form onSubmit={handleSubmit(formSubmit)} className='flex flex-col gap-y-2'>
                         <div>
                         {errors.name && <p className='font-mono text-red-500'>{errors.name.message}</p>}

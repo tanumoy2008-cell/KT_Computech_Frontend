@@ -15,34 +15,26 @@ const Product = () => {
   const [Subcategory, setCategory] = useState("");
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const limit = 12;
   const [showMenu, setShowMenu] = useState(false);
-
-  const categories = [
+  const [categories, setCategories] = useState([
     { key: "", label: "All Products" },
-    { key: "pencil", label: "Pencils" },
-    { key: "eraser", label: "Erasers" },
-    { key: "sharpeners", label: "Sharpners" },
-    { key: "notebook", label: "NoteBooks" },
-    { key: "color", label: "Colors" },
-    { key: "pen", label: "Pens" },
-    { key: "exam", label: "Exams Items" },
-    { key: "box", label: "Geometry Boxes" },
-    { key: "pencilbox", label: "Bag & Pencil Boxes" },
-  ];
+  ]);
+
+  const limit = 12;
 
   const fetchData = async (reset = false) => {
     try {
       const res = await axios.get(
-        `/api/product/productSend?start=${
-          reset ? 0 : start
-        }&limit=${limit}&query=${query}&Maincategory=${Maincategory}&Subcategory=${Subcategory}`
+        `/api/product/productSend?start=${reset ? 0 : start}&limit=${limit}&query=${query}&Maincategory=${Maincategory}&Subcategory=${Subcategory}`
       );
+
+      // Set products
       setProduct((prev) =>
         reset ? res.data.product : [...prev, ...res.data.product]
       );
       setStart(res.data.nextStart);
       setHasMore(res.data.hasMore);
+      if (res.data.subcategories) setCategories(res.data.subcategories);
       setIsLoading(false);
     } catch (err) {
       console.error("Failed to fetch:", err);
@@ -63,66 +55,96 @@ const Product = () => {
   }, [query]);
 
   return (
-    <div className="w-full h-screen pt-40 xl:pt-52">
+    <div className="w-full h-screen pt-36 xl:pt-48 bg-[#320401]">
       <Navbar />
-      <div className="flex flex-col fixed z-20 top-16 w-full gap-y-6 px-2 pt-4 lg:px-4 lg:pt-8 pb-4 items-center font-ArvoBold text-white bg-[#003426]">
-        <div className="flex gap-x-4 items-center w-full justify-center">
+
+      {/* Top Bar */}
+      <div className="flex flex-col fixed z-30 top-16 w-full gap-y-4 px-3 pt-4 lg:px-6 lg:pt-6 pb-4 items-center font-PublicSans text-white bg-[#003426] shadow-lg">
+        {/* Search & Filters */}
+        <div className="flex gap-x-3 items-center w-full justify-center">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             type="text"
-            placeholder="search product here. . ."
-            className="w-11/12 text-lg placeholder:text-zinc-700 py-2 rounded outline-none text-black px-4 bg-white"
+            placeholder="🔍 Search products..."
+            className="w-11/12 lg:w-full text-lg placeholder:text-gray-500 py-3 rounded-full outline-none text-black px-5 bg-white shadow focus:ring-2 focus:ring-green-600"
           />
           <button
-            className="flex lg:hidden gap-x-2 items-center border px-4 py-2 rounded"
+            className="flex md:hidden gap-x-2 items-center border border-white/30 px-4 py-2 rounded-full text-sm bg-[#004d36] hover:bg-[#006A4E] transition"
             onClick={() => setShowMenu((prev) => !prev)}
           >
             Filters <IoMdArrowDropdown />
           </button>
         </div>
-        <div className="w-full hidden lg:flex justify-around items-center text-xs xl:text-sm">
+
+        {/* Tablet Filter Bar */}
+        <div className="hidden md:flex lg:hidden overflow-x-auto w-full gap-2 py-2 scrollbar-thin scrollbar-thumb-green-700">
           {categories.map((cat) => (
-            <h1
+            <button
               key={cat.key}
               onClick={() => setCategory(cat.key)}
-              className={`cursor-pointer px-4 ${
-                Subcategory === cat.key && "border-b-2"
+              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm transition-all duration-200 ${
+                Subcategory === cat.key
+                  ? "bg-white text-[#003426] font-bold shadow"
+                  : "bg-[#004d36] hover:bg-[#006A4E]"
               }`}
             >
               {cat.label}
-            </h1>
+            </button>
           ))}
         </div>
+
+        {/* Desktop Filter Bar */}
+        <div className="hidden lg:flex w-full justify-center overflow-x-auto scrollbar-thin scrollbar-thumb-green-700 gap-2">
+        <div className="flex gap-4 px-2">
+          {categories.map((cat) => (
+            <button
+              key={cat.key}
+              onClick={() => setCategory(cat.key)}
+              className={`flex-shrink-0 px-5 py-2 rounded-full text-sm transition-all duration-200 ${
+                Subcategory === cat.key
+                  ? "bg-white text-[#003426] font-bold shadow"
+                  : "bg-[#004d36] hover:bg-[#006A4E]"
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
         <AnimatePresence>
           {showMenu && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="flex lg:hidden flex-col gap-y-4 text-center py-2 px-4 w-full top-[99%] bg-[#006A4E] text-lg"
+              className="flex md:hidden flex-col gap-y-2 text-center py-3 px-4 w-full rounded-lg bg-[#004d36] shadow-md"
             >
               {categories.map((cat) => (
-                <h1
+                <button
                   key={cat.key}
                   onClick={() => {
                     setCategory(cat.key);
                     setShowMenu(false);
                   }}
-                  className={`cursor-pointer px-4 ${
-                    Subcategory === cat.key && "border-b-2"
+                  className={`py-2 rounded transition ${
+                    Subcategory === cat.key
+                      ? "bg-white text-[#003426] font-bold"
+                      : "hover:bg-[#006A4E]"
                   }`}
                 >
                   {cat.label}
-                </h1>
+                </button>
               ))}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-
-      {/* Product List */}
-      <div id="scrollDiv" className="w-full h-[82vh] overflow-y-auto">
+      <div
+        id="scrollDiv"
+        className="w-full overflow-y-auto h-[calc(100vh-9.5rem)]"
+      >
         <InfiniteScroll
           dataLength={product.length}
           next={fetchData}
@@ -131,23 +153,23 @@ const Product = () => {
           loader={Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className="w-full h-full animate-pulse bg-white border border-zinc-500 p-4 rounded flex flex-col gap-y-4 justify-between group"
+              className="w-full h-full animate-pulse bg-white border border-zinc-300 p-4 rounded-xl flex flex-col gap-y-4 justify-between"
             >
-              <div className="w-full h-60 border border-zinc-500 overflow-hidden bg-zinc-400"></div>
-              <h1 className="text-center text-2xl font-Jura font-bold bg-zinc-400 py-4 animate-pulse"></h1>
-              <button className="py-4 text-zinc-400 bg-zinc-400 font-Jura text-xl animate-pulse text-center cursor-pointer">
+              <div className="w-full h-48 border border-zinc-300 overflow-hidden bg-zinc-200 rounded-md"></div>
+              <h1 className="text-center text-lg font-Jura font-bold bg-zinc-200 py-3 rounded"></h1>
+              <button className="py-3 text-zinc-400 bg-zinc-200 font-Jura text-lg rounded text-center">
                 ₹ 00/-
               </button>
             </div>
           ))}
           endMessage={
-            <div className="w-full h-full border flex items-center justify-center border-black overflow-hidden">
-              <p className="text-center text-gray-800 font-mono text-xl">
-                Sorry No more Product left!
+            <div className="w-full py-6 flex items-center justify-center">
+              <p className="text-center text-gray-300 font-mono text-lg">
+                🎉 You’ve reached the end! No more products.
               </p>
             </div>
           }
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 py-2 px-4 bg-[#320401]"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-6 px-4 pb-4 md:pt-20 lg:pt-20 xl:pt-8 pt-8 bg-gradient-to-b from-[#1a1a1a] via-[#2d1a1a] to-[#320401]"
         >
           {product.map((p, i) => (
             <ProductCard data={p} key={i} />

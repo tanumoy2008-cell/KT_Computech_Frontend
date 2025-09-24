@@ -1,8 +1,13 @@
-import React from 'react'
+import React from "react";
 import { IoMdAdd } from "react-icons/io";
 import { RiSubtractFill } from "react-icons/ri";
-import { useDispatch } from 'react-redux';
-import { addQuantity, reduceQuantity, removeProductFromCart } from '../Store/reducers/CartReducer';
+import { useDispatch } from "react-redux";
+import {
+  addQuantity,
+  reduceQuantity,
+  removeProductFromCart,
+} from "../Store/reducers/CartReducer";
+import { motion } from "framer-motion";
 
 const CartCard = ({ data }) => {
   const dispatch = useDispatch();
@@ -20,44 +25,62 @@ const CartCard = ({ data }) => {
   };
 
   return (
-    <div className='w-full rounded-lg flex gap-y-4 flex-col p-4 border'>
-      <div className='w-full h-60 border rounded-md overflow-hidden bg-red-400'>
+    <motion.div
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2 }}
+      className="w-full bg-white rounded-xl shadow-md p-4 flex flex-col gap-4 border border-zinc-200"
+    >
+      {/* Product Image */}
+      <div className="w-full h-48 rounded-lg overflow-hidden">
         <img
-          className='w-full h-full object-cover'
+          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
           src={data.productPic}
           alt={data.name}
         />
       </div>
-      <h1 className='text-2xl leading-5 font-ArvoBold'>{data.name}</h1>
-      <div className='flex w-full rounded-md overflow-hidden border'>
+
+      {/* Product Info */}
+      <div className="flex flex-col gap-2">
+        <h1 className="text-lg md:text-xl font-PublicSans font-semibold text-zinc-800 line-clamp-2">
+          {data.name}
+        </h1>
+        <div className="flex justify-between items-center text-zinc-700 font-Inter">
+          <p className="text-lg font-semibold">₹{data.price}</p>
+          <p className="text-sm text-zinc-500">
+            Total: <span className="font-bold">₹{data.price * data.quantity}</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
         <button
           onClick={() => decreaseQuantity(data._id)}
-          className='bg-black text-white w-[20%] px-4 py-2 flex items-center justify-center cursor-pointer active:bg-zinc-500 transition-all duration-300 border-r-1'
+          className="p-2 rounded-full bg-black/80 text-white active:bg-black active:scale-90 transition"
         >
-          <RiSubtractFill />
+          <RiSubtractFill className="text-lg" />
         </button>
         <input
           readOnly
-          className='bg-white w-[60%] px-4 py-2 text-xl font-Geist font-semibold text-center outline-none'
+          className="w-12 text-center font-Inter text-lg font-semibold border outline-none rounded-md"
           value={data.quantity}
-          type='number'
+          type="number"
         />
-
         <button
           onClick={() => increaseQuantity(data._id)}
-          className='bg-black text-white w-[20%] px-4 py-2 flex items-center justify-center cursor-pointer active:bg-zinc-500 transition-all duration-300 border-l-1'
+          className="p-2 rounded-full bg-black/80 text-white active:bg-black active:scale-90 transition"
         >
-          <IoMdAdd />
+          <IoMdAdd className="text-lg" />
         </button>
       </div>
+
       <button
         onClick={() => cancelItem(data._id)}
-        className='bg-black text-white py-3 font-ArvoBold text-xl rounded-md'
+        className="w-full py-2 mt-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 font-PublicSans font-medium transition"
       >
-        Cancel
+        Remove
       </button>
-    </div>
-  )
-}
+    </motion.div>
+  );
+};
 
-export default CartCard
+export default CartCard;

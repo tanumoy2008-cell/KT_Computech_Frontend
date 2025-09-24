@@ -74,7 +74,7 @@ const LandingPage = () => {
 
                 {/* Overlay Info */}
                 <motion.div
-                  className="absolute w-full h-full flex flex-col items-center text-white font-ArvoBold font-semibold justify-center gap-y-6 top-0 left-0 backdrop-blur-[3px] bg-black/70"
+                  className="absolute w-full h-full flex flex-col items-center text-white font-PublicSans font-semibold justify-center gap-y-6 top-0 left-0 backdrop-blur-[3px] bg-black/70"
                   initial={{ opacity: 0, y: 50 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.2 }}
@@ -87,7 +87,7 @@ const LandingPage = () => {
                   </motion.h1>
 
                   <motion.p
-                    className="text-lg sm:text-xl lg:text-2xl 2xl:text-4xl font-Geist"
+                    className="text-lg sm:text-xl lg:text-2xl 2xl:text-4xl font-Inter"
                     whileHover={{ scale: 1.05 }}
                   >
                     {items.off !== 0 && (

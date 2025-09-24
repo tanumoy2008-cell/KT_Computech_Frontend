@@ -19,7 +19,7 @@ axiosInstance.interceptors.response.use(
 		const status = error?.response?.status;
 		if (status === 401) {
 			try {
-				window.location.href = '/admin/login';
+				window.location.href = '/';
 			} catch (e) {
                 console.error(e)
 			}

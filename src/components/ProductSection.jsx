@@ -44,10 +44,10 @@ const ProductSection = () => {
   ];
 
   return (
-    <div id="productSection" className="w-full min-h-screen px-5 md:px-10 py-10">
+    <div id="productSection" className="w-full min-h-screen px-5 text-white md:px-10 py-10">
       {/* Categories Section */}
       <div className="w-full flex flex-col gap-y-4">
-        <h1 className="text-center font-ArvoBold text-3xl md:text-5xl">
+        <h1 className="text-center font-PublicSans text-3xl md:text-5xl">
           Categories
         </h1>
 
@@ -75,11 +75,11 @@ const ProductSection = () => {
             >
               <Link
                 to={items.link}
-                className="flex flex-col gap-y-2 items-center cursor-pointer"
+                className="flex flex-col gap-y-4 items-center cursor-pointer"
               >
                 <motion.div
                   whileHover={{ scale: 1.1 }}
-                  className="w-28 h-28 md:w-36 md:h-36 lg:w-40 lg:h-40 rounded-full overflow-hidden border-black border-4 shadow-md"
+                  className="w-28 h-28 md:w-36 md:h-36 lg:w-40 lg:h-40 rounded-full overflow-hidden shadow-lg shadow-white/50 border-white border-4"
                 >
                   <img
                     className="w-full h-full object-cover brightness-80"
@@ -87,7 +87,7 @@ const ProductSection = () => {
                     alt={items.name}
                   />
                 </motion.div>
-                <h1 className="text-sm md:text-lg lg:text-xl font-semibold font-Geist text-center">
+                <h1 className="text-sm md:text-lg lg:text-xl font-semibold font-PublicSans text-center">
                   {items.name}
                 </h1>
               </Link>
@@ -98,7 +98,7 @@ const ProductSection = () => {
 
       {/* Top Products Section */}
       <motion.h1
-        className="text-center mb-5 text-2xl md:text-4xl font-ArvoBold"
+        className="text-center mb-5 text-2xl md:text-4xl font-PublicSans"
         initial={{ opacity: 0, y: -20 }}
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -107,7 +107,7 @@ const ProductSection = () => {
       </motion.h1>
 
       <motion.div
-        className="grid sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-5"
+        className="grid sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-4 gap-5"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true }}

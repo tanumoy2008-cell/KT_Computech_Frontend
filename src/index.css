@@ -1,31 +1,16 @@
 @import "tailwindcss";
 @font-face {
-    font-family: "ArvoBold";
-    src: url(assets/Arvo-Bold.ttf);
+    font-family: "PublicSans";
+    src: url(assets/PublicSans-VariableFont_wght.ttf);
 }
 @font-face {
-    font-family: "ArvoBoldItalic";
-    src: url(assets/Arvo-BoldItalic.ttf);
-}
-@font-face {
-    font-family: "ArvoItalic";
-    src: url(assets/Arvo-Italic.ttf);
-}
-@font-face {
-    font-family: "ArvoRegular";
-    src: url(assets/Arvo-Regular.ttf);
-}
-@font-face {
-    font-family: "Geist";
-    src: url(assets/Geist-VariableFont_wght.ttf);
+    font-family: "Inter";
+    src: url(assets/Inter-VariableFont_opsz\,wght.ttf);
 }
 
 @theme{
-    --font-ArvoBold: "ArvoBold";
-    --font-ArvoBoldItalic: "ArvoBoldItalic";
-    --font-ArvoItalic: "ArvoItalic";
-    --font-ArvoRegular: "ArvoRegular";
-    --font-Geist: "Geist";
+    --font-PublicSans : "PublicSans";
+    --font-Inter : "Inter";
     --animate-wiggle: wiggle 1.5s ease-in-out infinite;
   @keyframes wiggle {
     0%,
@@ -37,12 +22,26 @@
     }
   }
 }
-#productDets{
-    background-image: url(/Abstract.webp);
-    background-position: center;
-    background-size: cover;
-    background-repeat: no-repeat;
+#productDets {
+  position: relative;
+  background-image: url(/Abstract.webp);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  z-index: 0;
 }
+
+#productDets::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(128, 128, 128, 0.638), rgba(0, 0, 0, 0.838));
+  filter: brightness(0.6); 
+  backdrop-filter: blur(1px); 
+  -webkit-backdrop-filter: blur(1px);
+  z-index: -1;
+}
+
 html{
     scroll-behavior: smooth;
 }
