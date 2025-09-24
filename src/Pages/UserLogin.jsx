@@ -3,11 +3,9 @@ import { FaRegEye } from "react-icons/fa";
 import { FaRegEyeSlash } from "react-icons/fa";
 import {useForm} from "react-hook-form";
 import axios from "../config/axios";
-import {useDispatch} from "react-redux"
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "react-toastify";
 const UserLogin = () => {
-    const dispatch = useDispatch()
     const [passShow, setpassShow] = useState(false);
     const navigate = useNavigate()
     const {

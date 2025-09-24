@@ -1,23 +1,34 @@
 import React, { useEffect, useState } from "react";
 import CartCard from "./CartCard";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import Lottie from "lottie-react";
 import emptyCart from "../assets/Empty Box Animation.json";
+import axios from "../config/axios";
+import { setCart } from "../Store/reducers/CartReducer";
 
 const Cart = () => {
   const cart = useSelector((state) => state.CartReducer);
   const [carts, setCarts] = useState(cart);
   const navigate = useNavigate();
+  const dispatch = useDispatch()
 
   useEffect(() => {
     setCarts(cart);
   }, [cart]);
 
+  useEffect(()=>{
+    const fetchCart = async ()=>{
+      const res = await axios.get("/api/cart/send-cart-info")
+      dispatch(setCart(res.data.cart))
+    }
+    fetchCart()
+  },[])
+
   return (
     <div className="flex flex-col h-screen w-full px-5 md:px-8 py-3">
-      {/* Header */}
+
       <div className="flex justify-between items-center pb-4 border-b sticky top-0 z-20">
         <h1 className="font-PublicSans text-3xl lg:text-5xl font-bold tracking-tight">
           Your Cart

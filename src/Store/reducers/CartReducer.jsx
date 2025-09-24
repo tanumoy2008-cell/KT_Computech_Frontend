@@ -7,18 +7,10 @@ const CartSlice = createSlice({
   initialState,
   reducers: {
     addProductToCart: (state, action) => {
-      const product = action.payload;
-      const existingProduct = state.find(item => item._id === product._id);
-
-      if (existingProduct) {
-        return state.map(item =>
-          item._id === product._id
-            ? { ...item, quantity: Math.min(item.quantity + 1, 20) }
-            : item
-        );
-      } else {
-        return [...state, { ...product, quantity: 1 }];
-      }
+      return action.payload.map(item => ({
+    ...item,
+    quantity: item.quantity || 1,
+  }));
     },
 
     removeProductFromCart: (state, action) => {
@@ -26,21 +18,29 @@ const CartSlice = createSlice({
     },
 
     addQuantity: (state, action) => {
+      const updatedProduct = action.payload.data;
       return state.map(product =>
-        product._id === action.payload._id
-          ? { ...product, quantity: Math.min(product.quantity + 1, 20) }
+        product._id === updatedProduct._id
+          ? { ...updatedProduct }
           : product
       );
     },
 
     reduceQuantity: (state, action) => {
+     const updatedProduct = action.payload.data;
       return state.map(product =>
-        product._id === action.payload._id
-          ? { ...product, quantity: Math.max(product.quantity - 1, 1) }
+        product._id === updatedProduct._id
+          ? { ...updatedProduct }
           : product
       );
-    }
-  }
+    },
+    setCart: (state, action) => {
+      return action.payload.map(item => ({
+        ...item,
+        quantity: item.quantity || 1,
+      }));
+    },
+  },
 });
 
 export const CartReducer = CartSlice.reducer;
@@ -48,5 +48,6 @@ export const {
   addProductToCart,
   removeProductFromCart,
   addQuantity,
-  reduceQuantity
+  reduceQuantity,
+  setCart,
 } = CartSlice.actions;

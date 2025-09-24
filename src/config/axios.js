@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'react-toastify';
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3000';
 
 const axiosInstance = axios.create({
@@ -14,20 +15,13 @@ const axiosInstance = axios.create({
 // axiosInstance.defaults.xsrfHeaderName = 'X-XSRF-TOKEN';
 
 axiosInstance.interceptors.response.use(
-	(res) => res,
-	(error) => {
-		const status = error?.response?.status;
-		if (status === 401) {
-			try {
-				window.location.href = '/';
-			} catch (e) {
-                console.error(e)
-			}
-		}
-		return Promise.reject(error);
-	}
-
+  (res) => res,
+  (error) => {
+    console.error("API Error:", error?.response?.status, error?.message);
+    return Promise.reject(error);
+  }
 );
+
 
 
 

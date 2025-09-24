@@ -13,6 +13,7 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import { logOut } from "../Store/reducers/UserReducer";
 import { useDispatch } from "react-redux";
+import axios from "../config/axios";
 
 const UserProfile = () => {
   const dispatch = useDispatch();
@@ -38,9 +39,9 @@ const UserProfile = () => {
     if (result.isConfirmed) {
       try {
         const res = await axios.post("/api/user/logout");
+        navigate("/");
         dispatch(logOut());
         toast.success(res.data?.message);
-        navigate("/");
       } catch (err) {
         toast.error("Something went wrong!");
       }

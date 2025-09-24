@@ -21,12 +21,16 @@ const UserAuth = () => {
         }
         setReady(true);
       } catch (err) {
-        navigate("/user/login");
+       if (err.response?.status === 401) {
+          navigate("/user/login");
+        } else {
+          console.error("Auth check failed:", err);
+        }
       }
     };
 
     authenticateUser();
-  }, []);
+  }, [dispatch, navigate, user]);
 
   if (!ready) return <div>Loading...</div>; 
 

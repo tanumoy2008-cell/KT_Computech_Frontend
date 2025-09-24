@@ -8,16 +8,38 @@ import {
   removeProductFromCart,
 } from "../Store/reducers/CartReducer";
 import { motion } from "framer-motion";
+import axios from "../config/axios";
+import { toast } from "react-toastify";
 
 const CartCard = ({ data }) => {
   const dispatch = useDispatch();
 
-  const increaseQuantity = (id) => {
-    dispatch(addQuantity({ _id: id }));
-  };
+  const increaseQuantity = async (id) => {
+  try {
+    const res = await axios.post("/api/cart/increase-quantity", { productId: id });
+    dispatch(addQuantity({ data: res.data.product }));
+  } catch (err) {
+    const errorMessage = err.response?.data?.message || "Something went wrong";
+    if (err.response?.status === 406) {
+      toast.info(errorMessage);
+    } else {
+      toast.error(errorMessage);
+    }
+  }
+};
 
-  const decreaseQuantity = (id) => {
-    dispatch(reduceQuantity({ _id: id }));
+  const decreaseQuantity = async (id) => {
+    try{
+      const res = await axios.post("/api/cart/decrease-quantity", {productId: id});
+      dispatch(reduceQuantity({ data : res.data.product }));
+    } catch (err){
+      const errorMessage = err.response?.data?.message || "Something went wrong";
+      if (err.response?.status === 406) {
+        toast.info(errorMessage);
+      } else {
+        toast.error(errorMessage);
+      }
+    }
   };
 
   const cancelItem = (id) => {

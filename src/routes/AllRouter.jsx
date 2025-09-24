@@ -23,27 +23,28 @@ const AllRouter = () => {
     <>
     <ScrollTop />
     <Routes>
-        <Route path="/" element={<MainPage />}/>
-        <Route path="/contact" element={<Contact />}/>
-        <Route path="/product/:Maincategory" element={<Product />}/>
-        <Route path="/product-dets/:id" element={<ProductDets />}/>
+      <Route path="/" element={<MainPage />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/product/:Maincategory" element={<Product />} />
+      <Route path="/product-dets/:id" element={<ProductDets />} />
 
-        <Route path="/user/login" element={<UserLogin />}/>
-        <Route path="/user/register" element={<UserRegister />}/>
-        <Route path="/user/otp" element={<OtpValidationPage />}/>
-        <Route element={<UserAuth />} >
-          <Route path="/user" element={<UserProfle />}>
+      <Route path="/user/login" element={<UserLogin />} />
+      <Route path="/user/register" element={<UserRegister />} />
+      <Route path="/user/otp" element={<OtpValidationPage />} />
+
+      <Route element={<UserAuth />}>
+        <Route path="/user" element={<UserProfle />}>
           <Route index element={<Dashboard />} />
           <Route path="cart" element={<Cart />} />
           <Route path="order-history" element={<PlaceOrder />} />
-          </Route>
         </Route>
+      </Route>
 
-        <Route path="/admin/login" element={<AdminLogin />}/>
-        <Route element={<AdminAuth />}>
-        <Route path="/admin" element={<Admin />}/>
-        <Route path="/product-edit/:id" element={<ProductEditPage />}/>
-        </Route>
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route element={<AdminAuth />}>
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/product-edit/:id" element={<ProductEditPage />} />
+      </Route>
     </Routes>
     </>
   )

@@ -29,8 +29,17 @@ const ProductDets = () => {
 
   const newPrice = calculateDiscountedPrice(Product.price, Product.off);
 
-  const handelProductCart = (product) => {
-    dispatch(addProductToCart(product));
+  const handelProductCart = async (productId) => {
+    try{
+      const res = await axios.post("/api/cart/add-product-in-cart", {productId});
+      dispatch(addProductToCart(res.data.cart));
+      toast.success(res.data.message);
+    } catch (err){
+      if(err.response?.status == 406){
+        toast.info(err.response?.message)
+      }
+      toast.error(err.response?.message)
+    }
   };
 
   const cheackPinCode = async () => {
@@ -194,10 +203,7 @@ const ProductDets = () => {
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.03 }}
-                  onClick={() => {
-                    handelProductCart(Product);
-                    toast.success("Product Added to Cart");
-                  }}
+                  onClick={() => handelProductCart(Product._id)}
                   className="bg-white text-gray-900 py-3 rounded-lg text-lg border border-gray-300 shadow hover:bg-gray-100"
                 >
                   Add to Cart
