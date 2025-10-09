@@ -17,6 +17,10 @@ import Cart from '../components/Cart'
 import PlaceOrder from '../components/PlaceOrder'
 import ScrollTop from '../utils/ScrollTop'
 import Contact from '../Pages/Contact'
+import Products from '../components/Products'
+import Settings from '../components/Settings'
+import ProductAdder from '../components/ProductAdder'
+import Billing from '../components/Billing'
 
 const AllRouter = () => {
   return (
@@ -41,10 +45,17 @@ const AllRouter = () => {
       </Route>
 
       <Route path="/admin/login" element={<AdminLogin />} />
+
       <Route element={<AdminAuth />}>
-        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin" element={<Admin />} >
+        <Route index element={<ProductAdder />} />
+        <Route path="product" element={<Products />} />
+        <Route path="settings" element={<Settings />} />
+        <Route path="billing" element={<Billing />} />
+        </Route>
         <Route path="/product-edit/:id" element={<ProductEditPage />} />
       </Route>
+
     </Routes>
     </>
   )

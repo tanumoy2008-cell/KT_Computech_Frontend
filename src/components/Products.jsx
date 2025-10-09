@@ -34,7 +34,6 @@ const Products = () => {
           Subcategory: subcategory,
         },
       });
-
       setProduct((prev) =>
         reset ? res.data.product : [...prev, ...res.data.product]
       );
@@ -53,7 +52,7 @@ const Products = () => {
   // refetch when filters change
   useEffect(() => {
     fetchData(true);
-  }, [query, maincategory, subcategory]);
+  }, [maincategory, subcategory]);
 
   // debounce search
   useEffect(() => {
@@ -62,7 +61,6 @@ const Products = () => {
       setStart(0);
       fetchData(true);
     }, 300);
-
     return () => clearTimeout(delay);
   }, [query]);
 
@@ -83,21 +81,23 @@ const Products = () => {
         confirmButtonColor: "#3085d6",
         cancelButtonColor: "#d33",
         confirmButtonText: "Yes, delete it!",
-      }).then(async () => {
-        try {
-          const res = await axios.delete(`/api/product/product-delete/${id}`);
-          if (res.status === 200) {
-            Swal.fire({
-              title: "Deleted!",
-              text: res.data.message,
-              icon: "success",
-            });
-            setProduct((prev) => prev.filter((item) => item._id !== id));
-          } else {
-            toast.error(res.data.message);
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            const res = await axios.delete(`/api/product/product-delete/${id}`);
+            if (res.status === 200) {
+              Swal.fire({
+                title: "Deleted!",
+                text: res.data.message,
+                icon: "success",
+              });
+              setProduct((prev) => prev.filter((item) => item._id !== id));
+            } else {
+              toast.error(res.data.message);
+            }
+          } catch (error) {
+            toast.error("Delete failed!");
           }
-        } catch (error) {
-          toast.error("Delete failed!");
         }
       });
     }
@@ -106,12 +106,12 @@ const Products = () => {
   return (
     <div className="h-screen w-full bg-zinc-800 px-10 py-5 flex flex-col gap-y-5">
       {/* Filters */}
-      <div className="flex bg-white px-4 py-4 gap-x-4 rounded-lg">
+      <div className="flex bg-white px-4 py-4 gap-x-4 rounded-lg items-center">
         {/* Search */}
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name..."
+          placeholder="Search by name, company, or barcode..."
           className="w-[40%] border px-4 py-2 outline-none rounded-md"
           type="text"
         />
@@ -121,11 +121,11 @@ const Products = () => {
           value={maincategory}
           onChange={(e) => {
             setMaincategory(e.target.value);
-            setSubcategory(""); 
+            setSubcategory("");
           }}
           className="w-[30%] border px-4 py-2 outline-none rounded-md"
         >
-          <option value="all">Select Categories</option>
+          <option value="all">All Categories</option>
           {maincategories.map((cat, i) => (
             <option key={i} value={cat}>
               {cat}
@@ -150,22 +150,20 @@ const Products = () => {
       {/* Product Table */}
       <div className="w-full h-[85vh] py-4 px-4 rounded-md bg-white">
         <div className="flex w-full bg-white font-bold gap-x-2 text-center mb-2 font-PublicSans text-lg">
-          <h1 className="w-[16%] border py-2 rounded bg-sky-200">Name</h1>
-          <h1 className="w-[16%] border py-2 rounded bg-yellow-200">Company</h1>
-          <h1 className="w-[16%] border py-2 rounded bg-orange-200">
+          <h1 className="w-[14%] border py-2 rounded bg-sky-200">Name</h1>
+          <h1 className="w-[14%] border py-2 rounded bg-yellow-200">Company</h1>
+          <h1 className="w-[14%] border py-2 rounded bg-orange-200">
             Main Category
           </h1>
-          <h1 className="w-[16%] border py-2 rounded bg-orange-200">
+          <h1 className="w-[14%] border py-2 rounded bg-orange-200">
             Sub Category
           </h1>
-          <h1 className="w-[16%] border py-2 rounded bg-violet-200">Price</h1>
-          <h1 className="w-[10%] border py-2 rounded px-2 bg-green-200">
-            Edit
-          </h1>
-          <h1 className="w-[10%] border py-2 rounded px-2 bg-red-200">
-            Delete
-          </h1>
+          <h1 className="w-[10%] border py-2 rounded bg-violet-200">Price</h1>
+          <h1 className="w-[16%] border py-2 rounded bg-violet-200">Barcodes</h1>
+          <h1 className="w-[9%] border py-2 rounded px-2 bg-green-200">Edit</h1>
+          <h1 className="w-[9%] border py-2 rounded px-2 bg-red-200">Delete</h1>
         </div>
+
         <div
           id="scrollableDiv"
           className="h-[75vh] overflow-auto flex flex-col gap-y-5"
@@ -186,22 +184,40 @@ const Products = () => {
             {product.map((p, i) => (
               <div
                 key={i}
-                className="flex w-full items-center gap-x-2 border py-2 px-1 rounded"
+                className="flex w-full items-center gap-x-2 border py-2 px-1 rounded hover:bg-gray-50 transition-all"
               >
-                <h1 className="w-[16%] text-center">{p.name}</h1>
-                <h1 className="w-[16%] text-center">{p.company}</h1>
-                <h1 className="w-[16%] text-center">{p.Maincategory}</h1>
-                <h1 className="w-[16%] text-center">{p.Subcategory}</h1>
-                <h1 className="w-[16%] text-center">{p.price}</h1>
+                <h1 className="w-[14%] text-center">{p.name}</h1>
+                <h1 className="w-[14%] text-center">{p.company}</h1>
+                <h1 className="w-[14%] text-center">{p.Maincategory}</h1>
+                <h1 className="w-[14%] text-center">{p.Subcategory}</h1>
+                <h1 className="w-[10%] text-center">{p.price}</h1>
+
+                {/* Barcode display */}
+                <div className="w-[16%] text-center flex flex-col items-center overflow-x-auto">
+                  {p.codes?.length ? (
+                    p.codes.map((codes,i) => (
+                      <span
+                        key={i}
+                        className="block text-xs bg-gray-100 border rounded-md py-1 px-2 my-1 w-fit"
+                      >
+                        {codes}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-gray-400">—</span>
+                  )}
+                </div>
+
                 <Link
                   to={`/product-edit/${p._id}`}
-                  className="w-[10%] bg-sky-400 px-2 py-2 text-center text-white rounded-md cursor-pointer hover:bg-sky-600"
+                  className="w-[9%] bg-sky-400 px-2 py-2 text-center text-white rounded-md cursor-pointer hover:bg-sky-600"
                 >
                   Edit
                 </Link>
+
                 <h1
                   onClick={() => roleHandeler({ id: p._id })}
-                  className="w-[10%] bg-red-400 px-2 py-2 text-center text-white rounded-md cursor-pointer hover:bg-red-600"
+                  className="w-[9%] bg-red-400 px-2 py-2 text-center text-white rounded-md cursor-pointer hover:bg-red-600"
                 >
                   Delete
                 </h1>
