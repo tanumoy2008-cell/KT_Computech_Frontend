@@ -158,8 +158,9 @@ const Products = () => {
           <h1 className="w-[14%] border py-2 rounded bg-orange-200">
             Sub Category
           </h1>
-          <h1 className="w-[10%] border py-2 rounded bg-violet-200">Price</h1>
-          <h1 className="w-[16%] border py-2 rounded bg-violet-200">Barcodes</h1>
+          <h1 className="w-[8%] border py-2 rounded bg-violet-200">Price</h1>
+          <h1 className="w-[8%] border py-2 rounded bg-amber-200">Stocks</h1>
+          <h1 className="w-[16%] border py-2 rounded bg-slate-200">Barcodes</h1>
           <h1 className="w-[9%] border py-2 rounded px-2 bg-green-200">Edit</h1>
           <h1 className="w-[9%] border py-2 rounded px-2 bg-red-200">Delete</h1>
         </div>
@@ -190,7 +191,8 @@ const Products = () => {
                 <h1 className="w-[14%] text-center">{p.company}</h1>
                 <h1 className="w-[14%] text-center">{p.Maincategory}</h1>
                 <h1 className="w-[14%] text-center">{p.Subcategory}</h1>
-                <h1 className="w-[10%] text-center">{p.price}</h1>
+                <h1 className="w-[8%] text-center">{p.price}</h1>
+                <h1 className="w-[8%] text-center">{p.stock}</h1>
 
                 {/* Barcode display */}
                 <div className="w-[16%] text-center flex flex-col items-center overflow-x-auto">

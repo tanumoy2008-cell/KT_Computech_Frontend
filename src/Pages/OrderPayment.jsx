@@ -9,10 +9,6 @@ const OrderPayment = () => {
   const navigate = useNavigate();
   const paymentResponse = location.state?.paymentResponse;
 
-  useEffect(()=>{
-    console.log('VITE_RAZORPAY_KEY=', import.meta.env.VITE_RAZORPAY_KEY)
-  },[])
-
   if (!paymentResponse) {
     return (
       <div className="p-8">
@@ -94,7 +90,6 @@ const OrderPayment = () => {
       const amountINR = Math.round(Number(payTotal || 0) * 100)
 
       const key = import.meta.env.VITE_RAZORPAY_KEY || 'rzp_test_placeholder';
-      console.log(key)
       if (!key || key === 'rzp_test_placeholder') {
         toast.error('Razorpay key not configured. Set VITE_RAZORPAY_KEY env variable or window.__RAZORPAY_KEY__')
         setIsProcessing(false)
