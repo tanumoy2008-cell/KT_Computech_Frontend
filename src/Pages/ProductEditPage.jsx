@@ -53,7 +53,7 @@ const ProductEditPage = () => {
           off: product.off,
           price: product.price,
           productDescription: `#${product.description?.join(" #") || ""}`,
-          stock: product.stock > 12 ? product.stock : 12,
+          stock: product.stock,
           barcodes: product.barcodes?.map(b => b) || [], // set barcode values
         });
 
@@ -336,8 +336,8 @@ const ProductEditPage = () => {
                   required: "stock is required",
                   valueAsNumber: true,
                   min: {
-                    value: 12,
-                    message: "stock must be at least 12 pic's."
+                    value: 1,
+                    message: "stock must be at least 1 pic's."
                   },
                   max: {
                     value: 500,
