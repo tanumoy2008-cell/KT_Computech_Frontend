@@ -61,6 +61,7 @@ const Footer = () => {
         >
           <h2 className="text-white font-semibold text-xl mb-3">Policies</h2>
           <Link to="/admin" className="hover:text-white transition-colors">Admin</Link>
+          <Link to="/orders" className="hover:text-white transition-colors">Orders</Link>
           <Link className="hover:text-white transition-colors">FAQ</Link>
           <Link className="hover:text-white transition-colors">Cancelling & Refund Policy</Link>
           <Link className="hover:text-white transition-colors">Cookie Policy</Link>

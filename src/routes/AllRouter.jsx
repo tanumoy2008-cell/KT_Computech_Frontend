@@ -21,6 +21,8 @@ import Products from '../components/Products'
 import Settings from '../components/Settings'
 import ProductAdder from '../components/ProductAdder'
 import Billing from '../components/Billing'
+import Order from '../Pages/Order'
+import OrderPayment from '../Pages/OrderPayment'
 
 const AllRouter = () => {
   return (
@@ -37,6 +39,7 @@ const AllRouter = () => {
       <Route path="/user/otp" element={<OtpValidationPage />} />
 
       <Route element={<UserAuth />}>
+      <Route path="/order-payment" element={<OrderPayment />} />
         <Route path="/user" element={<UserProfle />}>
           <Route index element={<Dashboard />} />
           <Route path="cart" element={<Cart />} />
@@ -54,6 +57,7 @@ const AllRouter = () => {
         <Route path="billing" element={<Billing />} />
         </Route>
         <Route path="/product-edit/:id" element={<ProductEditPage />} />
+        <Route path="/orders" element={<Order />} />
       </Route>
 
     </Routes>

@@ -43,7 +43,6 @@ const ProductEditPage = () => {
       try {
         const res = await axios.get(`/api/product/product-info/${id}`);
         const product = res.data;
-        console.log(res.data)
 
         reset({
           id: product._id,
@@ -125,9 +124,20 @@ const ProductEditPage = () => {
     if (data.price && Number(data.price) !== Number(Product.price)) formData.append("price", data.price);
     if (data.stock && Number(data.stock) !== Number(Product.stock)) formData.append("stock", data.stock);
 
-    // Append barcodes array
-    if (data.barcodes && JSON.stringify(data.barcodes) !== JSON.stringify(Product.barcodes?.map(b => b.code))) {
-      data.barcodes.forEach(code => formData.append("codes", code));
+    // Append only new barcodes (don't resend existing ones)
+    if (data.barcodes) {
+      // normalize incoming codes: trim strings
+      const incoming = data.barcodes.map(c => String(c).trim()).filter(Boolean);
+
+      // existing codes from product (Product.barcodes may be array of numbers or strings)
+      const existing = (Product.barcodes || []).map(b => String(b?.code ?? b).trim()).filter(Boolean);
+
+      // compute new codes not present in existing
+      const newCodes = incoming.filter(code => !existing.includes(code));
+
+      if (newCodes.length > 0) {
+        newCodes.forEach(code => formData.append("codes", code));
+      }
     }
 
     const newDescriptions = data.productDescription

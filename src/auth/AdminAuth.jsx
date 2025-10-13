@@ -17,7 +17,6 @@ const AdminAuth = () => {
         if (!admin) {
           const res = await axios.get("/api/admin/profile");
           currentUser = res.data.hiddenDetsAdmin;
-          console.log(currentUser)
           dispatch(authData(currentUser));
         }
         setReady(true);

@@ -66,6 +66,35 @@ const ProductDets = () => {
     }
   };
 
+  const productSendOnOrderSummery = () => {
+
+    // create order with single product and request UPI payment by default
+    const createOrder = async () => {
+      try {
+        const payload = {
+          products: [{
+            _id: Product._id,
+            name: Product.name,
+            price: Product.price,
+            quantity: 1,
+            off: Product.off || 0,
+            barcode: Product.barcode || null,
+          }],
+          paymentMode: 'UPI'
+        };
+
+        const res = await axios.post('/api/payment/online-order', payload);
+        // navigate to payment page with the server response
+        navigate('/order-payment', { state: { paymentResponse: res.data } });
+      } catch (err) {
+        console.error(err);
+        toast.error(err.response?.data?.message || 'Could not create order.');
+      }
+    };
+
+    createOrder();
+  }
+
   return (
     <div id="productDets" className="w-full min-h-screen bg-gradient-to-b from-gray-100 via-gray-50 to-white">
       <Navbar />
@@ -196,6 +225,7 @@ const ProductDets = () => {
 
               <div className="flex flex-col gap-4 mt-6">
                 <motion.button
+                onClick={productSendOnOrderSummery}
                   whileHover={{ scale: 1.03 }}
                   className="bg-black text-white py-3 rounded-lg text-lg shadow hover:bg-black/80"
                 >
