@@ -116,6 +116,7 @@ const Billing = () => {
               } else {
                 // For Cash or other non-UPI responses, just show success
                 Swal.fire('Success', res.data?.message || 'Order created', 'success');
+                setProducts([]);
               }
             } catch (error) {
               Swal.fire("Error!", "Failed to update product", "error");
