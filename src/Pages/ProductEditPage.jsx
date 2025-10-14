@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import Cropper from "react-easy-crop";
-import getCroppedImg from "../utils/cropImage";
+import Cropper from "react-cropper";
+import "react-cropper/node_modules/cropperjs/dist/cropper.css";
 import axios from "../config/axios";
 import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router-dom";
@@ -14,13 +14,19 @@ const ProductEditPage = () => {
   const [preview, setPreview] = useState(null);
   const file = useRef(null);
   const [image, setImage] = useState("/imagePlaceholder.png");
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [cropAreaPixels, setCropAreaPixels] = useState(null);
   const [showCropper, setShowCropper] = useState(false);
   const [rawImage, setRawImage] = useState(null);
+  const cropperRef = useRef(null);
 
-  const { register, handleSubmit, setValue, control, formState: { errors }, reset, watch } = useForm({
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    control,
+    formState: { errors },
+    reset,
+    watch,
+  } = useForm({
     defaultValues: {
       id: "",
       name: "",
@@ -29,15 +35,16 @@ const ProductEditPage = () => {
       Maincategory: "",
       off: 0,
       price: null,
-      barcodes: [], // updated for multiple barcodes
+      barcodes: [],
       stock: null,
       avatar: null,
       productDescription: [],
-    }
+    },
   });
 
   const barcodes = watch("barcodes") || [];
 
+  // Fetch product details
   useEffect(() => {
     const fetchProduct = async () => {
       try {
@@ -54,7 +61,7 @@ const ProductEditPage = () => {
           price: product.price,
           productDescription: `#${product.description?.join(" #") || ""}`,
           stock: product.stock,
-          barcodes: product.barcodes?.map(b => b) || [], // set barcode values
+          barcodes: product.barcodes?.map((b) => b) || [],
         });
 
         setImage(product.productPic);
@@ -66,6 +73,7 @@ const ProductEditPage = () => {
     fetchProduct();
   }, [id, reset]);
 
+  // Handle file select
   const handleImageChange = (e) => {
     const fileObj = e.target.files[0];
     if (fileObj) {
@@ -75,76 +83,125 @@ const ProductEditPage = () => {
     }
   };
 
-  const onCropComplete = (_, croppedAreaPixels) => {
-    setCropAreaPixels(croppedAreaPixels);
+  // Handle crop done
+  const handleCropDone = () => {
+    const cropper = cropperRef.current?.cropper;
+    if (!cropper) return;
+
+    cropper.getCroppedCanvas({ width: 500, height: 500 }).toBlob(
+      (blob) => {
+        if (blob) {
+          const croppedURL = URL.createObjectURL(blob);
+          setPreview(croppedURL);
+          const croppedFile = new File([blob], "avatar.avif", {
+            type: "image/avif",
+          });
+          setValue("avatar", croppedFile, { shouldValidate: true });
+          setShowCropper(false);
+        }
+      },
+      "image/avif",
+      0.9
+    );
   };
 
-  const handleCropDone = async () => {
-    const croppedBlob = await getCroppedImg(rawImage, cropAreaPixels);
-    const croppedURL = URL.createObjectURL(croppedBlob);
-    setPreview(croppedURL);
-    const croppedFile = new File([croppedBlob], "avatar.avif", { type: "image/avif" });
-    setValue("avatar", croppedFile, { shouldValidate: true });
-    setShowCropper(false);
-  };
-
-  // Add a new empty barcode input
-  const addBarcode = () => {
-    setValue("barcodes", [...barcodes, ""]);
-  };
+  // Add a new barcode
+  const addBarcode = () => setValue("barcodes", [...barcodes, ""]);
 
   // Remove barcode by index
+  // Track removed codes to send to backend (existing product barcodes)
+  const [removedCodes, setRemovedCodes] = useState([]);
+
+  // Remove barcode by index with SweetAlert confirmation if it was an existing barcode
   const removeBarcode = (index) => {
-    const updated = barcodes.filter((_, i) => i !== index);
-    setValue("barcodes", updated);
+    const codeAtIndex = barcodes[index];
+    const existingCodes = (Product.barcodes || []).map((b) => String(b?.code ?? b).trim()).filter(Boolean);
+
+    // If the code is one of the existing codes, confirm with SweetAlert
+    if (existingCodes.includes(String(codeAtIndex).trim())) {
+      Swal.fire({
+        title: 'Remove barcode? ',
+        text: `This barcode (${codeAtIndex}) will be deleted from the product. Are you sure?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, remove it',
+        cancelButtonText: 'Cancel',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const updated = barcodes.filter((_, i) => i !== index);
+          setValue('barcodes', updated);
+          // Add to removedCodes (avoid duplicates)
+          setRemovedCodes((prev) => {
+            const val = String(codeAtIndex).trim();
+            return prev.includes(val) ? prev : [...prev, val];
+          });
+          Swal.fire('Removed!', 'Barcode will be deleted on update.', 'success');
+        }
+      });
+    } else {
+      // Non-existing/new barcode — just remove without confirmation
+      const updated = barcodes.filter((_, i) => i !== index);
+      setValue('barcodes', updated);
+    }
   };
 
-  // Update barcode value by index
+  // Update barcode by index
   const updateBarcode = (index, value) => {
     const updated = [...barcodes];
     updated[index] = value;
     setValue("barcodes", updated);
   };
 
+  // Navigate back and reset
   const resetForm = () => {
     navigate(-1);
     setPreview(null);
     setRawImage(null);
   };
 
+  // Form submit
   const formSubmit = async (data) => {
     const formData = new FormData();
     formData.append("id", id);
 
-    if (data.name && data.name !== Product.name) formData.append("name", data.name);
-    if (data.company && data.company !== Product.company) formData.append("company", data.company);
-    if (data.Subcategory && data.Subcategory !== Product.Subcategory) formData.append("Subcategory", data.Subcategory);
-    if (data.Maincategory && data.Maincategory !== Product.Maincategory) formData.append("Maincategory", data.Maincategory);
-    if (data.off && Number(data.off) !== Number(Product.off)) formData.append("off", data.off);
-    if (data.price && Number(data.price) !== Number(Product.price)) formData.append("price", data.price);
-    if (data.stock && Number(data.stock) !== Number(Product.stock)) formData.append("stock", data.stock);
+    if (data.name && data.name !== Product.name)
+      formData.append("name", data.name);
+    if (data.company && data.company !== Product.company)
+      formData.append("company", data.company);
+    if (data.Subcategory && data.Subcategory !== Product.Subcategory)
+      formData.append("Subcategory", data.Subcategory);
+    if (data.Maincategory && data.Maincategory !== Product.Maincategory)
+      formData.append("Maincategory", data.Maincategory);
+    if (data.off && Number(data.off) !== Number(Product.off))
+      formData.append("off", data.off);
+    if (data.price && Number(data.price) !== Number(Product.price))
+      formData.append("price", data.price);
+    if (data.stock && Number(data.stock) !== Number(Product.stock))
+      formData.append("stock", data.stock);
 
-    // Append only new barcodes (don't resend existing ones)
+    // Handle new barcodes and removed barcodes
     if (data.barcodes) {
-      // normalize incoming codes: trim strings
-      const incoming = data.barcodes.map(c => String(c).trim()).filter(Boolean);
+      const incoming = data.barcodes.map((c) => String(c).trim()).filter(Boolean);
+      const existing = (Product.barcodes || [])
+        .map((b) => String(b?.code ?? b).trim())
+        .filter(Boolean);
 
-      // existing codes from product (Product.barcodes may be array of numbers or strings)
-      const existing = (Product.barcodes || []).map(b => String(b?.code ?? b).trim()).filter(Boolean);
+      const newCodes = incoming.filter((code) => !existing.includes(code));
+      const removedFromCompare = existing.filter((code) => !incoming.includes(code));
 
-      // compute new codes not present in existing
-      const newCodes = incoming.filter(code => !existing.includes(code));
+      // Append new codes
+      newCodes.forEach((code) => formData.append("codes", code));
 
-      if (newCodes.length > 0) {
-        newCodes.forEach(code => formData.append("codes", code));
-      }
+      // Combine removed codes from the UI (confirmed removals) and manual edits
+      const combinedRemoved = Array.from(new Set([...(removedCodes || []), ...removedFromCompare]));
+      combinedRemoved.forEach((code) => formData.append("codesToRemove", code));
     }
 
+    // Description
     const newDescriptions = data.productDescription
       .split("#")
       .filter(Boolean)
       .map((desc) => desc.trim());
-
     if (JSON.stringify(newDescriptions) !== JSON.stringify(Product.description)) {
       newDescriptions.forEach((desc) => formData.append("productDescription", desc));
     }
@@ -157,7 +214,7 @@ const ProductEditPage = () => {
         showDenyButton: true,
         showCancelButton: true,
         confirmButtonText: "Save",
-        denyButtonText: `Don't save`
+        denyButtonText: `Don't save`,
       }).then(async (result) => {
         if (result.isConfirmed) {
           try {
@@ -166,6 +223,8 @@ const ProductEditPage = () => {
             });
             if (res.status === 200) {
               Swal.fire("Saved!", "", "success");
+              // Clear tracked removed codes
+              setRemovedCodes([]);
               resetForm();
             }
           } catch (error) {
@@ -184,14 +243,15 @@ const ProductEditPage = () => {
   };
 
   return (
-    <div className='h-screen w-full bg-zinc-800 px-10 py-5 flex flex-col gap-y-5'>
-      <div className='w-full h-full py-6 px-10 bg-white rounded-2xl flex items-center gap-x-10'>
-        <div className='h-[55vh] overflow-hidden bg-zinc-300 border-10 border-zinc-400 border-dashed rounded-2xl w-[50%] flex items-center'>
+    <div className="h-screen w-full bg-zinc-800 px-10 py-5 flex flex-col gap-y-5">
+      <div className="w-full h-full py-6 px-10 bg-white rounded-2xl flex items-center gap-x-10">
+        {/* IMAGE PREVIEW */}
+        <div className="h-[55vh] overflow-hidden bg-zinc-300 border-10 border-zinc-400 border-dashed rounded-2xl w-[50%] flex items-center">
           <img
             onClick={() => file.current && file.current.click()}
             src={preview || image}
             alt="avatar"
-            className="object-contain object-center w-full h-full"
+            className="object-contain object-center w-full h-full cursor-pointer"
           />
         </div>
 
@@ -204,109 +264,75 @@ const ProductEditPage = () => {
               type="file"
               accept="image/*"
               onChange={handleImageChange}
-              className="hidden text-sm"
+              className="hidden"
             />
           )}
         />
 
-        <div className='h-full w-[50%] overflow-auto'>
-          <h1 className='text-center font-PublicSans text-4xl mb-2'>Product Details</h1>
-          <form onSubmit={handleSubmit(formSubmit)} className='flex flex-col gap-y-6'>
+        {/* FORM */}
+        <div className="h-full w-[50%] overflow-auto">
+          <h1 className="text-center font-PublicSans text-4xl mb-2">
+            Product Details
+          </h1>
 
+          <form onSubmit={handleSubmit(formSubmit)} className="flex flex-col gap-y-6">
+            {/* NAME */}
             <div>
-              {errors.name && <p className='font-mono text-red-500'>{errors.name.message}</p>}
+              {errors.name && <p className="font-mono text-red-500">{errors.name.message}</p>}
               <input
-                {...register("name", {
-                  required: "Please fill the name",
-                  minLength: {
-                    value: 2,
-                    message: "Product name must be at least 2 charecters"
-                  },
-                  maxLength: {
-                    value: 50,
-                    message: "Product name must be in between 50 charecters"
-                  }
-                })} placeholder='Product Name. . .' className='w-full outline-none border-1 py-2 px-4 rounded-lg' type="text" />
+                {...register("name", { required: "Please fill the name" })}
+                placeholder="Product Name..."
+                className="w-full outline-none border py-2 px-4 rounded-lg"
+                type="text"
+              />
             </div>
+
+            {/* COMPANY */}
             <div>
-              {errors.company && <p className='font-mono text-red-500'>{errors.company.message}</p>}
+              {errors.company && (
+                <p className="font-mono text-red-500">{errors.company.message}</p>
+              )}
               <input
-                {...register("company", {
-                  required: "Company name is required",
-                  minLength: {
-                    value: 2,
-                    message: "Company name must be at least 2 charecters"
-                  },
-                  maxLength: {
-                    value: 50,
-                    message: "Company name must be in between 50 charecters"
-                  }
-                })}
-                placeholder='Product Company. . .' className='w-full outline-none border-1 py-2 px-4 rounded-lg' type="text" />
+                {...register("company", { required: "Company is required" })}
+                placeholder="Company..."
+                className="w-full outline-none border py-2 px-4 rounded-lg"
+                type="text"
+              />
             </div>
-            <div>
-              {errors.Subcategory && <p className='font-mono text-red-500'>{errors.Subcategory.message}</p>}
-              <input
-                {...register("Subcategory", {
-                  required: "Subcategory name is required",
-                  minLength: {
-                    value: 2,
-                    message: "Subcategory name must be at least 2 charecters"
-                  },
-                  maxLength: {
-                    value: 50,
-                    message: "Subcategory name must be in between 50 charecters"
-                  }
-                })}
-                placeholder='Product Subcategory. . .' className='w-full outline-none border-1 py-2 px-4 rounded-lg' type="text" />
-            </div>
-            <div>
-              {errors.Maincategory && <p className='font-mono text-red-500'>{errors.Maincategory.message}</p>}
-              <input
-                {...register("Maincategory", {
-                  required: "Maincategory name is required",
-                  minLength: {
-                    value: 2,
-                    message: "Maincategory name must be at least 2 charecters"
-                  },
-                  maxLength: {
-                    value: 50,
-                    message: "Maincategory name must be in between 50 charecters"
-                  }
-                })}
-                placeholder='Product Maincategory. . .' className='w-full outline-none border-1 py-2 px-4 rounded-lg' type="text" />
-            </div>
-            <div>
-              {errors.off && <p className='font-mono text-red-500'>{errors.off.message}</p>}
-              <input
-                {...register("off", {
-                  validAsNumber: true,
-                  maxLength: {
-                    value: 2,
-                    message: "off must be in between 0 to 99"
-                  }
-                })}
-                placeholder='Product off. . .' className='w-full outline-none border-1 py-2 px-4 rounded-lg' type="text" />
-            </div>
-            <div>
-              {errors.price && <p className='font-mono text-red-500'>{errors.price.message}</p>}
-              <input
-                {...register("price", {
-                  required: "price name is required",
-                  valueAsNumber: true,
-                  min: {
-                    value: 1,
-                    message: "Price must be at least 1 Rs."
-                  },
-                  max: {
-                    value: 9999,
-                    message: "Price must be less than 10000 Rs."
-                  },
-                  validate: (value) =>
-                    !isNaN(value) && value > 0 || "Price must be a valid positive number"
-                })}
-                placeholder='Product Price in Rs./-' className='w-full outline-none border-1 py-2 px-4 rounded-lg' type="number" />
-            </div>
+
+            {/* CATEGORY FIELDS */}
+            <input
+              {...register("Subcategory", { required: "Subcategory is required" })}
+              placeholder="Subcategory..."
+              className="w-full outline-none border py-2 px-4 rounded-lg"
+              type="text"
+            />
+            <input
+              {...register("Maincategory", { required: "Maincategory is required" })}
+              placeholder="Maincategory..."
+              className="w-full outline-none border py-2 px-4 rounded-lg"
+              type="text"
+            />
+
+            {/* OFF / PRICE / STOCK */}
+            <input
+              {...register("off")}
+              placeholder="Discount (%)"
+              className="w-full outline-none border py-2 px-4 rounded-lg"
+              type="number"
+            />
+            <input
+              {...register("price", { required: "Price required" })}
+              placeholder="Price (Rs)"
+              className="w-full outline-none border py-2 px-4 rounded-lg"
+              type="number"
+            />
+            <input
+              {...register("stock", { required: "Stock required" })}
+              placeholder="Stock..."
+              className="w-full outline-none border py-2 px-4 rounded-lg"
+              type="number"
+            />
 
             {/* BARCODE INPUTS */}
             <div className="flex flex-col gap-y-2">
@@ -317,95 +343,77 @@ const ProductEditPage = () => {
                     type="text"
                     value={code}
                     onChange={(e) => updateBarcode(idx, e.target.value)}
-                    placeholder="Enter 13-digit barcode"
-                    className="outline-none border-1 py-2 px-4 rounded-lg w-full"
+                    placeholder="Enter barcode"
+                    className="outline-none border py-2 px-4 rounded-lg w-full"
                   />
-                  <button type="button" onClick={() => removeBarcode(idx)} className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-700">
+                  <button
+                    type="button"
+                    onClick={() => removeBarcode(idx)}
+                    className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-700"
+                  >
                     Remove
                   </button>
                 </div>
               ))}
-              <button type="button" onClick={addBarcode} className="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-700">
+              <button
+                type="button"
+                onClick={addBarcode}
+                className="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-700"
+              >
                 Add Barcode
               </button>
             </div>
-            <div>
-              {errors.stock && <p className='font-mono text-red-500'>{errors.stock.message}</p>}
-              <input
-                {...register("stock", {
-                  required: "stock is required",
-                  valueAsNumber: true,
-                  min: {
-                    value: 1,
-                    message: "stock must be at least 1 pic's."
-                  },
-                  max: {
-                    value: 500,
-                    message: "stock must be less 500 pic's."
-                  },
-                })}
-                placeholder='Product Stock. . . ' className='w-full outline-none border-1 py-2 px-4 rounded-lg' type="number" />
-            </div>
-            <div>
-              {errors.productDescription && <p className='font-mono text-red-500'>{errors.productDescription.message}</p>}
-              <textarea
-                {...register("productDescription", {
-                  required: "Minimum One Product description is required",
-                })}
-                placeholder='Product Description. . .(eg. #des1 #des2)' className='w-full outline-none text-xl border-1 py-2 px-4 h-50 rounded-lg resize-none'></textarea>
-            </div>
-            <div className='flex gap-x-4'>
-              <button type="submit" className='w-full text-center py-3 outline-none rounded-lg text-white font-Jura uppercase text-2xl transition-colors duration-200 bg-green-400 active:bg-green-600'>Update</button>
-              <button type='button' onClick={() => navigate("/admin/product")} className='w-full text-center py-3 outline-none rounded-lg text-white font-Jura uppercase text-2xl transition-colors duration-200 bg-zinc-400 active:bg-zinc-600'>Cancel</button>
+
+            {/* DESCRIPTION */}
+            <textarea
+              {...register("productDescription")}
+              placeholder="Product Description (use # between points)"
+              className="w-full outline-none border py-2 px-4 h-40 rounded-lg resize-none"
+            ></textarea>
+
+            <div className="flex gap-x-4">
+              <button
+                type="submit"
+                className="w-full text-center py-3 rounded-lg text-white font-Jura uppercase text-2xl bg-green-500 active:bg-green-700"
+              >
+                Update
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/admin/product")}
+                className="w-full text-center py-3 rounded-lg text-white font-Jura uppercase text-2xl bg-gray-500 active:bg-gray-700"
+              >
+                Cancel
+              </button>
             </div>
           </form>
         </div>
       </div>
 
+      {/* CROPPER MODAL */}
       {showCropper && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
           <div className="relative w-[90vw] max-w-2xl bg-zinc-900 rounded-lg p-4">
-            <h2 className="mb-2 text-lg font-semibold text-[#FFF]">Crop your image</h2>
-            <div className="relative w-full h-96">
-              <Cropper
-                image={rawImage}
-                crop={crop}
-                zoom={zoom}
-                aspect={undefined}
-                showGrid={true}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
-                initialCroppedAreaPercentages={{ x: 0, y: 0, width: 100, height: 100 }}
-              />
-            </div>
-            <div className="flex items-center justify-between mt-4">
-              <div className="w-full pr-10 text-white">
-                <p>Zoom Level</p>
-                <input
-                  type="range"
-                  min={1}
-                  max={3}
-                  step={0.1}
-                  value={zoom}
-                  onChange={(e) => setZoom(Number(e.target.value))}
-                  className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer 
-                    [&::-webkit-slider-thumb]:appearance-none 
-                    [&::-webkit-slider-thumb]:w-4 
-                    [&::-webkit-slider-thumb]:h-4 
-                    [&::-webkit-slider-thumb]:bg-zinc-500 
-                    [&::-webkit-slider-thumb]:rounded-full 
-                    [&::-webkit-slider-thumb]:border-2 
-                    [&::-webkit-slider-thumb]:border-white
-                    [&::-moz-range-thumb]:bg-zinc-500
-                    [&::-moz-range-thumb]:w-4
-                    [&::-moz-range-thumb]:h-4
-                    [&::-moz-range-thumb]:rounded-full"
-                />
-              </div>
+            <h2 className="mb-2 text-lg font-semibold text-white">
+              Crop your image
+            </h2>
+            <Cropper
+              ref={cropperRef}
+              src={rawImage}
+              style={{ height: 400, width: "100%" }}
+              aspectRatio={1}
+              guides={true}
+              viewMode={1}
+              background={false}
+              responsive={true}
+              autoCropArea={1}
+              checkOrientation={false}
+            />
+            <div className="flex justify-end mt-4">
               <button
-                className="px-4 py-1 text-black bg-white rounded cursor-pointer hover:bg-zinc-500"
-                onClick={handleCropDone}>
+                onClick={handleCropDone}
+                className="px-4 py-2 bg-white text-black rounded hover:bg-zinc-300"
+              >
                 Done
               </button>
             </div>
