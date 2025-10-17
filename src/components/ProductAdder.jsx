@@ -7,21 +7,21 @@ import { toast } from "react-toastify";
 
 const ProductAdder = () => {
   const [totalProduct, setTotalProduct] = useState(0);
-  const [preview, setPreview] = useState(null);
-  const file = useRef(null);
-  const [image, setImage] = useState("/imagePlaceholder.png");
+  const [currentCrop, setCurrentCrop] = useState(null); 
   const [rawImage, setRawImage] = useState(null);
   const [showCropper, setShowCropper] = useState(false);
+  const [colorVariants, setColorVariants] = useState([]); // color variant objects
   const cropperRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const {
     register,
     handleSubmit,
     setValue,
     control,
-    formState: { errors },
-    reset,
     watch,
+    reset,
+    formState: { errors },
   } = useForm({
     defaultValues: {
       name: "",
@@ -29,8 +29,7 @@ const ProductAdder = () => {
       Subcategory: "",
       Maincategory: "",
       price: null,
-      avatar: null,
-      productDescription: [],
+      productDescription: "",
       barcodes: [],
     },
   });
@@ -45,318 +44,307 @@ const ProductAdder = () => {
     fetchProductCount();
   }, []);
 
+  // Open file selector for a specific variant
+  const handleAddVariantImage = (variantIndex) => {
+    fileInputRef.current?.click();
+    setCurrentCrop(variantIndex);
+  };
+
   // Handle file select
   const handleImageChange = (e) => {
     const fileObj = e.target.files[0];
-    if (fileObj) {
-      const imageURL = URL.createObjectURL(fileObj);
-      setRawImage(imageURL);
-      setShowCropper(true);
-    }
+    if (!fileObj) return;
+    setRawImage(URL.createObjectURL(fileObj));
+    setShowCropper(true);
   };
 
-  // Handle crop done
+  // Crop image and attach to colorVariant
   const handleCropDone = () => {
     const cropper = cropperRef.current?.cropper;
-    if (!cropper) return;
+    if (!cropper || currentCrop === null) return;
 
-    cropper.getCroppedCanvas({ width: 500, height: 500 }).toBlob(
-      (blob) => {
-        if (blob) {
-          const croppedURL = URL.createObjectURL(blob);
-          setPreview(croppedURL);
-          const croppedFile = new File([blob], "avatar.avif", {
-            type: "image/avif",
-          });
-          setValue("avatar", croppedFile, { shouldValidate: true });
-          setShowCropper(false);
-        }
-      },
-      "image/avif",
-      0.9
-    );
+    cropper.getCroppedCanvas({ width: 500, height: 500 }).toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], `image_${Date.now()}.avif`, { type: "image/avif" });
+      const preview = URL.createObjectURL(blob);
+
+      setColorVariants((prev) => {
+        const updated = [...prev];
+        updated[currentCrop].images.push({ file, preview });
+        return updated;
+      });
+
+      setRawImage(null);
+      setShowCropper(false);
+    }, "image/avif", 0.9);
   };
 
-  // Barcode helpers (add, remove, update)
+  // Remove image from a variant
+  const removeVariantImage = (variantIndex, imageIndex) => {
+    setColorVariants((prev) => {
+      const updated = [...prev];
+      updated[variantIndex].images.splice(imageIndex, 1);
+      return updated;
+    });
+  };
+
+  // Add new color variant
+  const addColorVariant = () => {
+    setColorVariants((prev) => [
+      ...prev,
+      { name: "", colorCode: "#ffffff", stock: 0, images: [] },
+    ]);
+  };
+
+  // Remove a color variant
+  const removeColorVariant = (index) => {
+    setColorVariants((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Update barcode
   const addBarcode = () => setValue("barcodes", [...barcodes, ""]);
-  const removeBarcode = (index) => {
-    const updated = barcodes.filter((_, i) => i !== index);
-    setValue("barcodes", updated);
-  };
-  const updateBarcode = (index, value) => {
+  const removeBarcode = (idx) => setValue("barcodes", barcodes.filter((_, i) => i !== idx));
+  const updateBarcode = (idx, val) => {
     const updated = [...barcodes];
-    updated[index] = value;
+    updated[idx] = val;
     setValue("barcodes", updated);
   };
 
   // Submit form
-  const formSubmit = async (data) => {
+const formSubmit = async (data) => {
+  try {
     const formData = new FormData();
     formData.append("name", data.name);
     formData.append("company", data.company);
     formData.append("Subcategory", data.Subcategory);
     formData.append("Maincategory", data.Maincategory);
     formData.append("price", data.price);
+    formData.append("productDescription", data.productDescription);
+    formData.append("off", data.off || 0);
 
-    // Description
-    data.productDescription
-      .split("#")
-      .filter(Boolean)
-      .forEach((desc) => formData.append("productDescription", desc.trim()));
+    // ✅ Prepare colorVariants for backend
+    const variantsForBackend = colorVariants.map((cv) => ({
+      Colorname: cv.name,
+      colorCode: cv.colorCode,
+      stock: cv.stock,
+    }));
 
-    // Barcodes (send as `codes` fields)
-    if (data.barcodes && data.barcodes.length) {
-      data.barcodes
-        .map((c) => String(c).trim())
-        .filter(Boolean)
-        .forEach((code) => formData.append("codes", code));
-    }
+    // ✅ Send all variant info as one JSON string
+    formData.append("colorVariants", JSON.stringify(variantsForBackend));
 
-    if (data.avatar) formData.append("avatar", data.avatar);
-
-    try {
-      toast.info("Please wait, uploading product...");
-      const res = await axios.post("/api/product/add", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+    // ✅ Attach all images in one array "files"
+    colorVariants.forEach((variant) => {
+      variant.images.forEach((img) => {
+        formData.append("files", img.file);
       });
-      toast.success(res.data.message);
-      setImage("/imagePlaceholder.png");
-      setPreview(null);
-      setRawImage(null);
-      reset();
-      setTotalProduct((prev) => prev + 1);
-    } catch (err) {
-      toast.error("Failed to add product");
-      console.error(err);
-    }
-  };
+    });
+
+    // ✅ Barcodes
+    barcodes.filter(Boolean).forEach((c) => formData.append("codes", c));
+
+    toast.info("Uploading product...");
+    const res = await axios.post("/api/product/add", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    toast.success(res.data.message);
+    reset();
+    setColorVariants([]);
+    setTotalProduct((prev) => prev + 1);
+  } catch (err) {
+    console.error("❌ Product add error:", err);
+    toast.error("Failed to add product");
+  }
+};
+
 
   return (
-    <div className="h-screen w-full bg-zinc-800 px-10 py-5 flex flex-col gap-y-5">
+    <div className="h-screen w-full bg-zinc-800 px-10 py-5 flex flex-col gap-y-5 overflow-auto">
       {/* Total Products */}
       <div className="w-full py-10 px-10 bg-white rounded-2xl text-5xl flex items-center justify-between">
-        <h1 className="font-PublicSans uppercase font-semibold">
-          Total Products
-        </h1>
+        <h1 className="font-PublicSans uppercase font-semibold">Total Products</h1>
         <p className="font-Inter font-semibold">{totalProduct}</p>
       </div>
 
-      {/* Product Adder */}
-      <div className="w-full h-full py-6 px-10 bg-white rounded-2xl flex items-center gap-x-10">
-        {/* Image Preview */}
-        <div className="h-[55vh] overflow-hidden bg-zinc-300 border-10 border-zinc-400 border-dashed rounded-2xl w-[60%] flex items-center">
-          <img
-            onClick={() => file.current?.click()}
-            src={preview || image}
-            alt="avatar"
-            className="object-contain object-center w-full h-full cursor-pointer"
-          />
-        </div>
+      <div className="w-full py-6 px-10 bg-white rounded-2xl flex flex-col gap-y-6">
+        <h1 className="text-3xl font-bold text-center">Add Product</h1>
 
-        {/* File Input */}
-        <Controller
-          name="avatar"
-          control={control}
-          render={({ field }) => (
-            <input
-              ref={file}
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              className="hidden"
-            />
-          )}
-        />
-
-        {/* Form */}
-        <div className="h-full w-[40%]">
-          <h1 className="text-center font-PublicSans text-4xl mb-2">
-            Product Details
-          </h1>
-          <form onSubmit={handleSubmit(formSubmit)} className="flex flex-col gap-y-2">
-            {/* Name */}
-            <div>
-              {errors.name && (
-                <p className="font-mono text-red-500">{errors.name.message}</p>
-              )}
-              <input
-                {...register("name", {
-                  required: "Please fill the name",
-                  minLength: { value: 2, message: "At least 2 characters" },
-                  maxLength: { value: 50, message: "Max 50 characters" },
-                })}
-                placeholder="Product Name..."
-                className="w-full outline-none border py-2 px-4 rounded-lg"
-                type="text"
-              />
-            </div>
-
-            {/* Company */}
-            <div>
-              {errors.company && (
-                <p className="font-mono text-red-500">
-                  {errors.company.message}
-                </p>
-              )}
-              <input
-                {...register("company", {
-                  required: "Company name required",
-                  minLength: { value: 2, message: "At least 2 characters" },
-                  maxLength: { value: 50, message: "Max 50 characters" },
-                })}
-                placeholder="Company..."
-                className="w-full outline-none border py-2 px-4 rounded-lg"
-                type="text"
-              />
-            </div>
-
-            {/* Subcategory */}
-            <div>
-              {errors.Subcategory && (
-                <p className="font-mono text-red-500">
-                  {errors.Subcategory.message}
-                </p>
-              )}
-              <input
-                {...register("Subcategory", {
-                  required: "Subcategory required",
-                  minLength: { value: 2, message: "At least 2 characters" },
-                })}
-                placeholder="Subcategory..."
-                className="w-full outline-none border py-2 px-4 rounded-lg"
-                type="text"
-              />
-            </div>
-
-            {/* Maincategory */}
-            <div>
-              {errors.Maincategory && (
-                <p className="font-mono text-red-500">
-                  {errors.Maincategory.message}
-                </p>
-              )}
-              <input
-                {...register("Maincategory", {
-                  required: "Maincategory required",
-                  minLength: { value: 2, message: "At least 2 characters" },
-                })}
-                placeholder="Maincategory..."
-                className="w-full outline-none border py-2 px-4 rounded-lg"
-                type="text"
-              />
-            </div>
-
-            {/* Price */}
-            <div>
-              {errors.price && (
-                <p className="font-mono text-red-500">{errors.price.message}</p>
-              )}
-              <input
-                {...register("price", {
-                  required: "Price required",
-                  valueAsNumber: true,
-                  min: { value: 1, message: "Minimum ₹1" },
-                })}
-                placeholder="Price in Rs..."
-                className="w-full outline-none border py-2 px-4 rounded-lg"
-                type="number"
-              />
-            </div>
-
-            {/* BARCODE INPUTS */}
-            <div className="flex flex-col gap-y-2">
-              <label className="font-bold">Barcodes</label>
-              {barcodes.map((code, idx) => (
-                <div key={idx} className="flex gap-x-2 items-center">
+        {/* Product Form */}
+        <form onSubmit={handleSubmit(formSubmit)} className="flex flex-col gap-y-4">
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Left: Color Variants */}
+            <div className="flex-1 h-[65vh] overflow-y-scroll flex flex-col gap-y-4">
+              <h2 className="text-xl font-semibold">Color Variants</h2>
+              {colorVariants.map((cv, idx) => (
+                <div key={idx} className="bg-zinc-200 p-4 rounded-lg flex flex-col gap-2">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold">Variant {idx + 1}</h3>
+                    <button
+                      type="button"
+                      onClick={() => removeColorVariant(idx)}
+                      className="bg-red-500 px-2 py-1 rounded text-white"
+                    >
+                      Remove
+                    </button>
+                  </div>
                   <input
                     type="text"
-                    value={code}
-                    onChange={(e) => updateBarcode(idx, e.target.value)}
-                    placeholder="Enter barcode"
-                    className="outline-none border py-2 px-4 rounded-lg w-full"
+                    placeholder="Color Name"
+                    value={cv.name}
+                    onChange={(e) => {
+                      const updated = [...colorVariants];
+                      updated[idx].name = e.target.value;
+                      setColorVariants(updated);
+                    }}
+                    className="border px-2 py-1 rounded w-full"
                   />
-                  <button
-                    type="button"
-                    onClick={() => removeBarcode(idx)}
-                    className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-700"
-                  >
-                    Remove
-                  </button>
+                  <input
+                    type="color"
+                    value={cv.colorCode}
+                    onChange={(e) => {
+                      const updated = [...colorVariants];
+                      updated[idx].colorCode = e.target.value;
+                      setColorVariants(updated);
+                    }}
+                    className="w-16 h-10"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Stock"
+                    value={cv.stock}
+                    onChange={(e) => {
+                      const updated = [...colorVariants];
+                      updated[idx].stock = Number(e.target.value);
+                      setColorVariants(updated);
+                    }}
+                    className="border px-2 py-1 rounded w-24"
+                  />
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {cv.images.map((img, i) => (
+                      <div key={i} className="relative w-20 h-20">
+                        <img src={img.preview} alt="variant" className="w-full h-full object-cover rounded" />
+                        <button
+                          type="button"
+                          onClick={() => removeVariantImage(idx, i)}
+                          className="absolute top-0 right-0 bg-red-500 px-1 text-white rounded"
+                        >
+                          X
+                        </button>
+                      </div>
+                    ))}
+                    <div
+                      onClick={() => handleAddVariantImage(idx)}
+                      className="w-20 h-20 bg-gray-300 flex items-center justify-center rounded cursor-pointer"
+                    >
+                      + Add
+                    </div>
+                  </div>
                 </div>
               ))}
               <button
                 type="button"
-                onClick={addBarcode}
-                className="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-700"
+                onClick={addColorVariant}
+                className="bg-green-500 px-4 py-2 rounded text-white mt-2 w-40"
               >
-                Add Barcode
+                Add Variant
               </button>
             </div>
 
-            {/* Description */}
-            <div>
-              {errors.productDescription && (
-                <p className="font-mono text-red-500">
-                  {errors.productDescription.message}
-                </p>
-              )}
-              <textarea
-                {...register("productDescription", {
-                  required: "At least one description required",
-                })}
-                placeholder="Product Description (use # between points)"
-                className="w-full outline-none border py-2 px-4 h-40 rounded-lg resize-none"
-              ></textarea>
-            </div>
+            {/* Right: Basic Info */}
+            <div className="flex-1 flex flex-col gap-y-2">
+              <input
+                {...register("name", { required: "Product name required" })}
+                placeholder="Product Name"
+                className="border px-2 py-1 rounded w-full"
+              />
+              <input
+                {...register("company", { required: "Company required" })}
+                placeholder="Company"
+                className="border px-2 py-1 rounded w-full"
+              />
+              <input
+                {...register("Subcategory", { required: "Subcategory required" })}
+                placeholder="Subcategory"
+                className="border px-2 py-1 rounded w-full"
+              />
+              <input
+                {...register("Maincategory", { required: "Maincategory required" })}
+                placeholder="Maincategory"
+                className="border px-2 py-1 rounded w-full"
+              />
+              <input
+                {...register("price", { required: "Price required", valueAsNumber: true, min: 1 })}
+                placeholder="Price"
+                type="number"
+                className="border px-2 py-1 rounded w-full"
+              />
 
-            {/* Buttons */}
-            <div className="flex gap-x-4">
+              {/* Barcodes */}
+              <div className="flex flex-col gap-2 mt-2">
+                <label className="font-bold">Barcodes</label>
+                {barcodes.map((code, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={code}
+                      onChange={(e) => updateBarcode(idx, e.target.value)}
+                      placeholder="Barcode"
+                      className="border px-2 py-1 rounded w-full"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeBarcode(idx)}
+                      className="bg-red-500 text-white px-2 py-1 rounded"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addBarcode}
+                  className="bg-green-500 px-4 py-1 rounded text-white"
+                >
+                  Add Barcode
+                </button>
+              </div>
+
+              <textarea
+                {...register("productDescription", { required: true })}
+                placeholder="Description"
+                className="border px-2 py-1 rounded w-full h-32 mt-2 resize-none"
+              />
+
               <button
                 type="submit"
-                className="w-full text-center py-3 outline-none rounded-lg text-white font-Jura uppercase text-2xl bg-sky-400 active:bg-sky-600"
+                className="bg-sky-500 text-white px-4 py-2 rounded mt-2 w-full hover:bg-sky-600"
               >
-                Add
-              </button>
-              <button
-                onClick={() => {
-                  setImage("/imagePlaceholder.png");
-                  setPreview(null);
-                  setRawImage(null);
-                  reset();
-                }}
-                type="reset"
-                className="w-full text-center py-3 outline-none rounded-lg text-white font-Jura uppercase text-2xl bg-red-400 active:bg-red-600"
-              >
-                Reset
+                Add Product
               </button>
             </div>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
 
-      {/* Image Cropper Modal */}
+      {/* Cropper Modal */}
       {showCropper && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
           <div className="relative w-[90vw] max-w-2xl bg-zinc-900 rounded-lg p-4">
-            <h2 className="mb-2 text-lg font-semibold text-white">
-              Crop your image
-            </h2>
+            <h2 className="text-white mb-2 text-lg font-semibold">Crop Image</h2>
             <Cropper
               ref={cropperRef}
               src={rawImage}
               style={{ height: 400, width: "100%" }}
-              aspectRatio={NaN}
-              guides={true}
+              aspectRatio={1}
+              guides
               viewMode={1}
               background={false}
-              responsive={true}
               autoCropArea={1}
-              checkOrientation={false}
             />
-            <div className="flex justify-end mt-4">
+            <div className="flex justify-end mt-2">
               <button
                 onClick={handleCropDone}
-                className="px-4 py-2 bg-white text-black rounded hover:bg-zinc-300"
+                className="bg-white px-4 py-2 rounded text-black hover:bg-gray-300"
               >
                 Done
               </button>
@@ -364,6 +352,20 @@ const ProductAdder = () => {
           </div>
         </div>
       )}
+
+      <Controller
+        name="file"
+        control={control}
+        render={({ field }) => (
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            className="hidden"
+          />
+        )}
+      />
     </div>
   );
 };

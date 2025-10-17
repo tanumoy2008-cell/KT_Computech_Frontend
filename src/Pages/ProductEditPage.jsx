@@ -3,419 +3,282 @@ import { useForm, Controller } from "react-hook-form";
 import Cropper from "react-cropper";
 import "react-cropper/node_modules/cropperjs/dist/cropper.css";
 import axios from "../config/axios";
-import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router-dom";
 import Swal from "sweetalert2";
 
 const ProductEditPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [Product, setProduct] = useState({});
-  const [preview, setPreview] = useState(null);
-  const file = useRef(null);
-  const [image, setImage] = useState("/imagePlaceholder.png");
-  const [showCropper, setShowCropper] = useState(false);
-  const [rawImage, setRawImage] = useState(null);
+  const fileRef = useRef(null);
   const cropperRef = useRef(null);
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    control,
-    formState: { errors },
-    reset,
-    watch,
-  } = useForm({
+  const [product, setProduct] = useState({});
+  const [rawImage, setRawImage] = useState(null);
+  const [showCropper, setShowCropper] = useState(false);
+  const [currentVariantIndex, setCurrentVariantIndex] = useState(null);
+
+  const { register, handleSubmit, setValue, control, reset, watch } = useForm({
     defaultValues: {
-      id: "",
       name: "",
       company: "",
       Subcategory: "",
       Maincategory: "",
       off: 0,
       price: null,
-      barcodes: [],
       stock: null,
-      avatar: null,
-      productDescription: [],
+      barcodes: [],
+      productDescription: "",
+      colorVariants: [],
     },
   });
 
+  const colorVariants = watch("colorVariants") || [];
   const barcodes = watch("barcodes") || [];
 
-  // Fetch product details
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         const res = await axios.get(`/api/product/product-info/${id}`);
-        const product = res.data;
+        const p = res.data;
+
+        const formVariants = (p.colorVariants || []).map((cv) => ({
+          Colorname: cv.Colorname || "", // required field
+          colorCode: cv.colorCode || "#ffffff",
+          stock: cv.stock || 0,
+          images: (cv.images || []).map((img, idx) => ({
+            url: img,
+            public_id: cv.imagePublicIds?.[idx] || null,
+          })),
+        }));
+
+        const totalStock =
+          formVariants.reduce((acc, cv) => acc + (cv.stock || 0), 0) || p.stock || 0;
 
         reset({
-          id: product._id,
-          name: product.name,
-          company: product.company,
-          Subcategory: product.Subcategory,
-          Maincategory: product.Maincategory,
-          off: product.off,
-          price: product.price,
-          productDescription: `#${product.description?.join(" #") || ""}`,
-          stock: product.stock,
-          barcodes: product.barcodes?.map((b) => b) || [],
+          name: p.name || "",
+          company: p.company || "",
+          Subcategory: p.Subcategory || "",
+          Maincategory: p.Maincategory || "",
+          off: p.off || 0,
+          price: p.price || null,
+          stock: totalStock,
+          barcodes: p.barcodes || [],
+          productDescription:
+            p.description && Array.isArray(p.description)
+              ? `#${p.description.join(" #")}`
+              : "",
+          colorVariants: formVariants,
         });
 
-        setImage(product.productPic);
-        setProduct(product);
+        setProduct(p);
       } catch (err) {
         console.error(err);
+        Swal.fire("Error", "Failed to fetch product details", "error");
       }
     };
+
     fetchProduct();
   }, [id, reset]);
 
-  // Handle file select
-  const handleImageChange = (e) => {
+  const handleImageChange = (e, variantIndex) => {
     const fileObj = e.target.files[0];
-    if (fileObj) {
-      const imageURL = URL.createObjectURL(fileObj);
-      setRawImage(imageURL);
-      setShowCropper(true);
-    }
+    if (!fileObj) return;
+    setRawImage(URL.createObjectURL(fileObj));
+    setCurrentVariantIndex(variantIndex);
+    setShowCropper(true);
   };
 
-  // Handle crop done
   const handleCropDone = () => {
     const cropper = cropperRef.current?.cropper;
     if (!cropper) return;
 
-    cropper.getCroppedCanvas({ width: 500, height: 500 }).toBlob(
-      (blob) => {
-        if (blob) {
-          const croppedURL = URL.createObjectURL(blob);
-          setPreview(croppedURL);
-          const croppedFile = new File([blob], "avatar.avif", {
-            type: "image/avif",
-          });
-          setValue("avatar", croppedFile, { shouldValidate: true });
-          setShowCropper(false);
-        }
-      },
-      "image/avif",
-      0.9
-    );
+    cropper.getCroppedCanvas({ width: 500, height: 500 }).toBlob((blob) => {
+      if (blob && currentVariantIndex !== null) {
+        const croppedURL = URL.createObjectURL(blob);
+        const croppedFile = new File([blob], `image_${Date.now()}.avif`, { type: "image/avif" });
+        const updatedVariants = [...colorVariants];
+        updatedVariants[currentVariantIndex].images.push({ file: croppedFile, preview: croppedURL });
+        setValue("colorVariants", updatedVariants);
+        setShowCropper(false);
+        setRawImage(null);
+        setCurrentVariantIndex(null);
+      }
+    }, "image/avif", 0.9);
   };
 
-  // Add a new barcode
+  const removeVariantImage = (variantIndex, imgIndex) => {
+    const updatedVariants = [...colorVariants];
+    updatedVariants[variantIndex].images.splice(imgIndex, 1);
+    setValue("colorVariants", updatedVariants);
+  };
+
+  const addColorVariant = () => {
+    setValue("colorVariants", [
+      ...colorVariants,
+      { Colorname: "", colorCode: "#ffffff", stock: 0, images: [] },
+    ]);
+  };
+
+  const removeColorVariant = (index) => {
+    const updated = [...colorVariants];
+    updated.splice(index, 1);
+    setValue("colorVariants", updated);
+  };
+
   const addBarcode = () => setValue("barcodes", [...barcodes, ""]);
-
-  // Remove barcode by index
-  // Track removed codes to send to backend (existing product barcodes)
-  const [removedCodes, setRemovedCodes] = useState([]);
-
-  // Remove barcode by index with SweetAlert confirmation if it was an existing barcode
   const removeBarcode = (index) => {
-    const codeAtIndex = barcodes[index];
-    const existingCodes = (Product.barcodes || []).map((b) => String(b?.code ?? b).trim()).filter(Boolean);
-
-    // If the code is one of the existing codes, confirm with SweetAlert
-    if (existingCodes.includes(String(codeAtIndex).trim())) {
-      Swal.fire({
-        title: 'Remove barcode? ',
-        text: `This barcode (${codeAtIndex}) will be deleted from the product. Are you sure?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, remove it',
-        cancelButtonText: 'Cancel',
-      }).then((result) => {
-        if (result.isConfirmed) {
-          const updated = barcodes.filter((_, i) => i !== index);
-          setValue('barcodes', updated);
-          // Add to removedCodes (avoid duplicates)
-          setRemovedCodes((prev) => {
-            const val = String(codeAtIndex).trim();
-            return prev.includes(val) ? prev : [...prev, val];
-          });
-          Swal.fire('Removed!', 'Barcode will be deleted on update.', 'success');
-        }
-      });
-    } else {
-      // Non-existing/new barcode — just remove without confirmation
-      const updated = barcodes.filter((_, i) => i !== index);
-      setValue('barcodes', updated);
-    }
+    const updated = [...barcodes];
+    updated.splice(index, 1);
+    setValue("barcodes", updated);
   };
-
-  // Update barcode by index
   const updateBarcode = (index, value) => {
     const updated = [...barcodes];
     updated[index] = value;
     setValue("barcodes", updated);
   };
 
-  // Navigate back and reset
-  const resetForm = () => {
-    navigate(-1);
-    setPreview(null);
-    setRawImage(null);
-  };
-
-  // Form submit
   const formSubmit = async (data) => {
+    // Validate Colorname for each variant
+    for (let i = 0; i < data.colorVariants.length; i++) {
+      if (!data.colorVariants[i].Colorname) {
+        return Swal.fire("Error", `Colorname is required for variant ${i + 1}`, "error");
+      }
+    }
+
     const formData = new FormData();
     formData.append("id", id);
+    ["name", "company", "Subcategory", "Maincategory", "off", "price"].forEach((key) => {
+      if (data[key] !== product[key]) formData.append(key, data[key]);
+    });
 
-    if (data.name && data.name !== Product.name)
-      formData.append("name", data.name);
-    if (data.company && data.company !== Product.company)
-      formData.append("company", data.company);
-    if (data.Subcategory && data.Subcategory !== Product.Subcategory)
-      formData.append("Subcategory", data.Subcategory);
-    if (data.Maincategory && data.Maincategory !== Product.Maincategory)
-      formData.append("Maincategory", data.Maincategory);
-    if (data.off && Number(data.off) !== Number(Product.off))
-      formData.append("off", data.off);
-    if (data.price && Number(data.price) !== Number(Product.price))
-      formData.append("price", data.price);
-    if (data.stock && Number(data.stock) !== Number(Product.stock))
-      formData.append("stock", data.stock);
+    const newDescriptions = data.productDescription.split("#").filter(Boolean);
+    newDescriptions.forEach(desc => formData.append("productDescription", desc));
 
-    // Handle new barcodes and removed barcodes
-    if (data.barcodes) {
-      const incoming = data.barcodes.map((c) => String(c).trim()).filter(Boolean);
-      const existing = (Product.barcodes || [])
-        .map((b) => String(b?.code ?? b).trim())
-        .filter(Boolean);
+    const removedCodes = product.barcodes.filter(b => !data.barcodes.includes(b));
+    removedCodes.forEach(code => formData.append("codesToRemove", code));
+    data.barcodes.forEach(code => formData.append("codes", code));
 
-      const newCodes = incoming.filter((code) => !existing.includes(code));
-      const removedFromCompare = existing.filter((code) => !incoming.includes(code));
+    // Send colorVariants as JSON
+    formData.append("colorVariants", JSON.stringify(data.colorVariants));
 
-      // Append new codes
-      newCodes.forEach((code) => formData.append("codes", code));
-
-      // Combine removed codes from the UI (confirmed removals) and manual edits
-      const combinedRemoved = Array.from(new Set([...(removedCodes || []), ...removedFromCompare]));
-      combinedRemoved.forEach((code) => formData.append("codesToRemove", code));
-    }
-
-    // Description
-    const newDescriptions = data.productDescription
-      .split("#")
-      .filter(Boolean)
-      .map((desc) => desc.trim());
-    if (JSON.stringify(newDescriptions) !== JSON.stringify(Product.description)) {
-      newDescriptions.forEach((desc) => formData.append("productDescription", desc));
-    }
-
-    if (data.avatar) formData.append("avatar", data.avatar);
+    // Append new images
+    data.colorVariants.forEach(cv => {
+      cv.images.forEach(img => {
+        if (img.file) formData.append("files", img.file);
+      });
+    });
 
     try {
-      Swal.fire({
-        title: "Do you want to save the changes?",
-        showDenyButton: true,
-        showCancelButton: true,
-        confirmButtonText: "Save",
-        denyButtonText: `Don't save`,
-      }).then(async (result) => {
-        if (result.isConfirmed) {
-          try {
-            const res = await axios.patch("/api/product/product-update", formData, {
-              headers: { "Content-Type": "multipart/form-data" },
-            });
-            if (res.status === 200) {
-              Swal.fire("Saved!", "", "success");
-              // Clear tracked removed codes
-              setRemovedCodes([]);
-              resetForm();
-            }
-          } catch (error) {
-            Swal.fire("Error!", "Failed to update product", "error");
-            console.error(error);
-          }
-        } else if (result.isDenied) {
-          Swal.fire("Changes are not saved", "", "info");
-          resetForm();
-        }
+      const res = await axios.patch("/api/product/product-update", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
+      if (res.status === 200) {
+        Swal.fire("Updated!", "Product updated successfully.", "success");
+        navigate("/admin/product");
+      }
     } catch (err) {
-      toast.error("Failed to update product");
-      console.error(err);
+      console.error("❌ Product update error:", err);
+      Swal.fire("Error!", err.response?.data?.message || "Failed to update product.", "error");
     }
   };
 
   return (
-    <div className="h-screen w-full bg-zinc-800 px-10 py-5 flex flex-col gap-y-5">
-      <div className="w-full h-full py-6 px-10 bg-white rounded-2xl flex items-center gap-x-10">
-        {/* IMAGE PREVIEW */}
-        <div className="h-[55vh] overflow-hidden bg-zinc-300 border-10 border-zinc-400 border-dashed rounded-2xl w-[50%] flex items-center">
-          <img
-            onClick={() => file.current && file.current.click()}
-            src={preview || image}
-            alt="avatar"
-            className="object-contain object-center w-full h-full cursor-pointer"
-          />
+    <div className="min-h-screen bg-gray-400 py-10 px-6 md:px-20">
+      <form onSubmit={handleSubmit(formSubmit)} className="space-y-6">
+        {/* Product Info */}
+        <div className="bg-white p-6 rounded-xl shadow-md space-y-4">
+          <h2 className="text-2xl font-semibold text-gray-700">Product Info</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input {...register("name")} placeholder="Product Name" className="border rounded px-3 py-2 w-full" />
+            <input {...register("company")} placeholder="Company" className="border rounded px-3 py-2 w-full" />
+            <input {...register("Subcategory")} placeholder="Subcategory" className="border rounded px-3 py-2 w-full" />
+            <input {...register("Maincategory")} placeholder="Maincategory" className="border rounded px-3 py-2 w-full" />
+            <input {...register("off")} type="number" placeholder="Discount %" className="border rounded px-3 py-2 w-full" />
+            <input {...register("price")} type="number" placeholder="Price" className="border rounded px-3 py-2 w-full" />
+          </div>
         </div>
 
-        <Controller
-          name="avatar"
-          control={control}
-          render={({ field }) => (
-            <input
-              ref={file}
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              className="hidden"
-            />
-          )}
-        />
-
-        {/* FORM */}
-        <div className="h-full w-[50%] overflow-auto">
-          <h1 className="text-center font-PublicSans text-4xl mb-2">
-            Product Details
-          </h1>
-
-          <form onSubmit={handleSubmit(formSubmit)} className="flex flex-col gap-y-6">
-            {/* NAME */}
-            <div>
-              {errors.name && <p className="font-mono text-red-500">{errors.name.message}</p>}
+        {/* Barcodes */}
+        <div className="bg-white p-6 rounded-xl shadow-md space-y-3">
+          <h2 className="text-xl font-semibold text-gray-700">Barcodes</h2>
+          {barcodes.map((b, i) => (
+            <div key={i} className="flex gap-2 items-center">
               <input
-                {...register("name", { required: "Please fill the name" })}
-                placeholder="Product Name..."
-                className="w-full outline-none border py-2 px-4 rounded-lg"
                 type="text"
+                value={b}
+                onChange={(e) => updateBarcode(i, e.target.value)}
+                placeholder="Barcode"
+                className="flex-1 border rounded px-3 py-2"
               />
+              <button type="button" onClick={() => removeBarcode(i)} className="bg-red-500 px-3 py-1 rounded text-white">Remove</button>
             </div>
-
-            {/* COMPANY */}
-            <div>
-              {errors.company && (
-                <p className="font-mono text-red-500">{errors.company.message}</p>
-              )}
-              <input
-                {...register("company", { required: "Company is required" })}
-                placeholder="Company..."
-                className="w-full outline-none border py-2 px-4 rounded-lg"
-                type="text"
-              />
-            </div>
-
-            {/* CATEGORY FIELDS */}
-            <input
-              {...register("Subcategory", { required: "Subcategory is required" })}
-              placeholder="Subcategory..."
-              className="w-full outline-none border py-2 px-4 rounded-lg"
-              type="text"
-            />
-            <input
-              {...register("Maincategory", { required: "Maincategory is required" })}
-              placeholder="Maincategory..."
-              className="w-full outline-none border py-2 px-4 rounded-lg"
-              type="text"
-            />
-
-            {/* OFF / PRICE / STOCK */}
-            <input
-              {...register("off")}
-              placeholder="Discount (%)"
-              className="w-full outline-none border py-2 px-4 rounded-lg"
-              type="number"
-            />
-            <input
-              {...register("price", { required: "Price required" })}
-              placeholder="Price (Rs)"
-              className="w-full outline-none border py-2 px-4 rounded-lg"
-              type="number"
-            />
-            <input
-              {...register("stock", { required: "Stock required" })}
-              placeholder="Stock..."
-              className="w-full outline-none border py-2 px-4 rounded-lg"
-              type="number"
-            />
-
-            {/* BARCODE INPUTS */}
-            <div className="flex flex-col gap-y-2">
-              <label className="font-bold">Barcodes</label>
-              {barcodes.map((code, idx) => (
-                <div key={idx} className="flex gap-x-2 items-center">
-                  <input
-                    type="text"
-                    value={code}
-                    onChange={(e) => updateBarcode(idx, e.target.value)}
-                    placeholder="Enter barcode"
-                    className="outline-none border py-2 px-4 rounded-lg w-full"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeBarcode(idx)}
-                    className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-700"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={addBarcode}
-                className="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-700"
-              >
-                Add Barcode
-              </button>
-            </div>
-
-            {/* DESCRIPTION */}
-            <textarea
-              {...register("productDescription")}
-              placeholder="Product Description (use # between points)"
-              className="w-full outline-none border py-2 px-4 h-40 rounded-lg resize-none"
-            ></textarea>
-
-            <div className="flex gap-x-4">
-              <button
-                type="submit"
-                className="w-full text-center py-3 rounded-lg text-white font-Jura uppercase text-2xl bg-green-500 active:bg-green-700"
-              >
-                Update
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/admin/product")}
-                className="w-full text-center py-3 rounded-lg text-white font-Jura uppercase text-2xl bg-gray-500 active:bg-gray-700"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+          ))}
+          <button type="button" onClick={addBarcode} className="bg-green-500 px-4 py-2 rounded text-white mt-2">Add Barcode</button>
         </div>
-      </div>
 
-      {/* CROPPER MODAL */}
+        {/* Description */}
+        <div className="bg-white p-6 rounded-xl shadow-md">
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">Description</h2>
+          <textarea {...register("productDescription")} placeholder="Description #..." className="w-full border rounded px-3 py-2 h-32" />
+        </div>
+
+        {/* Color Variants */}
+        <div className="bg-white p-6 rounded-xl shadow-md space-y-4">
+          <h2 className="text-xl font-semibold text-gray-700">Color Variants</h2>
+          {colorVariants.map((cv, idx) => (
+            <div key={idx} className="bg-gray-50 p-4 rounded-lg shadow-sm space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Variant {idx + 1}</span>
+                <button type="button" onClick={() => removeColorVariant(idx)} className="bg-red-500 px-3 py-1 rounded text-white">Remove</button>
+              </div>
+
+              <input type="text" value={cv.Colorname} onChange={(e) => {
+                const updated = [...colorVariants];
+                updated[idx].Colorname = e.target.value;
+                setValue("colorVariants", updated);
+              }} placeholder="Color Name" className="border rounded px-3 py-2 w-full mb-2" />
+
+              <div className="flex items-center gap-4">
+                <input type="color" value={cv.colorCode} onChange={(e) => {
+                  const updated = [...colorVariants];
+                  updated[idx].colorCode = e.target.value;
+                  setValue("colorVariants", updated);
+                }} className="w-12 h-12 rounded-full border" />
+                <input type="number" placeholder="Stock" value={cv.stock} onChange={(e) => {
+                  const updated = [...colorVariants];
+                  updated[idx].stock = Number(e.target.value);
+                  setValue("colorVariants", updated);
+                }} className="border rounded px-3 py-2 w-24" />
+              </div>
+
+              <div className="flex gap-2 flex-wrap mt-2">
+                {cv.images.map((img, i) => (
+                  <div key={i} className="relative w-20 h-20 rounded overflow-hidden border">
+                    <img src={img.preview || img.url} className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => removeVariantImage(idx, i)} className="absolute top-0 right-0 bg-red-500 px-1 rounded text-white">X</button>
+                  </div>
+                ))}
+                <div onClick={() => fileRef.current.click()} className="w-20 h-20 bg-gray-200 flex items-center justify-center cursor-pointer rounded text-gray-700">+ Add</div>
+                <Controller name="file" control={control} render={({ field }) => (
+                  <input ref={fileRef} type="file" accept="image/*" onChange={(e) => handleImageChange(e, idx)} className="hidden" />
+                )} />
+              </div>
+            </div>
+          ))}
+          <button type="button" onClick={addColorVariant} className="bg-green-500 px-4 py-2 rounded text-white mt-2">Add Color Variant</button>
+        </div>
+
+        <button type="submit" className="bg-blue-500 px-6 py-3 text-white rounded-xl text-lg shadow-md hover:bg-blue-600">Update Product</button>
+        <button type="button" onClick={() => navigate(-1)} className="bg-zinc-500 px-8 py-3 ml-5 text-white rounded-xl text-lg shadow-md hover:bg-zinc-700">Cancel</button>
+      </form>
+
       {showCropper && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-          <div className="relative w-[90vw] max-w-2xl bg-zinc-900 rounded-lg p-4">
-            <h2 className="mb-2 text-lg font-semibold text-white">
-              Crop your image
-            </h2>
-            <Cropper
-              ref={cropperRef}
-              src={rawImage}
-              style={{ height: 400, width: "100%" }}
-              aspectRatio={1}
-              guides={true}
-              viewMode={1}
-              background={false}
-              responsive={true}
-              autoCropArea={1}
-              checkOrientation={false}
-            />
-            <div className="flex justify-end mt-4">
-              <button
-                onClick={handleCropDone}
-                className="px-4 py-2 bg-white text-black rounded hover:bg-zinc-300"
-              >
-                Done
-              </button>
+          <div className="relative w-[90vw] max-w-2xl bg-white rounded-lg p-4">
+            <h2 className="text-gray-700 font-semibold mb-2">Crop Image</h2>
+            <Cropper ref={cropperRef} src={rawImage} style={{ height: 400, width: "100%" }} aspectRatio={NaN} guides viewMode={1} background={false} autoCropArea={1} />
+            <div className="flex justify-end mt-2">
+              <button onClick={handleCropDone} className="px-4 py-2 bg-blue-500 rounded text-white hover:bg-blue-600">Done</button>
             </div>
           </div>
         </div>
