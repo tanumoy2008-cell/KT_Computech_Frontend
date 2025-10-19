@@ -23,6 +23,7 @@ import ProductAdder from '../components/ProductAdder'
 import Billing from '../components/Billing'
 import Order from '../Pages/Order'
 import OrderPayment from '../Pages/OrderPayment'
+import PinCode from '../components/PinCode'
 
 const AllRouter = () => {
   return (
@@ -54,6 +55,7 @@ const AllRouter = () => {
         <Route index element={<ProductAdder />} />
         <Route path="product" element={<Products />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="pincode" element={<PinCode />} />
         <Route path="billing" element={<Billing />} />
         </Route>
         <Route path="/product-edit/:id" element={<ProductEditPage />} />

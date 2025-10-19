@@ -40,14 +40,17 @@ const Admin = () => {
 
   return (
     <div className='relative w-full min-h-screen flex'>
-        <div className='h-screen w-96 flex flex-col gap-y-20 items-center justify-center font-PublicSans text-4xl'>
+        <div className='h-screen w-96 font-PublicSans text-4xl overflow-y-scroll'>
+          <div className="flex flex-col gap-y-20 items-center justify-center py-10">
             <Link to="/admin" className='cursor-pointer font-Jura font-black mb-10 italic text-5xl w-full text-center'>KT Computech</Link>
             <Link to="/" className='cursor-pointer w-full text-center'>Home</Link>
             <Link to="/admin" className='cursor-pointer w-full text-center'>Product Add</Link>
             <Link to="/admin/product" className='cursor-pointer w-full text-center'>Products</Link>
             <Link to="/admin/billing" className='cursor-pointer w-full text-center'>Billing</Link>
+            <Link to="/admin/pincode" className='cursor-pointer w-full text-center'>PinCodes</Link>
             <Link to="/admin/settings" className='cursor-pointer w-full text-center'>Setting</Link>
             <h1 onClick={logout} className='cursor-pointer w-full text-center'>LogOut</h1>
+          </div>
         </div>
         <Outlet />
     </div>
