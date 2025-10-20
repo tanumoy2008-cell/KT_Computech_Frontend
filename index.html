@@ -8,7 +8,32 @@
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- RSVP.js required for QZ Tray -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/rsvp/4.8.5/rsvp.min.js"></script>
+
+    <!-- jsSHA library (provides SHA hashing) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsSHA/2.4.2/sha.js"></script>
+
+    <!-- Polyfill global Sha256 for QZ Tray -->
+    <script>
+      // QZ Tray requires a global Sha256 object with a static hash() method
+      window.Sha256 = {
+        hash: function (data) {
+          const shaObj = new jsSHA("SHA-256", "TEXT");
+          shaObj.update(data);
+          return shaObj.getHash("HEX");
+        }
+      };
+    </script>
+
+    <!-- QZ Tray Library (from unpkg, works in-browser) -->
+    <script src="https://unpkg.com/qz-tray@2.1.0/qz-tray.js"></script>
+
+    <!-- Your React app -->
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Razorpay -->
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   </body>
 </html>
