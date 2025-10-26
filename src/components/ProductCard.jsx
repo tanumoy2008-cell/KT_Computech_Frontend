@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import axios from "../config/axios";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { ShoppingCart, Eye, Heart } from "lucide-react";
 
 const ProductCard = ({ data }) => {
   const clickHandel = async (id) => {
@@ -11,58 +12,99 @@ const ProductCard = ({ data }) => {
     }
   };
 
-  return (
-    <Link
-      to={`/product-dets/${data._id}`}
-      onClick={() => clickHandel(data._id)}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        whileHover={{ y: -8, scale: 1.02 }}
-        transition={{ duration: 0.25 }}
-        className="w-full h-full bg-green-200 border border-green-200 p-4 rounded-2xl flex flex-col gap-y-3 justify-between shadow-md hover:shadow-xl hover:bg-green-300 overflow-hidden relative"
-      >
-        {/* Company Badge */}
-        <span className="absolute top-3 left-3 z-20 border bg-green-200 text-green-900 text-xs font-semibold px-4 py-1 rounded-bl-full rounded-tr-full shadow-sm">
-          {data.company}
-        </span>
+  // Format price with commas
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('en-IN').format(price);
+  };
 
-        {/* Image */}
-        <div className="w-full h-56 rounded-xl border border-green-500 overflow-hidden relative">
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -5 }}
+      transition={{ duration: 0.3 }}
+      className="group relative w-full h-full bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100"
+    >
+      <Link to={`/product-dets/${data._id}`} onClick={() => clickHandel(data._id)} className="block h-full">
+        {/* Badge */}
+        {data.discount && (
+          <span className="absolute top-4 right-4 z-10 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg transform rotate-6">
+            {data.discount}% OFF
+          </span>
+        )}
+        
+        {/* Image Container */}
+        <div className="relative overflow-hidden bg-gray-100 h-64">
           <motion.img
+            initial={{ scale: 1 }}
             whileHover={{ scale: 1.05 }}
-            transition={{ duration: 0.3 }}
-            className="w-full h-full object-cover"
+            transition={{ duration: 0.5 }}
+            className="w-full h-full object-cover transition-transform duration-500"
             src={data.productPic}
             alt={data.name}
+            loading="lazy"
           />
-          {/* Soft Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+          
+          {/* Hover Overlay */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100">
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              className="bg-white/90 text-gray-800 p-2 rounded-full shadow-lg hover:bg-white"
+              title="Quick View"
+            >
+              <Eye size={18} />
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              className="bg-white/90 text-red-500 p-2 rounded-full shadow-lg hover:bg-white"
+              title="Add to Wishlist"
+            >
+              <Heart size={18} />
+            </motion.button>
+          </div>
         </div>
 
-        {/* Product Name */}
-        <div className="flex flex-col gap-y-1 items-center text-center">
-          <h1 className="text-lg md:text-xl font-Jura font-bold line-clamp-2 text-gray-800">
+        {/* Product Info */}
+        <div className="p-4">
+          {/* Category & Company */}
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+              {data.category || 'Category'}
+            </span>
+            <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">
+              {data.company}
+            </span>
+          </div>
+          
+          {/* Product Name */}
+          <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2 h-12 flex items-center">
             {data.name}
-          </h1>
+          </h3>
+          
+          {/* Price & CTA */}
+          <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
+            <div>
+              <span className="text-xl font-bold text-gray-900">₹{formatPrice(data.price)}</span>
+              {data.originalPrice && (
+                <span className="ml-2 text-sm text-gray-400 line-through">
+                  ₹{formatPrice(data.originalPrice)}
+                </span>
+              )}
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-1 bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md hover:shadow-lg transition-all"
+            >
+              <ShoppingCart size={16} />
+              <span>Add to Cart</span>
+            </motion.button>
+          </div>
         </div>
-
-        {/* Price + Buy Button */}
-        <div className="flex justify-between items-center mt-3">
-          <span className="text-xl font-bold text-green-800">
-            ₹ {data.price}/-
-          </span>
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            whileHover={{ backgroundColor: "#065f46" }}
-            className="bg-green-700 px-5 py-2 rounded-full cursor-pointer text-white font-Jura text-sm shadow hover:shadow-md transition"
-          >
-            Buy Now
-          </motion.button>
-        </div>
-      </motion.div>
-    </Link>
+      </Link>
+    </motion.div>
   );
 };
 

@@ -17,7 +17,7 @@ import Cart from '../components/Cart'
 import PlaceOrder from '../components/PlaceOrder'
 import ScrollTop from '../utils/ScrollTop'
 import Contact from '../Pages/Contact'
-import Products from '../components/Products'
+import AdminProducts from '../components/AdminProducts'
 import Settings from '../components/Settings'
 import ProductAdder from '../components/ProductAdder'
 import Billing from '../components/Billing'
@@ -53,7 +53,7 @@ const AllRouter = () => {
       <Route element={<AdminAuth />}>
         <Route path="/admin" element={<Admin />} >
         <Route index element={<ProductAdder />} />
-        <Route path="product" element={<Products />} />
+        <Route path="product" element={<AdminProducts />} />
         <Route path="settings" element={<Settings />} />
         <Route path="pincode" element={<PinCode />} />
         <Route path="billing" element={<Billing />} />

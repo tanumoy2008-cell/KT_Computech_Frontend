@@ -1,275 +1,430 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "../config/axios";
-import { FaLongArrowAltLeft } from "react-icons/fa";
-import calculateDiscountedPrice from "../utils/PercentageCalculate";
+import { toast } from "react-toastify";
+import { motion } from "framer-motion";
+import { FaChevronLeft, FaCartPlus, FaMapMarkerAlt } from "react-icons/fa";
 import { useDispatch } from "react-redux";
 import { addProductToCart } from "../Store/reducers/CartReducer";
-import { toast } from "react-toastify";
-import Navbar from "../components/Navbar";
-import { motion } from "framer-motion";
+import calculateDiscountedPrice from "../utils/PercentageCalculate";
 
 const ProductDets = () => {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
   const { id } = useParams();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const checkTimeout = useRef(null);
 
-  const [Product, setProduct] = useState({});
+  const [product, setProduct] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [pinCode, setPinCode] = useState("");
-  const [pinMessage, setPinMessage] = useState("");
+  const [selectedImage, setSelectedImage] = useState("");
+  const [pin, setPin] = useState("");
+  const [pinResult, setPinResult] = useState("");
   const [pinColor, setPinColor] = useState("");
+  const [showZoom, setShowZoom] = useState(false);
+  const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
+  const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
+  const [containerRect, setContainerRect] = useState({ left: 0, top: 0 });
+  const imageRef = useRef(null);
+  const containerRef = useRef(null);
 
-  const fetchData = async () => {
-    try {
-      const res = await axios.get(`/api/product/productDetail/${id}`);
-      setProduct(res.data);
+  // Fetch product details
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await axios.get(`/api/product/productDetail/${id}`);
+        if (!isMounted) return;
+        const prod = res.data;
+        setProduct(prod);
 
-      if (res.data.colorVariants && res.data.colorVariants.length > 0) {
-        const firstColor = res.data.colorVariants[0];
-        setSelectedColor(firstColor);
-        setSelectedImage(firstColor.images?.[0] || "/placeholder.png");
+        if (prod.colorVariants?.length > 0) {
+          const firstColor = prod.colorVariants[0];
+          setSelectedColor(firstColor);
+          setSelectedImage(firstColor.images?.[0] || "/placeholder.png");
+        } else {
+          setSelectedImage(prod.images?.[0] || "/placeholder.png");
+        }
+      } catch {
+        toast.error("Failed to load product details");
       }
-    } catch (error) {
-      console.error("Error fetching product:", error);
-      toast.error("Failed to fetch product details.");
-    }
+    })();
+
+    return () => (isMounted = false);
+  }, [id]);
+
+  // Back navigation
+  const handleNavigateBack = () => {
+    navigate(-2);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Select color variant
+  const handleColorSelect = (color) => {
+    setSelectedColor(color);
+    setSelectedImage(color.images?.[0] || "/placeholder.png");
+  };
 
-  const newPrice = calculateDiscountedPrice(Product.price, Product.off);
-
-  const handelProductCart = async () => {
+  // Add to cart
+  const handleAddToCart = async () => {
     try {
-      const res = await axios.post("/api/cart/add-product-in-cart", { productId: Product._id });
-      dispatch(addProductToCart(res.data.cart));
-      toast.success(res.data.message);
+      await axios.post("/api/cart/add-product-in-cart", {
+        productId: product._id,
+        color: selectedColor?.Colorname || "",
+      });
+      dispatch(addProductToCart({ ...product, color: selectedColor?.Colorname }));
+      toast.success("Product added to cart!");
     } catch (err) {
       toast.error(err.response?.data?.message || "Error adding to cart");
     }
   };
 
-  const cheackPinCode = async () => {
-    if (!pinCode || pinCode.toString().length !== 6) {
-      setPinMessage("Enter a valid 6-digit PinCode.");
-      setPinColor("text-red-500");
+  // Buy Now
+  const handleBuyNow = async () => {
+    try {
+      const payload = {
+        products: [
+          {
+            _id: product._id,
+            name: product.name + (selectedColor ? ` (${selectedColor.Colorname})` : ""),
+            price: product.price,
+            quantity: 1,
+            off: product.off || 0,
+          },
+        ],
+        paymentMode: "UPI",
+      };
+      const res = await axios.post("/api/payment/online-order", payload);
+      navigate("/order-payment", { state: { paymentResponse: res.data } });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Could not create order.");
+    }
+  };
+
+  // Pin code check (debounced)
+  useEffect(() => {
+    if (!pin) {
+      setPinResult("");
+      setPinColor("");
       return;
     }
 
-    try {
-      const result = await axios.post("/api/pinCode/check-avaliable-pincode", { pinCode });
-      setPinMessage(result.data.message);
-      setPinColor(
-        result.data.message.includes("Not")
-          ? "text-red-400 text-lg font-semibold"
-          : "text-green-400 text-lg font-semibold"
-      );
-    } catch (error) {
-      setPinMessage("Server error, please try again.");
-      setPinColor("text-red-500 font-semibold");
-    }
-  };
-
-  const productSendOnOrderSummery = () => {
-    const createOrder = async () => {
+    clearTimeout(checkTimeout.current);
+    checkTimeout.current = setTimeout(async () => {
       try {
-        const payload = {
-          products: [
-            {
-              _id: Product._id,
-              name: Product.name + (selectedColor ? ` (${selectedColor.name})` : ""),
-              price: Product.price,
-              quantity: 1,
-              off: Product.off || 0,
-            },
-          ],
-          paymentMode: "UPI",
-        };
-
-        const res = await axios.post("/api/payment/online-order", payload);
-        navigate("/order-payment", { state: { paymentResponse: res.data } });
-      } catch (err) {
-        toast.error(err.response?.data?.message || "Could not create order.");
+        const res = await axios.post("/api/pinCode/check-avaliable-pincode", { pin });
+        const message = res.data.message;
+        const available = !/not/i.test(message);
+        setPinResult(message);
+        setPinColor(available ? "text-green-500 font-semibold" : "text-red-500 font-semibold");
+      } catch {
+        setPinResult("Server error");
+        setPinColor("text-red-500 font-semibold");
       }
-    };
-    createOrder();
-  };
+    }, 1200);
+
+    return () => clearTimeout(checkTimeout.current);
+  }, [pin]);
+
+  if (!product) {
+    return (
+      <div className="flex justify-center items-center h-screen text-gray-500">
+        Loading...
+      </div>
+    );
+  }
 
   return (
-    <div id="productDets" className="w-full min-h-screen bg-gradient-to-b from-gray-100 via-gray-50 to-white">
-      <Navbar />
-
-      {/* Back Button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="fixed top-24 left-5 z-40 bg-white border border-gray-300 rounded-full px-5 py-2 flex items-center gap-x-2 shadow-md hover:shadow-lg transition"
-      >
-        <FaLongArrowAltLeft /> Back
-      </button>
-
-      {/* Loading Skeleton */}
-      {Object.keys(Product).length === 0 ? (
-        <div className="w-full pt-32 pb-10 px-5 md:px-20 lg:px-32 2xl:px-40">
-          <div className="flex flex-col lg:flex-row gap-10">
-            <motion.div
-              className="w-full lg:w-[50%] h-[400px] bg-gray-200 animate-pulse rounded-lg"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            />
-            <div className="flex flex-col gap-6 w-full lg:w-[50%]">
-              <h1 className="text-4xl font-PublicSans opacity-30 animate-pulse">Loading...</h1>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <p key={i} className="text-xl opacity-30 animate-pulse bg-gray-200 h-6 w-3/4 rounded" />
-              ))}
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Sticky Header */}
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center h-16">
+            <button 
+              onClick={handleNavigateBack}
+              className="p-2 rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
+            >
+              <FaChevronLeft className="h-5 w-5" />
+            </button>
+            <h1 className="ml-4 text-lg font-medium text-gray-900 line-clamp-1">{product.name}</h1>
           </div>
         </div>
-      ) : (
-        <div className="w-full pt-32 pb-16 px-5 md:px-20 lg:px-32 2xl:px-40">
-          <div className="flex flex-col xl:flex-row gap-12">
+      </header>
 
-            {/* LEFT: Main Image */}
-            <motion.div className="flex-1" initial={{ x: -50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.6 }}>
-              <div className="h-[400px] md:h-[500px] rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-                <img
-                  src={selectedImage || "/placeholder.png"}
-                  alt={Product.name}
-                  className="w-full h-full object-cover hover:scale-105 brightness-90 transition-transform duration-300"
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <motion.div 
+          className="bg-white rounded-2xl shadow-sm overflow-hidden"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
+          <div className="flex flex-col lg:flex-row">
+            {/* Image Gallery */}
+            <div className="w-full lg:w-1/2 p-4 md:p-8">
+              <div 
+                className="relative aspect-square w-full bg-gray-50 rounded-xl overflow-hidden group"
+                ref={containerRef}
+                onMouseEnter={(e) => {
+                  if (containerRef.current) {
+                    const rect = containerRef.current.getBoundingClientRect();
+                    setContainerRect({ left: rect.left, top: rect.top });
+                  }
+                  setShowZoom(true);
+                }}
+                onMouseLeave={() => setShowZoom(false)}
+                onMouseMove={(e) => {
+                  if (!imageRef.current) return;
+                  
+                  const { left, top, width, height } = imageRef.current.getBoundingClientRect();
+                  const x = ((e.clientX - left) / width) * 100;
+                  const y = ((e.clientY - top) / height) * 100;
+                  setZoomPosition({ x, y });
+                  setCursorPosition({ 
+                    x: e.clientX - containerRect.left, 
+                    y: e.clientY - containerRect.top 
+                  });
+                }}
+              >
+                <motion.img
+                  ref={imageRef}
+                  src={selectedImage}
+                  alt={product.name}
+                  className="w-full h-full object-contain p-4 transition-opacity duration-300"
+                  draggable={false}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  key={selectedImage}
                 />
-              </div>
-
-              {/* Image Thumbnails */}
-              {selectedColor?.images?.length > 1 && (
-                <div className="flex gap-2 mt-3">
-                  {selectedColor.images.map((img, idx) => (
-                    <img
-                      key={idx}
-                      src={img}
-                      alt={`thumbnail-${idx}`}
-                      className={`w-16 h-16 object-cover rounded cursor-pointer border-2 ${
-                        selectedImage === img ? "border-black" : "border-gray-300"
-                      }`}
-                      onClick={() => setSelectedImage(img)}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Note */}
-              <div className="bg-gray-100 py-2 px-6 mt-6 border-l-5 rounded-lg border border-black shadow-sm">
-                <h1 className="font-Inter font-semibold uppercase text-lg text-black">Note:</h1>
-                <p className="font-PublicSans text-base text-black mt-1 leading-relaxed">
-                  We try our best to deliver products as shown. Due to availability, colors may slightly vary — but quality and
-                  features remain the same. 🙏
-                </p>
-              </div>
-            </motion.div>
-
-            {/* RIGHT: Details */}
-            <motion.div className="flex-1 flex flex-col gap-6" initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.6 }}>
-              <h1 className="text-3xl sm:text-4xl font-PublicSans font-semibold text-white">
-                {Product.name} {selectedColor && `(${selectedColor.Colorname})`}
-              </h1>
-
-              {/* Price */}
-              <p className="text-2xl font-semibold text-white">
-                {Product.off !== 0 && <del className="text-white/50 mr-2">₹{Product.price}/-</del>}
-                ₹{newPrice}/-
-                {Product.off !== 0 && (
-                  <sup className="text-green-700 ml-2 text-base">{Product.off}% Off</sup>
+                {showZoom && (
+                  <div 
+                    className="fixed w-64 h-64 rounded-full overflow-hidden border-2 border-white/80 shadow-2xl pointer-events-none z-50 backdrop-blur-sm"
+                    style={{
+                      left: `${cursorPosition.x + 400}px`,
+                      top: `${cursorPosition.y + 20}px`,
+                      backgroundImage: `url(${selectedImage})`,
+                      backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
+                      backgroundSize: `${imageRef.current ? imageRef.current.naturalWidth * 1.5 : 0}px ${imageRef.current ? imageRef.current.naturalHeight * 1.5 : 0}px`,
+                    }}
+                  />
                 )}
-              </p>
+              </div>
 
-              {/* Color Variant Selector */}
-              {Product.colorVariants && Product.colorVariants.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <h1 className="font-PublicSans text-white/70 text-lg">Available Colors:</h1>
-                  <div className="flex gap-3">
-                    {Product.colorVariants.map((color, i) => (
-                      <motion.div
-                        key={i}
-                        onClick={() => {
-                          setSelectedColor(color);
-                          setSelectedImage(color.images?.[0] || "/placeholder.png");
-                        }}
-                        whileHover={{ scale: 1.1 }}
-                        className={`w-10 h-10 rounded-full border-2 cursor-pointer shadow-sm ${
-                          selectedColor?.name === color.name ? "border-black scale-105" : "border-gray-300"
-                        }`}
-                        style={{ backgroundColor: color.colorCode }}
-                        title={color.Colorname}
-                      ></motion.div>
+              {/* Thumbnails */}
+              {selectedColor?.images?.length > 1 && (
+                <div className="mt-6">
+                  <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                    {selectedColor.images.map((img, idx) => (
+                      <motion.button
+                        key={idx}
+                        onClick={() => setSelectedImage(img)}
+                        className={`flex-shrink-0 relative w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === img ? 'border-green-500 ring-2 ring-green-300' : 'border-gray-200 hover:border-gray-300'}`}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <img
+                          src={img}
+                          alt={`Thumbnail ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </motion.button>
                     ))}
                   </div>
                 </div>
               )}
+            </div>
 
-              {/* Description */}
-              <div className="flex flex-col gap-2 text-white">
-                {Product.description?.map((item, i) => (
-                  <motion.p
-                    key={i}
-                    className="text-base font-Jura flex items-start gap-2"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.15 }}
-                  >
-                    <span>•</span> {item}
-                  </motion.p>
-                ))}
-              </div>
-
-              {/* Pin Code */}
-              <motion.div className="flex flex-col gap-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-                <h1 className="text-lg font-PublicSans text-white">Check Delivery Availability</h1>
-                <div className="flex gap-3 items-end">
-                  <div className="w-[70%]">
-                    <small className={pinColor}>{pinMessage}</small>
-                    <input
-                      onChange={(e) => setPinCode(e.target.value)}
-                      value={pinCode}
-                      type="number"
-                      placeholder="Enter your PinCode..."
-                      className="border border-gray-300 w-full py-2 px-3 rounded-lg text-base outline-none bg-white"
-                    />
+            {/* Product Details */}
+            <div className="w-full lg:w-1/2 p-4 md:p-8 border-t lg:border-t-0 lg:border-l border-gray-100">
+              <div className="space-y-6">
+                {/* Brand & Rating */}
+                <div className="space-y-2">
+                  <span className="inline-block bg-green-50 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                    {product.company || 'Premium Brand'}
+                  </span>
+                  <h1 className="text-2xl font-bold text-gray-900">{product.name}</h1>
+                  <div className="flex items-center">
+                    <div className="flex text-amber-400">
+                      {[...Array(5)].map((_, i) => (
+                        <svg key={i} className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      ))}
+                    </div>
+                    <span className="ml-2 text-sm text-gray-500">(24 reviews)</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={cheackPinCode}
-                    className="bg-black px-6 py-2 text-white rounded-lg hover:bg-black/80 transition"
-                  >
-                    Check
-                  </button>
                 </div>
-              </motion.div>
 
-              {/* Buttons */}
-              <div className="flex flex-col gap-4 mt-6">
+                {/* Price */}
+                <div className="space-y-2">
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-3xl font-bold text-gray-900">
+                      ₹{product.off > 0 ? calculateDiscountedPrice(product.price, product.off) : product.price}
+                    </span>
+                    {product.off > 0 && (
+                      <>
+                        <span className="text-lg text-gray-400 line-through">₹{product.price}</span>
+                        <span className="bg-red-50 text-red-600 text-xs font-medium px-2 py-1 rounded-full">
+                          {product.off}% OFF
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {product.off > 0 && (
+                    <div className="text-sm text-green-600 font-medium">
+                      You save ₹{product.price - calculateDiscountedPrice(product.price, product.off)}
+                    </div>
+                  )}
+                </div>
+
+                {/* Color Picker */}
+                {product.colorVariants?.length > 0 && (
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-medium text-gray-700">
+                        Color: <span className="font-semibold">{selectedColor?.Colorname || 'Select'}</span>
+                      </h3>
+                      <span className="text-xs text-gray-500">{product.colorVariants.length} options</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {product.colorVariants.map((color, i) => (
+                        <motion.button
+                          key={i}
+                          onClick={() => handleColorSelect(color)}
+                          className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
+                            selectedColor?.Colorname === color.Colorname
+                              ? 'ring-2 ring-offset-1 ring-green-400 border-white shadow-md'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          style={{ backgroundColor: color.colorCode || '#ccc' }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          title={color.Colorname}
+                        >
+                          {selectedColor?.Colorname === color.Colorname && (
+                            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Description */}
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium text-gray-900">Description</h3>
+                  <div className="prose prose-sm text-gray-600">
+                    {Array.isArray(product.description) ? (
+                      <ul className="space-y-1">
+                        {product.description.map((desc, i) => (
+                          <li key={i} className="flex items-start">
+                            <svg className="h-4 w-4 text-green-500 mt-1 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>{desc}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>{product.description}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Delivery Info */}
+                <div className="bg-gray-50 p-4 rounded-xl space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <FaMapMarkerAlt className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900">Delivery & Returns</h4>
+                      <p className="text-sm text-gray-500">Check estimated delivery date</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <input
+                        type="number"
+                        placeholder="Enter PIN code"
+                        value={pin}
+                        onChange={(e) => setPin(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-300 focus:border-transparent outline-none text-sm"
+                      />
+                      <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </div>
+                    <button className="px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors text-sm">
+                      Check
+                    </button>
+                  </div>
+                  
+                  {pinResult && (
+                    <div className={`text-sm font-medium ${pinColor}`}>
+                      {pinResult}
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="flex items-start gap-3 p-3 bg-white rounded-lg">
+                      <div className="p-1.5 bg-green-50 rounded-md">
+                        <svg className="h-5 w-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">Free Delivery</div>
+                        <div className="text-xs text-gray-500">On all orders</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-3 p-3 bg-white rounded-lg">
+                      <div className="p-1.5 bg-green-50 rounded-md">
+                        <svg className="h-5 w-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">7 Days Returns</div>
+                        <div className="text-xs text-gray-500">No question asked</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Sticky Bottom Bar */}
+          <div className="sticky bottom-0 bg-white border-t border-gray-200 lg:border-t-0 lg:bg-transparent lg:border-0">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="py-3 flex gap-3">
                 <motion.button
-                  onClick={productSendOnOrderSummery}
-                  whileHover={{ scale: 1.03 }}
-                  className="bg-black text-white py-3 rounded-lg text-lg shadow hover:bg-black/80"
+                  onClick={handleAddToCart}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex-1 lg:max-w-xs flex items-center justify-center gap-2 px-6 py-3 border-2 border-green-600 rounded-xl text-green-700 font-semibold hover:bg-green-50 transition-colors"
+                >
+                  <FaCartPlus className="h-5 w-5" />
+                  <span>Add to Cart</span>
+                </motion.button>
+                
+                <motion.button
+                  onClick={handleBuyNow}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex-1 lg:max-w-xs bg-gradient-to-r from-yellow-500 to-yellow-600 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
                 >
                   Buy Now
                 </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  onClick={handelProductCart}
-                  className="bg-white text-gray-900 py-3 rounded-lg text-lg border border-gray-300 shadow hover:bg-gray-100"
-                >
-                  Add to Cart
-                </motion.button>
               </div>
-            </motion.div>
+            </div>
           </div>
-        </div>
-      )}
+        </motion.div>
+      </main>
     </div>
-  );
+  )
 };
 
 export default ProductDets;

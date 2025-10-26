@@ -1,7 +1,3 @@
-import { useState } from "react"
-import ProductAdder from "../components/ProductAdder"
-import Products from "../components/Products";
-import Settings from "../components/Settings";
 import { Outlet, useNavigate, Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import axios from "../config/axios"
@@ -11,7 +7,6 @@ import { toast } from "react-toastify";
 
 const Admin = () => {
     const dispatch = useDispatch()
-    const [contextViewer, setcontextViewer] = useState("");
     const navigate = useNavigate()
     const logout = async () => {
   Swal.fire({
