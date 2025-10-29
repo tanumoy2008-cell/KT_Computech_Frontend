@@ -183,7 +183,7 @@ const ProductEditPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-400 py-10 px-6 md:px-20">
+    <div className="min-h-screen w-full bg-gray-400 py-10 px-6 md:px-20">
       <form onSubmit={handleSubmit(formSubmit)} className="space-y-6">
         {/* Product Info */}
         <div className="bg-white p-6 rounded-xl shadow-md space-y-4">

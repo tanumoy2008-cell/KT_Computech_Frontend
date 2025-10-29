@@ -29,17 +29,17 @@ const AdminProducts = () => {
   const [maincategories, setMaincategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const limit = 12;
   const scrollRef = useRef(null);
 
   const [lastMainCategory, setLastMainCategory] = useState(maincategory);
   const [lastSubCategory, setLastSubCategory] = useState(subcategory);
+  const [lastQuery, setLastQuery] = useState(query);
 
   // ======================= FETCH PRODUCTS =======================
   const fetchData = async (reset = false) => {
-    // Only fetch if reset (filters changed) or has more data
     if (!reset && !hasMore) return;
-
     setIsLoading(true);
     try {
       const res = await axios.get("/api/product/productDetails", {
@@ -52,9 +52,11 @@ const AdminProducts = () => {
         },
       });
 
+      const fetched = res.data?.product || [];
+
       dispatch(
         setProducts({
-          products: res.data.product,
+          products: fetched,
           reset,
         })
       );
@@ -62,7 +64,7 @@ const AdminProducts = () => {
       dispatch(
         setPagination({
           start: res.data.nextStart || 0,
-          hasMore: res.data.hasMore,
+          hasMore: res.data.hasMore ?? false,
         })
       );
 
@@ -76,33 +78,55 @@ const AdminProducts = () => {
     }
   };
 
+  // ======================= INITIAL LOAD =======================
+  useEffect(() => {
+    if (isInitialLoad && items.length === 0) {
+      fetchData(true);
+      setIsInitialLoad(false);
+    }
+  }, [isInitialLoad, items.length]);
+
   // ======================= FILTER / SEARCH =======================
   useEffect(() => {
     const filterChanged =
       maincategory !== lastMainCategory || subcategory !== lastSubCategory;
 
-    fetchData(filterChanged);
-
-    if (filterChanged) {
+    if (query !== lastQuery || filterChanged) {
+      fetchData(true);
       dispatch(clearScrollY());
+      setLastQuery(query);
       setLastMainCategory(maincategory);
       setLastSubCategory(subcategory);
     }
   }, [query, maincategory, subcategory]);
 
+  // ✅ Debounce query input
+  const debounceTimer = useRef(null);
+  const handleSearch = (value) => {
+    const sanitized = value.replace(/[\r\n]/g, "").trim();
+    dispatch(setFilters({ query: sanitized }));
+  };
+
+  const onSearchChange = (e) => {
+    const value = e.target.value;
+    clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => handleSearch(value), 400);
+  };
+
   // ======================= RESTORE SCROLL =======================
   useEffect(() => {
-    if (!scrollRef.current || scrollY === 0) return;
+    if (!scrollRef.current) return;
+    if (scrollY === 0) return;
 
     const timer = setTimeout(() => {
       scrollRef.current.scrollTo({
         top: scrollY,
         behavior: "auto",
       });
-    }, 100);
+    }, 150);
 
     return () => clearTimeout(timer);
-  }, [items.length, scrollY]);
+  }, [scrollY, items.length]);
 
   // ======================= SAVE SCROLL =======================
   useEffect(() => {
@@ -112,6 +136,7 @@ const AdminProducts = () => {
     const handleScroll = () => {
       dispatch(setScrollY(container.scrollTop));
     };
+
     container.addEventListener("scroll", handleScroll);
     return () => container.removeEventListener("scroll", handleScroll);
   }, [dispatch]);
@@ -163,15 +188,9 @@ const AdminProducts = () => {
   // ======================= SKELETON ROW =======================
   const SkeletonRow = () => (
     <div className="flex w-full items-center gap-x-2 border py-2 px-1 rounded animate-pulse bg-gray-100">
-      <div className="w-[14%] h-4 bg-gray-300 rounded"></div>
-      <div className="w-[14%] h-4 bg-gray-300 rounded"></div>
-      <div className="w-[14%] h-4 bg-gray-300 rounded"></div>
-      <div className="w-[14%] h-4 bg-gray-300 rounded"></div>
-      <div className="w-[8%] h-4 bg-gray-300 rounded"></div>
-      <div className="w-[8%] h-4 bg-gray-300 rounded"></div>
-      <div className="w-[16%] h-4 bg-gray-300 rounded"></div>
-      <div className="w-[9%] h-4 bg-gray-300 rounded"></div>
-      <div className="w-[9%] h-4 bg-gray-300 rounded"></div>
+      {Array.from({ length: 9 }).map((_, i) => (
+        <div key={i} className="w-[10%] h-4 bg-gray-300 rounded"></div>
+      ))}
     </div>
   );
 
@@ -181,9 +200,9 @@ const AdminProducts = () => {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-y-4 sm:gap-x-4 bg-white px-4 py-4 rounded-lg items-center">
         <input
-          value={query}
-          onChange={(e) => dispatch(setFilters({ query: e.target.value }))}
-          placeholder="Search by name, company, or barcode..."
+          defaultValue={query}
+          onChange={onSearchChange}
+          placeholder="Search by name, company, or 13-digit barcode..."
           className="w-full sm:w-[40%] border px-4 py-2 outline-none rounded-md"
         />
         <select
@@ -246,7 +265,7 @@ const AdminProducts = () => {
             scrollableTarget="scrollableDiv"
             endMessage={
               <p className="text-center text-gray-400 py-4">
-                🎉 You have reached the end of the list!
+                🎉 You have reached the end!
               </p>
             }
             className="flex flex-col gap-y-2"

@@ -54,7 +54,7 @@ const ProductDets = () => {
 
   // Back navigation
   const handleNavigateBack = () => {
-    navigate(-2);
+    navigate(-1);
   };
 
   // Select color variant
@@ -350,7 +350,7 @@ const ProductDets = () => {
                         placeholder="Enter PIN code"
                         value={pin}
                         onChange={(e) => setPin(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-300 focus:border-transparent outline-none text-sm"
+                        className="w-full pl-10 pr-4 py-2 placeholder:text-gray-500 border border-gray-500 rounded-lg outline-none text-sm"
                       />
                       <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />

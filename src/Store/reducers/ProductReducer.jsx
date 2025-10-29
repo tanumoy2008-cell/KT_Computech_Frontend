@@ -1,52 +1,128 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import axios from "../../config/axios";
+
+// 🔍 Async thunk to fetch products from API only if needed
+export const fetchProducts = createAsyncThunk(
+  "products/fetchProducts",
+  async ({ start = 0, limit = 20, query = "", Maincategory = "", Subcategory = "" }, { getState }) => {
+    const { ProductReducer } = getState();
+
+    // ✅ 1. If searching and already found locally, skip API
+    if (query.trim()) {
+      const localResults = ProductReducer.items.filter((item) =>
+        item.name.toLowerCase().includes(query.toLowerCase())
+      );
+      if (localResults.length > 0) {
+        return { products: localResults, fromCache: true };
+      }
+    }
+
+    // ✅ 2. Otherwise, fetch from backend
+    const res = await axios.get("/product", {
+      params: { start, limit, Maincategory, Subcategory, query },
+    });
+
+    return { products: res.data.products || [], fromCache: false };
+  }
+);
 
 const initialState = {
   items: [],
+  categories: [],
   start: 0,
   hasMore: true,
+  Maincategory: "",
+  Subcategory: "",
   query: "",
-  maincategory: "all",
-  subcategory: "",
   scrollY: 0,
+  loading: false,
+  error: null,
 };
 
 const productSlice = createSlice({
-  name: "product",
+  name: "ProductReducer",
   initialState,
   reducers: {
     setProducts: (state, action) => {
-      if (action.payload.reset) {
-        state.items = action.payload.products;
+      const { products, reset } = action.payload;
+      if (reset) {
+        state.items = products;
       } else {
-        state.items = [...state.items, ...action.payload.products];
+        const existingIds = new Set(state.items.map((p) => p._id));
+        const newItems = products.filter((p) => !existingIds.has(p._id));
+        state.items = [...state.items, ...newItems];
       }
     },
+
     setPagination: (state, action) => {
-      state.start = action.payload.start;
-      state.hasMore = action.payload.hasMore;
+      const { start, hasMore } = action.payload;
+      if (typeof start === "number") state.start = start;
+      if (typeof hasMore === "boolean") state.hasMore = hasMore;
     },
+
+    setCategories: (state, action) => {
+      state.categories = action.payload || [];
+    },
+
     setFilters: (state, action) => {
-      state.query = action.payload.query ?? state.query;
-      state.maincategory = action.payload.maincategory ?? state.maincategory;
-      state.subcategory = action.payload.subcategory ?? state.subcategory;
-      state.start = 0;
-      state.hasMore = true;
+      const { Maincategory, Subcategory, query } = action.payload;
+      if (Maincategory !== undefined) state.Maincategory = Maincategory;
+      if (Subcategory !== undefined) state.Subcategory = Subcategory;
+      if (query !== undefined) state.query = query;
     },
+
     setScrollY: (state, action) => {
       state.scrollY = action.payload;
     },
+
     clearScrollY: (state) => {
       state.scrollY = 0;
     },
+
+    resetProducts: (state) => {
+      state.items = [];
+      state.start = 0;
+      state.hasMore = true;
+      state.scrollY = 0;
+      state.query = "";
+    },
+  },
+
+  // Handle async thunk lifecycle
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchProducts.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchProducts.fulfilled, (state, action) => {
+        state.loading = false;
+
+        // Skip appending if data came from cache
+        if (action.payload.fromCache) return;
+
+        const newProducts = action.payload.products || [];
+        const existingIds = new Set(state.items.map((p) => p._id));
+        const uniqueProducts = newProducts.filter((p) => !existingIds.has(p._id));
+
+        state.items = [...state.items, ...uniqueProducts];
+        state.hasMore = newProducts.length > 0;
+      })
+      .addCase(fetchProducts.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || "Failed to fetch products";
+      });
   },
 });
 
 export const {
   setProducts,
+  setCategories,
   setPagination,
   setFilters,
   setScrollY,
   clearScrollY,
+  resetProducts,
 } = productSlice.actions;
 
 export const ProductReducer = productSlice.reducer;

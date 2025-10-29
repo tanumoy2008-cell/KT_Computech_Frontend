@@ -2,8 +2,10 @@ import { Link } from "react-router-dom";
 import axios from "../config/axios";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingCart, Eye, Heart } from "lucide-react";
+import calculateDiscountedPrice from "../utils/PercentageCalculate";
 
 const ProductCard = ({ data }) => {
+  console.log(data)
   const clickHandel = async (id) => {
     try {
       await axios.patch(`/api/product/click/${id}`);
@@ -17,6 +19,11 @@ const ProductCard = ({ data }) => {
     return new Intl.NumberFormat('en-IN').format(price);
   };
 
+  // Calculate discounted price if there's a discount
+  const displayPrice = data.off > 0 
+    ? calculateDiscountedPrice(data.price, data.off)
+    : data.price;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -27,9 +34,9 @@ const ProductCard = ({ data }) => {
     >
       <Link to={`/product-dets/${data._id}`} onClick={() => clickHandel(data._id)} className="block h-full">
         {/* Badge */}
-        {data.discount && (
+        {data.off > 0 && (
           <span className="absolute top-4 right-4 z-10 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg transform rotate-6">
-            {data.discount}% OFF
+            {data.off}% OFF
           </span>
         )}
         
@@ -70,10 +77,10 @@ const ProductCard = ({ data }) => {
         <div className="p-4">
           {/* Category & Company */}
           <div className="flex justify-between items-center mb-1">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-              {data.category || 'Category'}
+            <span className="text-xs text-gray-700 font-bold uppercase tracking-wider">
+              {data.Subcategory || 'Category'}
             </span>
-            <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">
+            <span className="text-sm font-semibold text-green-600 uppercase bg-green-50 px-2 py-1 rounded">
               {data.company}
             </span>
           </div>
@@ -86,10 +93,10 @@ const ProductCard = ({ data }) => {
           {/* Price & CTA */}
           <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
             <div>
-              <span className="text-xl font-bold text-gray-900">₹{formatPrice(data.price)}</span>
-              {data.originalPrice && (
+              <span className="text-xl font-bold text-gray-900">₹{formatPrice(displayPrice)}</span>
+              {data.off > 0 && (
                 <span className="ml-2 text-sm text-gray-400 line-through">
-                  ₹{formatPrice(data.originalPrice)}
+                  ₹{formatPrice(data.price)}
                 </span>
               )}
             </div>
