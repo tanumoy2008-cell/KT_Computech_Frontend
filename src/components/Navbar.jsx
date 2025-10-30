@@ -1,4 +1,4 @@
-import React, { memo, useState } from "react";
+import React, { memo, useState, useRef } from "react";
 import { IoMdMenu } from "react-icons/io";
 import { IoClose } from "react-icons/io5";
 import { Link, useNavigate } from "react-router-dom";
@@ -12,252 +12,280 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const Navbar = () => {
   const [MenuShow, setMenuShow] = useState(false);
+  const [sidemenu, setsidemenu] = useState(false);
+  const [productHover, setProductHover] = useState(false);
+  const hoverTimeout = useRef(null);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [sidemenu, setsidemenu] = useState(false);
   const cart = useSelector((state) => state.CartReducer);
 
   const cancelItem = (id) => {
     dispatch(removeProductFromCart({ _id: id }));
   };
 
-  return (
-    <div className="w-full fixed bg-black text-amber-400 top-0 z-[999]">
-      <div className="w-full py-2 px-4 flex lg:hidden items-center justify-between">
-        <AnimatePresence>
-          {sidemenu && (
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "tween", duration: 0.4 }}
-              className="absolute flex flex-col justify-center gap-y-10 top-0 shadow-2xl shadow-black 
-              text-center text-3xl bg-black/60 backdrop-blur-3xl w-full h-screen z-[100]"
-            >
-              <button
-                onClick={() => setsidemenu(false)}
-                className="absolute top-5 left-5 font-PublicSans uppercase text-xl bg-black text-amber-400 px-10 py-2 rounded"
-              >
-                Back
-              </button>
-              {[
-                { name: "School Stationery", link: "/product/school" },
-                { name: "Office Stationery", link: "/product/office" },
-                { name: "Art & Craft Items", link: "/product/art" },
-                { name: "Gift Items", link: "/product/gift" },
-                { name: "House Hold Products", link: "/product/house" },
-                { name: "All Products", link: "/product/all" },
-              ].map((item, i) => (
-                <Link
-                  key={i}
-                  to={item.link}
-                  onClick={() => {
-                    setsidemenu(false)
-                    setMenuShow(false)
-                  }}
-                  className="cursor-pointer py-2 px-2"
-                >
-                  {item.name}
-                </Link>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+  const navLinks = [
+    { name: "Home", to: "/" },
+    { name: "About", to: "/about" },
+    { name: "Contact Us", to: "/contact" },
+  ];
 
-        <div className="flex items-center gap-x-2">
-          <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-amber-400">
-            <img
-              className="w-full h-full object-cover shadow-2xl"
-              src="/Logo.webp"
-              alt="logo"
-            />
+  const productLinks = [
+    { name: "School Stationery", link: "/product/school" },
+    { name: "Office Stationery", link: "/product/office" },
+    { name: "Art & Craft Items", link: "/product/art" },
+    { name: "Gift Items", link: "/product/gift" },
+    { name: "House Hold Products", link: "/product/house" },
+    { name: "All Products", link: "/product/all" },
+  ];
+
+  // Hover delay handlers
+  const handleMouseEnter = () => {
+    clearTimeout(hoverTimeout.current);
+    setProductHover(true);
+  };
+
+  const handleMouseLeave = () => {
+    hoverTimeout.current = setTimeout(() => {
+      setProductHover(false);
+    }, 300); // 👈 delay before hiding
+  };
+
+  return (
+    <div className="fixed top-0 z-[999] w-full bg-emerald-700 text-amber-400 shadow-lg">
+      {/* MOBILE + TABLET */}
+      <div className="flex items-center justify-between px-4 py-2 lg:hidden">
+        {/* Logo */}
+        <div
+          onClick={() => navigate("/")}
+          className="flex items-center gap-x-2 cursor-pointer"
+        >
+          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-amber-400">
+            <img src="/Logo.webp" alt="Logo" className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-xl uppercase font-PublicSans">KT Computech</h1>
+          <h1 className="text-xl font-bold uppercase">KT Computech</h1>
         </div>
 
+        {/* Right icons */}
         <div className="flex items-center gap-x-4">
-          <div className="relative w-fit h-fit py-2">
-            {cart.length !== 0 && (
-              <small className="bg-red-600 absolute text-white text-sm px-2 rounded-full -top-2 -right-3 leading-4 py-1">
+          <div className="relative">
+            {cart.length > 0 && (
+              <small className="absolute -top-2 -right-3 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
                 {cart.length}
               </small>
             )}
             <HiMiniShoppingCart
               onClick={() => navigate("/user/cart")}
-              className="text-4xl text-amber-400 cursor-pointer"
+              className="text-3xl cursor-pointer"
             />
           </div>
+
           <IoMdMenu
             onClick={() => setMenuShow(true)}
-            className="text-4xl text-amber-400 cursor-pointer"
+            className="text-3xl cursor-pointer"
           />
         </div>
 
+        {/* MAIN MOBILE MENU */}
         <AnimatePresence>
           {MenuShow && (
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ duration: 0.4 }}
-              className="fixed w-full h-screen top-0 right-0 bg-black/50 backdrop-blur-3xl z-[99]"
+              transition={{ type: "tween", duration: 0.3 }}
+              className="fixed top-0 right-0 w-full h-screen bg-black/60 backdrop-blur-lg z-[100] flex flex-col items-center justify-center text-3xl gap-10"
             >
               <IoClose
                 onClick={() => setMenuShow(false)}
-                className="absolute top-10 right-10 text-5xl cursor-pointer"
+                className="absolute top-8 right-8 text-5xl cursor-pointer"
               />
-              <div className="flex flex-col items-center justify-center gap-y-20 uppercase font-semibold text-4xl w-full h-full">
-                <Link to="/user" onClick={() => setMenuShow(false)}>
-                  Profile
+              <Link to="/user" onClick={() => setMenuShow(false)}>
+                Profile
+              </Link>
+              <Link to="/" onClick={() => setMenuShow(false)}>
+                Home
+              </Link>
+              <h1
+                onClick={() => {
+                  setsidemenu(true);
+                  setMenuShow(false);
+                }}
+                className="cursor-pointer"
+              >
+                Product
+              </h1>
+              <Link to="/about" onClick={() => setMenuShow(false)}>
+                About
+              </Link>
+              <Link to="/contact" onClick={() => setMenuShow(false)}>
+                Contact Us
+              </Link>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* PRODUCT SIDE MENU */}
+        <AnimatePresence>
+          {sidemenu && (
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "tween", duration: 0.3 }}
+              className="fixed top-0 right-0 w-full h-screen bg-black/70 backdrop-blur-2xl z-[100] flex flex-col items-center justify-center text-2xl gap-6"
+            >
+              <button
+                onClick={() => setsidemenu(false)}
+                className="absolute top-5 left-5 bg-black text-amber-400 px-6 py-2 rounded uppercase"
+              >
+                Back
+              </button>
+              {productLinks.map((item, i) => (
+                <Link
+                  key={i}
+                  to={item.link}
+                  onClick={() => setsidemenu(false)}
+                  className="hover:scale-105 transition-transform"
+                >
+                  {item.name}
                 </Link>
-                <Link to="/" onClick={() => setMenuShow(false)}>
-                  Home
-                </Link>
-                <h1 onClick={() => setsidemenu(true)}>Product</h1>
-                <h1>About</h1>
-                <h1 onClick={()=>navigate("/contact")}>Contact Us</h1>
-              </div>
+              ))}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      <div className="hidden lg:flex justify-between items-center w-full pl-10 md:pr-10 xl:pr-30 py-1">
+      {/* DESKTOP NAVBAR */}
+      <div className="hidden lg:flex items-center justify-between px-10 py-3">
         {/* Logo */}
-        <div className="flex gap-x-4 items-center">
-          <div className="w-15 h-15 overflow-hidden rounded-full border-2 border-amber-400">
-            <img
-              className="w-full h-full object-cover scale-110 shadow-2xl"
-              src="/Logo.webp"
-              alt=""
-            />
+        <div
+          onClick={() => navigate("/")}
+          className="flex items-center gap-x-4 cursor-pointer"
+        >
+          <div className="w-14 h-14 overflow-hidden rounded-full border-2 border-amber-400">
+            <img src="/Logo.webp" alt="Logo" className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-3xl uppercase font-PublicSans">KT Computech</h1>
+          <h1 className="text-2xl font-semibold uppercase">KT Computech</h1>
         </div>
 
         {/* Links */}
-        <div className="flex font-PublicSans text-center items-center md:text-xl">
-          <motion.div whileHover={{ scale: 1.05 }}>
-            <Link to="/" className="border-r w-40 2xl:w-50 pr-4 cursor-pointer">
-              Home
-            </Link>
-          </motion.div>
+        <div className="flex items-center gap-x-8 text-lg font-semibold">
+          {navLinks.map((link, i) => (
+            <motion.div key={i} whileHover={{ scale: 1.05 }}>
+              <Link to={link.to} className="cursor-pointer hover:text-white transition-colors">
+                {link.name}
+              </Link>
+            </motion.div>
+          ))}
 
-          <div className="border-r w-30 2xl:w-50 cursor-pointer relative group">
-            <Link to={`/product/all`}>Product</Link>
-            <div className="absolute top-[100%] left-0 overflow-hidden bg-black/40 text-amber-400 backdrop-blur-2xl rounded-sm hidden group-hover:flex flex-col shadow-lg">
-              {[
-                { name: "School Stationery", link: "/product/school" },
-                { name: "Office Stationery", link: "/product/office" },
-                { name: "Art & Craft Items", link: "/product/art" },
-                { name: "Gift Items", link: "/product/gift" },
-                { name: "House Hold Products", link: "/product/house" },
-              ].map((item, i) => (
-                <Link
-                  key={i}
-                  to={item.link}
-                  className={`cursor-pointer font-PublicSans ${i != 4 && "border-b"} whitespace-nowrap py-2 px-10 transition-colors duration-150 hover:bg-black/80`}
+          {/* Product Dropdown with Delay */}
+          <div
+            className="relative cursor-pointer"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            <span className="hover:text-white">Products</span>
+            <AnimatePresence>
+              {productHover && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute flex flex-col top-[120%] left-0 bg-emerald-800/85 backdrop-blur-xs text-amber-400 rounded-md overflow-hidden shadow-lg z-[200]"
                 >
-                  {item.name}
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          <motion.h1 whileHover={{ scale: 1.05 }} className="border-r w-30 cursor-pointer">
-            About
-          </motion.h1>
-          <motion.h1 onClick={()=>navigate("/contact")} whileHover={{ scale: 1.05 }} className="w-30 cursor-pointer">
-            Contact Us
-          </motion.h1>
-
-          {/* Profile + Cart */}
-          <div className="h-full flex ml-5 items-center gap-x-5">
-            <abbr title="Profile">
-              <FaRegUserCircle
-                onClick={() => navigate("/user")}
-                className="cursor-pointer text-2xl"
-              />
-            </abbr>
-
-            <div className="relative w-fit h-fit group py-2">
-              {cart.length !== 0 && (
-                <small className="bg-red-600 absolute text-white text-sm px-2 rounded-full -top-2 -right-3 leading-4 py-[2px]">
-                  {cart.length}
-                </small>
-              )}
-              <HiMiniShoppingCart
-                onClick={() => navigate("/user/cart")}
-                className="cursor-pointer text-2xl"
-              />
-
-              {/* Cart Dropdown */}
-              <AnimatePresence>
-                {cart.length > 0 ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={{ duration: 0.3 }}
-                    className="absolute right-0 p-2 hidden group-hover:flex flex-col gap-y-2 bg-white shadow-2xl border border-black/30"
-                  >
-                    <div className="max-h-[40vh] overflow-y-auto">
-                      {cart.map((items, index) => (
-                        <div
-                          key={index}
-                          className="w-full cursor-pointer border flex p-2 items-center justify-between gap-x-4 rounded-md text-black"
-                        >
-                          <div className="w-16 h-16 overflow-hidden rounded-md border">
-                            <img
-                              className="w-full h-full object-cover"
-                              src={items.productPic}
-                              alt=""
-                            />
-                          </div>
-                          <div
-                            onClick={() =>
-                              navigate(`/product-dets/${items._id}`)
-                            }
-                            className="flex flex-col items-start"
-                          >
-                            <p className="text-sm lg:text-lg whitespace-nowrap">
-                              {items.name.slice(0, 15)}...
-                            </p>
-                            <small>
-                              ₹{calculateDiscountedPrice(items.price, items.off)}
-                            </small>
-                          </div>
-                          <button
-                            onClick={() => cancelItem(items._id)}
-                            className="bg-black text-amber-400 h-10 w-10 rounded-md flex justify-center items-center text-xl"
-                          >
-                            <IoTrash />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => navigate("/user/cart")}
-                      className="w-full py-2 bg-black text-amber-400 rounded-md font-PublicSans"
+                  {productLinks.map((item, i) => (
+                    <Link
+                      key={i}
+                      to={item.link}
+                      className="px-6 py-2 hover:bg-black/40 whitespace-nowrap"
                     >
-                      Buy Now
-                    </button>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className="absolute right-0 py-2 px-4 text-black hidden group-hover:flex bg-white shadow-2xl border border-black/30"
+                      {item.name}
+                    </Link>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Icons */}
+        <div className="flex items-center gap-x-6">
+          <FaRegUserCircle
+            onClick={() => navigate("/user")}
+            className="text-2xl cursor-pointer hover:text-white"
+          />
+          <div className="relative group">
+            {cart.length > 0 && (
+              <small className="absolute -top-2 -right-3 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
+                {cart.length}
+              </small>
+            )}
+            <HiMiniShoppingCart
+              onClick={() => navigate("/user/cart")}
+              className="text-2xl cursor-pointer hover:text-white"
+            />
+
+            {/* Hover Dropdown for Cart */}
+            <AnimatePresence>
+              {cart.length > 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute right-0 hidden group-hover:flex flex-col bg-white border border-gray-300 rounded-lg shadow-lg w-80 mt-2 z-[300]"
+                >
+                  <div className="max-h-64 overflow-y-auto p-2">
+                    {cart.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-2 border-b text-black"
+                      >
+                        <img
+                          src={item.productPic}
+                          alt={item.name}
+                          className="w-14 h-14 rounded object-cover"
+                        />
+                        <div
+                          onClick={() => navigate(`/product-dets/${item._id}`)}
+                          className="flex flex-col flex-1 ml-2 cursor-pointer"
+                        >
+                          <p className="text-sm font-medium">
+                            {item.name.slice(0, 15)}...
+                          </p>
+                          <small>
+                            ₹{calculateDiscountedPrice(item.price, item.off)}
+                          </small>
+                        </div>
+                        <button
+                          onClick={() => cancelItem(item._id)}
+                          className="bg-black text-amber-400 rounded p-2"
+                        >
+                          <IoTrash />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => navigate("/user/cart")}
+                    className="w-full py-2 bg-black text-amber-400 font-semibold"
                   >
-                    <h1 className="text-lg font-PublicSans whitespace-nowrap">
-                      No Product added in cart
-                    </h1>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                    View Cart
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute right-0 hidden group-hover:flex bg-white border border-gray-300 text-black rounded-lg shadow-lg px-4 py-2 mt-2"
+                >
+                  <p>No items in cart</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>

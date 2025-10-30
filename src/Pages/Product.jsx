@@ -273,7 +273,7 @@ const Product = () => {
               🎉 You’ve reached the end!
             </div>
           }
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 px-5 md:px-8 pb-5 pt-10 bg-green-200"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-6 px-5 md:px-8 pb-5 pt-10 bg-green-200"
         >
           {displayItems.length > 0
             ? displayItems.map((p, i) => (

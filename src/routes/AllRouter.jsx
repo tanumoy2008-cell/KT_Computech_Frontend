@@ -24,6 +24,7 @@ import Billing from '../components/Billing'
 import Order from '../Pages/Order'
 import OrderPayment from '../Pages/OrderPayment'
 import PinCode from '../components/PinCode'
+import About from '../Pages/About'
 
 const AllRouter = () => {
   return (
@@ -32,6 +33,7 @@ const AllRouter = () => {
     <Routes>
       <Route path="/" element={<MainPage />} />
       <Route path="/contact" element={<Contact />} />
+      <Route path="/about" element={<About />} />
       <Route path="/product/:Maincategory" element={<Product />} />
       <Route path="/product-dets/:id" element={<ProductDets />} />
 

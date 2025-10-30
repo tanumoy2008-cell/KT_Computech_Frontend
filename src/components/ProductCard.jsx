@@ -5,7 +5,6 @@ import { ShoppingCart, Eye, Heart } from "lucide-react";
 import calculateDiscountedPrice from "../utils/PercentageCalculate";
 
 const ProductCard = ({ data }) => {
-  console.log(data)
   const clickHandel = async (id) => {
     try {
       await axios.patch(`/api/product/click/${id}`);
