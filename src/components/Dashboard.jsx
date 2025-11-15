@@ -2,43 +2,96 @@ import React, { useState } from "react";
 import { GoPencil } from "react-icons/go";
 import { useForm } from "react-hook-form";
 import { useSelector } from "react-redux";
+import { useDispatch } from 'react-redux';
+import { updateUser } from '../Store/reducers/UserReducer';
+import axios from "../config/axios"
 
 const Dashboard = () => {
   const user = useSelector((state) => state.UserReducer);
   const [editMode, setEditMode] = useState(false);
+  const dispatch = useDispatch();
 
   const {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
-      firstName: user.fullName.firstName,
-      lastName: user.fullName.lastName,
-      phone: user.phoneNumber,
-      email: user.email,
-      Altphone: user.alternateNumber,
-      pin: user.pinCode,
-      address: user.address,
+      firstName: user.fullName?.firstName || "",
+      lastName: user.fullName?.lastName || "",
+      phoneNumber: user.phoneNumber || "",
+      email: user.email || "",
+      alternateNumber: user.alternateNumber || "",
+      pinCode: user.pinCode || "",
+      address: user.address || "",
     },
   });
 
-  const onSubmit = (data) => {
-    console.log("Updated Profile:", data);
+  const formData = watch();
+
+  const onSubmit = async (data) => {
+    try {
+      const updatedFields = {};
+      const originalData = {
+        firstName: user.fullName?.firstName,
+        lastName: user.fullName?.lastName,
+        phoneNumber: user.phoneNumber,
+        email: user.email,
+        alternateNumber: user.alternateNumber,
+        pinCode: user.pinCode,
+        address: user.address,
+      };
+
+      // Check which fields have changed
+      Object.keys(data).forEach((key) => {
+        if (data[key] !== originalData[key]) {
+          updatedFields[key] = data[key];
+        }
+      });
+
+      // Only proceed if there are changes
+      if (Object.keys(updatedFields).length === 0) {
+        alert('No changes detected');
+        setEditMode(false);
+        return;
+      }
+
+      // Send only the updated fields to the backend
+      const response = await axios.patch(
+        '/api/user/update-profile',
+        updatedFields,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-auth-token': localStorage.getItem('token'),
+          },
+        }
+      );
+
+      if (response.data.success) {
+          // Update the user state with the new data
+          // You might want to dispatch an action to update the Redux store here
+        dispatch(updateUser(updatedFields));
+        setEditMode(false);
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    }
   };
 
   return (
-    <div className="w-full h-screen flex flex-col bg-gray-50">
+    <div className="w-full h-screen flex flex-col bg-emerald-100">
       {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-white border-b px-6 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-emerald-100 border-b px-6 py-4 flex items-center justify-between">
         <h1 className="font-PublicSans text-2xl md:text-4xl font-bold text-gray-800">
           Dashboard
         </h1>
         <div className="flex flex-col items-center gap-y-1">
           <button
             onClick={() => setEditMode(true)}
-            className="flex gap-x-2 items-center bg-sky-600 hover:bg-sky-700 transition px-4 py-2 rounded-lg text-white shadow"
+            className="flex gap-x-2 items-center bg-emerald-600 hover:bg-emerald-700 transition px-4 py-2 rounded-lg text-white shadow-2xl shadow-black"
           >
             <GoPencil className="text-lg" />
             <span>Edit Profile</span>
@@ -53,7 +106,7 @@ const Dashboard = () => {
       <div className="flex-1 overflow-y-scroll px-6 py-6">
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="bg-white shadow-lg rounded-2xl p-6 flex flex-col gap-y-6"
+          className="bg-white shadow-xl shadow-black/40 rounded-2xl p-6 flex flex-col gap-y-6 border border-black/40"
         >
           {/* First + Last Name */}
           <div className="grid md:grid-cols-2 gap-6">
@@ -72,7 +125,7 @@ const Dashboard = () => {
                 placeholder="Enter first name..."
                 className={`w-full px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
                   editMode
-                    ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                    ? "bg-white border-2 border-gray-500 focus:border-emerald-600"
                     : "bg-gray-100 cursor-not-allowed"
                 }`}
               />
@@ -98,7 +151,7 @@ const Dashboard = () => {
                 placeholder="Enter last name..."
                 className={`w-full px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
                   editMode
-                    ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                    ? "bg-white border-2 border-gray-500 focus:border-emerald-600"
                     : "bg-gray-100 cursor-not-allowed"
                 }`}
               />
@@ -118,7 +171,7 @@ const Dashboard = () => {
               </label>
               <input
                 type="number"
-                {...register("phone", {
+                {...register("phoneNumber", {
                   required: "Phone number is required",
                   validate: (v) =>
                     String(v).length === 10 || "Phone must be 10 digits",
@@ -127,7 +180,7 @@ const Dashboard = () => {
                 placeholder="Enter phone number..."
                 className={`w-full px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
                   editMode
-                    ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                    ? "bg-white border-2 border-gray-500 focus:border-emerald-600"
                     : "bg-gray-100 cursor-not-allowed"
                 }`}
               />
@@ -153,7 +206,7 @@ const Dashboard = () => {
                 placeholder="Enter email..."
                 className={`w-full px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
                   editMode
-                    ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                    ? "bg-white border-2 border-gray-500 focus:border-emerald-600"
                     : "bg-gray-100 cursor-not-allowed"
                 }`}
               />
@@ -171,12 +224,12 @@ const Dashboard = () => {
               </label>
               <input
                 type="number"
-                {...register("Altphone")}
+                {...register("alternateNumber")}
                 readOnly={!editMode}
                 placeholder="Enter alternate number..."
                 className={`w-full px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
                   editMode
-                    ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                    ? "bg-white border-2 border-gray-500 focus:border-emerald-600"
                     : "bg-gray-100 cursor-not-allowed"
                 }`}
               />
@@ -188,7 +241,7 @@ const Dashboard = () => {
               </label>
               <input
                 type="number"
-                {...register("pin", {
+                {...register("pinCode", {
                   required: "Pin code is required",
                   validate: (v) =>
                     String(v).length === 6 || "Pin must be 6 digits",
@@ -197,7 +250,7 @@ const Dashboard = () => {
                 placeholder="Enter pin code..."
                 className={`w-full px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
                   editMode
-                    ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                    ? "bg-white border-2 border-gray-500 focus:border-emerald-600"
                     : "bg-gray-100 cursor-not-allowed"
                 }`}
               />
@@ -220,7 +273,7 @@ const Dashboard = () => {
               placeholder="Enter address..."
               className={`w-full resize-none h-32 px-4 py-3 rounded-lg border outline-none text-gray-800 transition ${
                 editMode
-                  ? "bg-white border-gray-300 focus:ring-2 focus:ring-sky-400"
+                  ? "bg-white border-2 border-gray-500 focus:border-emerald-600"
                   : "bg-gray-100 cursor-not-allowed"
               }`}
             ></textarea>

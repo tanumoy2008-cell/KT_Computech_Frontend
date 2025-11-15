@@ -73,6 +73,7 @@ const ProductDets = () => {
       dispatch(addProductToCart({ ...product, color: selectedColor?.Colorname }));
       toast.success("Product added to cart!");
     } catch (err) {
+      console.log(err)
       toast.error(err.response?.data?.message || "Error adding to cart");
     }
   };
@@ -83,7 +84,9 @@ const ProductDets = () => {
       const payload = {
         products: [
           {
-            _id: product._id,
+            _id: selectedColor?._id || product._id, // Use color variant _id if available
+            productId: product._id, // Always include base product _id
+            colorVariantId: selectedColor?._id, // Explicit color variant id if present
             name: product.name + (selectedColor ? ` (${selectedColor.Colorname})` : ""),
             price: product.price,
             quantity: 1,
@@ -198,7 +201,7 @@ const ProductDets = () => {
                   <div 
                     className="fixed w-64 h-64 rounded-full overflow-hidden border-2 border-white/80 shadow-2xl pointer-events-none z-50 backdrop-blur-sm"
                     style={{
-                      left: `${cursorPosition.x + 400}px`,
+                      left: `${cursorPosition.x + 75}px`,
                       top: `${cursorPosition.y + 20}px`,
                       backgroundImage: `url(${selectedImage})`,
                       backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,

@@ -21,10 +21,11 @@ import AdminProducts from '../components/AdminProducts'
 import Settings from '../components/Settings'
 import ProductAdder from '../components/ProductAdder'
 import Billing from '../components/Billing'
-import Order from '../Pages/Order'
+import Order from '../components/Order'
 import OrderPayment from '../Pages/OrderPayment'
 import PinCode from '../components/PinCode'
 import About from '../Pages/About'
+import Customer from '../components/Customer'
 
 const AllRouter = () => {
   return (
@@ -55,10 +56,12 @@ const AllRouter = () => {
       <Route element={<AdminAuth />}>
         <Route path="/admin" element={<Admin />} >
         <Route index element={<ProductAdder />} />
-        <Route path="product" element={<AdminProducts />} />
+        <Route path="products" element={<AdminProducts />} />
+        <Route path="orders" element={<Order />} />
         <Route path="settings" element={<Settings />} />
         <Route path="pincode" element={<PinCode />} />
         <Route path="billing" element={<Billing />} />
+        <Route path="customers" element={<Customer />} />
         </Route>
         <Route path="/product-edit/:id" element={<ProductEditPage />} />
         <Route path="/orders" element={<Order />} />

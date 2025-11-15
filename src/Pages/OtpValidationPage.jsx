@@ -63,8 +63,8 @@ const OtpValidationPage = () => {
               }}
             />
             <div className='w-full flex flex-col gap-y-4'>
-            <button className='bg-sky-600 w-full py-2 rounded-lg text-white cursor-pointer active:bg-sky-700'>Verify</button>
-            <button type="button" className={`w-full py-2 bg-zinc-400 text-white cursor-pointer rounded-lg ${timeLeft < 1 ? "bg-zinc-500" : "bg-zinc-700"}`}>Re-send OTP</button>
+            <button className='bg-emerald-700 w-full py-2 rounded-lg text-white cursor-pointer active:bg-emerald-500'>Verify</button>
+            <button type="button" className={`w-full py-2 text-white cursor-pointer rounded-lg ${timeLeft < 1 ? "bg-zinc-500" : "bg-emerald-800"}`}>Re-send OTP</button>
             </div>
         </form>
     </div>

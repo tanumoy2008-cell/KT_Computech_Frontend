@@ -82,7 +82,7 @@ const LandingPage = () => {
       </section>
 
       {/* Features */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-zinc-300">
         <div className="container mx-auto px-6 grid md:grid-cols-3 gap-8">
           {[
             {
@@ -110,7 +110,7 @@ const LandingPage = () => {
               transition={{ duration: 0.5, delay: i * 0.1 }}
               className="text-center p-6 rounded-xl shadow-sm hover:shadow-md transition bg-gray-50"
             >
-              <div className="text-indigo-600 mb-3 flex justify-center">
+              <div className="text-emerald-700 mb-3 flex justify-center">
                 {f.icon}
               </div>
               <h3 className="font-semibold text-xl mb-1">{f.title}</h3>
@@ -121,8 +121,8 @@ const LandingPage = () => {
       </section>
 
       {/* Top Offers with Swiper + ProductCard */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-6">
+      <section className="py-16 bg-zinc-300">
+        <div className="container mx-auto px-6 pb-10">
           <motion.div
             initial="hidden"
             whileInView="show"
@@ -131,7 +131,7 @@ const LandingPage = () => {
             className="text-center mb-12"
           >
             <h2 className="text-3xl md:text-4xl font-bold">Top Offers</h2>
-            <div className="w-16 h-1 bg-indigo-600 mx-auto my-3"></div>
+            <div className="w-16 h-1 bg-emerald-600 mx-auto my-3 rotate-6"></div>
             <p className="text-gray-600">
               Grab the best deals on stationery essentials.
             </p>
@@ -151,7 +151,7 @@ const LandingPage = () => {
             className="pb-10"
           >
             {offers.map((p) => (
-              <SwiperSlide key={p._id}>
+              <SwiperSlide key={p._id} className="mb-10">
                 <ProductCard data={p} />
               </SwiperSlide>
             ))}
@@ -160,7 +160,7 @@ const LandingPage = () => {
       </section>
 
       {/* Popular Products */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-zinc-300">
         <div className="container mx-auto px-6">
           <motion.div
             initial="hidden"
@@ -170,7 +170,7 @@ const LandingPage = () => {
             className="text-center mb-12"
           >
             <h2 className="text-3xl md:text-4xl font-bold">Popular Picks</h2>
-            <div className="w-16 h-1 bg-indigo-600 mx-auto my-3"></div>
+            <div className="w-16 h-1 bg-emerald-600 mx-auto my-3 rotate-6"></div>
             <p className="text-gray-600">
               Our most loved and trending stationery products.
             </p>
@@ -194,7 +194,7 @@ const LandingPage = () => {
       </section>
 
       {/* Newsletter */}
-      <section className="py-16 bg-indigo-600 text-white">
+      <section className="py-16 bg-emerald-800 text-white">
         <div className="container mx-auto px-6 text-center">
           <motion.div
             variants={fadeIn}
@@ -225,12 +225,12 @@ const LandingPage = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="px-4 py-3 rounded-lg text-gray-800 outline-none border-2 border-white flex-grow"
+                  className="px-4 py-3 rounded-lg outline-none border-2 border-white flex-grow"
                   required
                 />
                 <button
                   type="submit"
-                  className="bg-white text-indigo-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition"
+                  className="bg-white text-emerald-800 px-6 py-3 rounded-lg font-semibold outline-none cursor-pointer hover:bg-gray-300 transition"
                 >
                   Subscribe
                 </button>

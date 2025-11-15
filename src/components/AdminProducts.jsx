@@ -14,6 +14,7 @@ import {
 } from "../Store/reducers/AdminProductReducer";
 
 const AdminProducts = () => {
+  const admin = useSelector((state) => state.AdminReducer)
   const dispatch = useDispatch();
   const {
     items,
@@ -23,7 +24,6 @@ const AdminProducts = () => {
     maincategory,
     subcategory,
     scrollY,
-    role,
   } = useSelector((state) => state.adminProductReducer);
 
   const [maincategories, setMaincategories] = useState([]);
@@ -143,7 +143,7 @@ const AdminProducts = () => {
 
   // ======================= DELETE HANDLER =======================
   const roleHandler = ({ id }) => {
-    if (role === "admin") {
+    if (admin.role === "admin") {
       Swal.fire({
         icon: "error",
         title: "Oops...",
@@ -196,9 +196,12 @@ const AdminProducts = () => {
 
   // ======================= UI =======================
   return (
-    <div className="h-screen w-full bg-zinc-800 px-4 sm:px-10 py-5 flex flex-col gap-y-5">
+    <div className="min-h-screen w-full bg-gray-300 p-2 md:p-4 lg:px-6 lg:py-2 flex flex-col gap-y-5">
+    <div>
+    <h1 className="text-4xl font-bold font-PublicSans">All Products</h1>  
+    </div>
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-y-4 sm:gap-x-4 bg-white px-4 py-4 rounded-lg items-center">
+      <div className="flex flex-col sm:flex-row gap-y-4 sm:gap-x-4 border border-black/50 bg-white px-4 py-4 rounded-lg items-center">
         <input
           defaultValue={query}
           onChange={onSearchChange}
@@ -237,23 +240,23 @@ const AdminProducts = () => {
       </div>
 
       {/* Product Table */}
-      <div className="w-full h-[85vh] py-4 px-4 rounded-md bg-white flex flex-col">
-        <div className="flex w-full bg-white font-bold gap-x-2 text-center mb-2 text-lg">
-          <h1 className="w-[14%] border py-2 rounded bg-sky-200">Name</h1>
-          <h1 className="w-[14%] border py-2 rounded bg-yellow-200">Company</h1>
-          <h1 className="w-[14%] border py-2 rounded bg-orange-200">Main</h1>
-          <h1 className="w-[14%] border py-2 rounded bg-orange-200">Sub</h1>
-          <h1 className="w-[8%] border py-2 rounded bg-violet-200">Price</h1>
-          <h1 className="w-[8%] border py-2 rounded bg-amber-200">Stock</h1>
-          <h1 className="w-[16%] border py-2 rounded bg-slate-200">Barcodes</h1>
-          <h1 className="w-[9%] border py-2 rounded px-2 bg-green-200">Edit</h1>
-          <h1 className="w-[9%] border py-2 rounded px-2 bg-red-200">Delete</h1>
+      <div className="w-full h-[80vh] py-4 px-4 rounded-md border border-black/50 bg-white flex flex-col">
+        <div className="flex w-full border p-2 rounded-md bg-black/90 font-bold gap-x-2 text-center mb-2 text-lg">
+          <h1 className="w-[14%] py-2 rounded bg-sky-300">Name</h1>
+          <h1 className="w-[14%] py-2 rounded bg-yellow-300">Company</h1>
+          <h1 className="w-[14%] py-2 rounded bg-orange-300">Main</h1>
+          <h1 className="w-[14%] py-2 rounded bg-red-400">Sub</h1>
+          <h1 className="w-[8%] py-2 rounded bg-violet-300">Price</h1>
+          <h1 className="w-[8%] py-2 rounded bg-amber-300">Stock</h1>
+          <h1 className="w-[16%] py-2 rounded bg-slate-400">Barcodes</h1>
+          <h1 className="w-[9%] py-2 rounded px-2 bg-green-300">Edit</h1>
+          <h1 className="w-[9%] py-2 rounded px-2 bg-red-300">Delete</h1>
         </div>
 
         <div
           id="scrollableDiv"
           ref={scrollRef}
-          className="overflow-auto h-[calc(85vh-50px)]"
+          className="overflow-auto h-[calc(75vh-50px)]"
         >
           <InfiniteScroll
             dataLength={items.length}
@@ -295,7 +298,7 @@ const AdminProducts = () => {
                 </div>
                 <Link
                   to={`/product-edit/${p._id}`}
-                  className="w-[9%] bg-sky-400 px-2 py-2 text-center text-white rounded-md hover:bg-sky-600"
+                  className="w-[9%] bg-green-400 px-2 py-2 text-center text-white rounded-md hover:bg-green-600"
                 >
                   Edit
                 </Link>

@@ -8,7 +8,6 @@ const initialState = {
   maincategory: "all",
   subcategory: "",
   scrollY: 0,
-  role: "admin", // example, set actual role from auth
 };
 
 const adminProductSlice = createSlice({

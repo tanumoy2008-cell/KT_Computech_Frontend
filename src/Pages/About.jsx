@@ -156,7 +156,7 @@ const About = () => {
 
       {/* Footer CTA */}
       <section className="max-w-6xl mx-auto px-6 lg:px-8 py-8">
-        <div className="rounded-xl bg-gradient-to-r from-emerald-700 to-green-700 text-white p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="rounded-xl bg-gradient-to-r from-emerald-700 to-gr-700 text-white p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
             <h3 className="text-xl font-semibold">Ready to stock up?</h3>
             <p className="mt-1">Get special prices for bulk orders and schools — reach out for a custom quote.</p>

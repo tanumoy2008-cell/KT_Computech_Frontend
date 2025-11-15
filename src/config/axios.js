@@ -2,8 +2,6 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL);
 
-console.log(API_BASE_URL)
-
 const axiosInstance = axios.create({
 	baseURL: API_BASE_URL,
 	timeout: 55000,

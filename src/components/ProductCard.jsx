@@ -29,18 +29,18 @@ const ProductCard = ({ data }) => {
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -5 }}
       transition={{ duration: 0.3 }}
-      className="group relative w-full h-full bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100"
+      className="group relative w-full h-full bg-white rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 border-2 border-gray-500/50"
     >
       <Link to={`/product-dets/${data._id}`} onClick={() => clickHandel(data._id)} className="block h-full">
         {/* Badge */}
         {data.off > 0 && (
-          <span className="absolute top-4 right-4 z-10 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg transform rotate-6">
+          <span className="absolute top-4 right-4 z-10 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg transform animate-wiggle rotate-6">
             {data.off}% OFF
           </span>
         )}
         
         {/* Image Container */}
-        <div className="relative overflow-hidden bg-gray-100 h-64">
+        <div className="relative overflow-hidden bg-gray-100 h-64 border-b-1 border-zinc-500/70">
           <motion.img
             initial={{ scale: 1 }}
             whileHover={{ scale: 1.05 }}
@@ -56,7 +56,7 @@ const ProductCard = ({ data }) => {
             <motion.button 
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
-              className="bg-white/90 text-gray-800 p-2 rounded-full shadow-lg hover:bg-white"
+              className="bg-white/70 text-gray-800 p-2 rounded-full shadow-lg hover:bg-white"
               title="Quick View"
             >
               <Eye size={18} />
@@ -64,7 +64,7 @@ const ProductCard = ({ data }) => {
             <motion.button 
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
-              className="bg-white/90 text-red-500 p-2 rounded-full shadow-lg hover:bg-white"
+              className="bg-white/70 text-red-500 p-2 rounded-full shadow-lg hover:bg-white"
               title="Add to Wishlist"
             >
               <Heart size={18} />
@@ -90,7 +90,7 @@ const ProductCard = ({ data }) => {
           </h3>
           
           {/* Price & CTA */}
-          <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
+          <div className="flex justify-between items-center mt-3 pt-3 border-t-2 border-gray-400">
             <div>
               <span className="text-xl font-bold text-gray-900">₹{formatPrice(displayPrice)}</span>
               {data.off > 0 && (

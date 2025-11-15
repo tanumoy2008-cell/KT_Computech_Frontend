@@ -11,14 +11,14 @@
 @theme{
     --font-PublicSans : "PublicSans";
     --font-Inter : "Inter";
-    --animate-wiggle: wiggle 1.5s ease-in-out infinite;
+    --animate-wiggle: wiggle 1s ease-in-out infinite;
   @keyframes wiggle {
     0%,
     100% {
-      transform: scale(1);
+      transform: rotate(6deg) scale(1);
     }
     50% {
-      transform: scale(1.2);
+      transform: rotate(18deg) scale(1.1);
     }
   }
 }

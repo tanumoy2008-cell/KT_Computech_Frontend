@@ -53,11 +53,11 @@ const UserProfile = () => {
 
 
   return (
-    <div className="w-full h-screen flex bg-gray-50">
+    <div className="w-full h-screen flex bg-emerald-100">
       {/* Sidebar for desktop */}
-      <div className="hidden md:flex flex-col justify-between h-screen w-[30%] lg:w-[25%] 2xl:w-[20%] bg-zinc-900 text-white shadow-xl">
+      <div className="hidden md:flex flex-col justify-between h-screen w-[30%] lg:w-[25%] 2xl:w-[20%] bg-emerald-900 text-white shadow-xl">
         <div className="py-10 px-6">
-          <h1 className="text-center text-2xl xl:text-3xl font-Inter font-extrabold tracking-wide">
+          <h1 className="text-center text-2xl xl:text-3xl font-PublicSans font-extrabold tracking-wide">
             KT Computech
           </h1>
           <div className="flex flex-col gap-y-6 mt-12">
@@ -68,7 +68,7 @@ const UserProfile = () => {
                 className={`flex items-center gap-x-4 px-4 py-3 rounded-lg transition-all ${
                   location.pathname === item.path
                     ? "bg-gray-100 text-black font-semibold"
-                    : "hover:bg-zinc-800"
+                    : "hover:bg-emerald-700"
                 }`}
               >
                 <span className="text-lg">{item.icon}</span>
@@ -77,7 +77,7 @@ const UserProfile = () => {
             ))}
           </div>
         </div>
-        <div className="px-6 py-6 border-t border-zinc-700">
+        <div className="px-6 py-6 border-t border-zinc-200">
           <button onClick={logout} className="flex items-center gap-x-3 px-4 py-3 rounded-lg w-full hover:bg-red-600 transition-colors">
             <FaSignOutAlt className="text-lg" />
             <span className="uppercase tracking-wide">Logout</span>

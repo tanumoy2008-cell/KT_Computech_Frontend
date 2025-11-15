@@ -51,7 +51,7 @@ const Navbar = () => {
   };
 
   return (
-    <div className="fixed top-0 z-[999] w-full bg-emerald-700 text-amber-400 shadow-lg">
+    <div className="fixed top-0 z-[999] w-full bg-emerald-800 text-amber-400 shadow-lg">
       {/* MOBILE + TABLET */}
       <div className="flex items-center justify-between px-4 py-2 lg:hidden">
         {/* Logo */}

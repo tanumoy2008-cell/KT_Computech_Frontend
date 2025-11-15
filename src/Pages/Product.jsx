@@ -162,7 +162,7 @@ const Product = () => {
 
   // ======================= UI =======================
   return (
-    <div className="w-full h-screen flex flex-col bg-[#120202] text-white">
+    <div className="w-full h-screen flex flex-col bg-green-200 text-white">
       <Navbar />
 
       {/* ===== TOP BAR ===== */}

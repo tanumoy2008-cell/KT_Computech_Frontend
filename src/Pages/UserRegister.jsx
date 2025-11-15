@@ -20,14 +20,14 @@ const UserRegister = () => {
         }
     }
   return (
-    <div className='w-full min-h-screen flex justify-center items-center py-10 md:py-0'>
-        <form onSubmit={handleSubmit(submitHandel)} className='flex flex-col gap-4 border-1 rounded-md items-center border-black/50 w-[90%] md:w-[80%] py-5 px-4 lg:px-15'>
-            <h1 className='text-4xl text-center leading-10 font-PublicSans font-semibold w-full'>Wellcome to KTC Store</h1>
-            <p className='font-Inter leading-0 mt-3 text-xl font-semibold uppercase'>Register Yourself</p>
+    <div className='w-full min-h-screen flex bg-zinc-400 justify-center items-center py-10 md:py-0'>
+        <form onSubmit={handleSubmit(submitHandel)} className='flex flex-col bg-white gap-4 border-1 rounded-md items-center border-black/50 w-[80%] md:w-[85%] lg:w-[70%] py-10 px-4 lg:px-15'>
+            <h1 className='text-4xl text-center leading-10 font-PublicSans font-semibold w-full text-emerald-800'>Wellcome to KTC Store</h1>
+            <p className='font-PublicSans leading-0 mt-3 text-xl font-semibold uppercase'>Register Yourself</p>
             <div className='flex w-full flex-col gap-y-4'>
                 <div className='w-full flex flex-col md:flex-row gap-y-4 gap-x-4'>
                     <div className='w-full'>
-                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-blue-400'>
+                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-emerald-700'>
                             <legend className='ml-4 px-1 text-black/50 transition-colors duration-200 group-focus-within:text-black'>First Name <span className='text-rose-500'>*</span></legend>
                             <input 
                             {...register("firstName",{
@@ -46,7 +46,7 @@ const UserRegister = () => {
                 {errors.firstName && <p>{errors.firstName.message}</p>}
                     </div>
                     <div className='w-full'>
-                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-blue-400'>
+                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-emerald-700'>
                             <legend className='ml-4 px-1 text-black/50 transition-colors duration-200 group-focus-within:text-black'>Last Name <span className='text-rose-500'>*</span></legend>
                             <input 
                             {...register("lastName",{
@@ -67,7 +67,7 @@ const UserRegister = () => {
                 </div>
                 <div className='w-full flex flex-col md:flex-row gap-y-4 gap-x-4'>
                     <div className='w-full'>
-                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-blue-400'>
+                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-emerald-700'>
                             <legend className='ml-4 px-1 text-black/50 transition-colors duration-200 group-focus-within:text-black'>Email <span className='text-rose-500'>*</span></legend>
                             <input 
                             {...register("email",{
@@ -90,7 +90,7 @@ const UserRegister = () => {
                 {errors.email && <p>{errors.email.message}</p>}
                     </div>
                     <div className='w-full'>
-                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-blue-400'>
+                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-emerald-700'>
                             <legend className='ml-4 px-1 text-black/50 transition-colors duration-200 group-focus-within:text-black'>Password <span className='text-rose-500'>*</span></legend>
                             <div className='flex items-center pr-4'>
                             <input 
@@ -110,7 +110,7 @@ const UserRegister = () => {
                                 }
                             })}
                             type={view ? "text" : "password"} placeholder='••••••••'  className='w-full py-2 px-2 outline-none border-none' />
-                            {view ? <ImEye className='text-green-600' onClick={()=>setview(false)} /> : <ImEyeBlocked className='text-rose-600' onClick={()=>setview(true)} /> }
+                            {view ? <ImEye className='text-emerald-700' onClick={()=>setview(false)} /> : <ImEyeBlocked className='text-rose-600' onClick={()=>setview(true)} /> }
                             </div>
                         </fieldset>
                     {errors.password && <p>{errors.password.message}</p>}
@@ -118,7 +118,7 @@ const UserRegister = () => {
                 </div>
                 <div className='w-full flex flex-col md:flex-row gap-y-4 gap-x-4'>
                     <div className='w-full'>
-                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-blue-400'>
+                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-emerald-700'>
                             <legend className='ml-4 px-1 text-black/50 transition-colors duration-200 group-focus-within:text-black'>Phone Number <span className='text-rose-500'>*</span></legend>
                             <input 
                             {...register("number",{
@@ -141,7 +141,7 @@ const UserRegister = () => {
                 {errors.number && <p>{errors.number.message}</p>}
                     </div>
                     <div className='w-full'>
-                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-blue-400'>
+                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-emerald-700'>
                             <legend className='ml-4 px-1 text-black/50 transition-colors duration-200 group-focus-within:text-black'>Alternate Phone Number</legend>
                             <input 
                             {...register("altnumber",{
@@ -165,7 +165,7 @@ const UserRegister = () => {
                 </div>
                 <div className='w-full flex flex-col md:flex-row gap-y-4 gap-x-4'>
                     <div className='w-full'>
-                         <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-blue-400'>
+                         <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-emerald-700'>
                             <legend className='ml-4 px-1 text-black/50 transition-colors duration-200 group-focus-within:text-black'>PinCode</legend>
                             <input 
                             {...register("pinCode",{
@@ -179,7 +179,7 @@ const UserRegister = () => {
                 {errors.pinCode && <p>{errors.pinCode.message}</p>}
                     </div>
                     <div className='w-full'>
-                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-blue-400'>
+                        <fieldset className='w-full border-2 rounded-md border-black/50 group transition-colors duration-200 focus-within:border-emerald-700'>
                             <legend className='ml-4 px-1 text-black/50 transition-colors duration-200 group-focus-within:text-black'>Address</legend>
                             <input 
                             {...register("address", {
@@ -202,9 +202,9 @@ const UserRegister = () => {
                     </div>
                 </div>
             </div>
-            <button type='submit' className='w-full bg-sky-500 py-2 rounded text-white font-PublicSans text-xl'>Register</button>
+            <button type='submit' className='w-full bg-emerald-700 py-4 rounded text-white font-PublicSans text-xl'>Register</button>
             <div className='w-full flex justify-center items-center mt-2 '>
-                <p className='text-lg text-center'>Already have an account? <Link to="/user/login" className='text-blue-500 underline cursor-pointer'>Login</Link></p>
+                <p className='text-lg text-center font-PublicSans font-semibold'>Already have an account? <Link to="/user/login" className='text-emerald-700 underline cursor-pointer'>Login</Link></p>
             </div>
         </form>
     </div>
