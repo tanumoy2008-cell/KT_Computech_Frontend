@@ -8,7 +8,7 @@ const team = [
     img: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=687"
   },
   {
-    name: "Karabi Ghosh",
+    name: "Karabi RoyGhosh",
     role: "Co-Founder & Managing Director",
     bio: "Oversees operations, sourcing and customer experience for the stationery store.",
     img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3"
@@ -156,7 +156,7 @@ const About = () => {
 
       {/* Footer CTA */}
       <section className="max-w-6xl mx-auto px-6 lg:px-8 py-8">
-        <div className="rounded-xl bg-gradient-to-r from-emerald-700 to-gr-700 text-white p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="rounded-xl bg-gradient-to-r from-emerald-700 to-green-700 text-white p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
             <h3 className="text-xl font-semibold">Ready to stock up?</h3>
             <p className="mt-1">Get special prices for bulk orders and schools — reach out for a custom quote.</p>
@@ -171,7 +171,7 @@ const About = () => {
       <footer className="bg-white border-t py-6">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 text-sm text-gray-600 flex flex-col sm:flex-row justify-between">
           <div>© {new Date().getFullYear()} KT Computech Stationery — All rights reserved.</div>
-          <div className="mt-2 sm:mt-0">Support: support@ktcomputech.example</div>
+          <div className="mt-2 sm:mt-0">Support: ktcomputechs@gmail.com</div>
         </div>
       </footer>
     </main>

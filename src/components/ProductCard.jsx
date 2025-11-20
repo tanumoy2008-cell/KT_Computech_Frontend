@@ -1,10 +1,16 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "../config/axios";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { ShoppingCart, Eye, Heart } from "lucide-react";
 import calculateDiscountedPrice from "../utils/PercentageCalculate";
+import { toast } from "react-toastify";
+import { useDispatch, useSelector } from "react-redux";
+import { addProductToCart } from "../Store/reducers/CartReducer";
 
 const ProductCard = ({ data }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const user = useSelector((state) => state.UserReducer);
   const clickHandel = async (id) => {
     try {
       await axios.patch(`/api/product/click/${id}`);
@@ -103,6 +109,40 @@ const ProductCard = ({ data }) => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="flex items-center gap-1 bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md hover:shadow-lg transition-all"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (!user) {
+                  toast.warning('Please login to add items to cart');
+                  navigate('/user/login', { state: { from: window.location.pathname } });
+                  return;
+                }
+
+                try {
+                  // Call API to add to cart
+                  await axios.post('/api/cart/add-product-in-cart', {
+                    productId: data._id,
+                    color: data.color || '',
+                  });
+                  
+                  // Update Redux store
+                  dispatch(addProductToCart({
+                    ...data,
+                    quantity: 1,
+                    color: data.color || '',
+                    displayPrice: displayPrice
+                  }));
+                  
+                  toast.success('Added to cart successfully!');
+                  
+                  // Dispatch cart update event
+                  window.dispatchEvent(new Event('cartUpdated'));
+                } catch (error) {
+                  console.error('Error adding to cart:', error);
+                  toast.error(error.response?.data?.message || 'Failed to add to cart');
+                }
+              }}
             >
               <ShoppingCart size={16} />
               <span>Add to Cart</span>

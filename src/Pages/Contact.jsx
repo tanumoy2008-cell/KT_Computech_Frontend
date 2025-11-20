@@ -269,21 +269,26 @@ const Contact = () => {
 
       {/* Map Section */}
       <div className="bg-gray-100 py-12">
-        <div className="container mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-8">Find Us on the Map</h2>
-          <div className="rounded-xl overflow-hidden shadow-xl h-96 w-full">
-            <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.215573813811!2d-73.98784492417482!3d40.74844067138964!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c259a9b3117469%3A0xd134e199a405a163!2sEmpire%20State%20Building!5e0!3m2!1sen!2sus!4v1620000000000!5m2!1sen!2sus"
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              allowFullScreen
-              loading="lazy"
-              title="Our Location"
-            ></iframe>
-          </div>
-        </div>
+  <div className="container mx-auto px-4">
+    <h2 className="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-8">
+      Find Us on the Map
+    </h2>
+
+    <div className="rounded-xl overflow-hidden shadow-xl h-96 w-full">
+      <iframe
+        src="https://www.google.com/maps?q=23.5345503,87.3477322&z=17&output=embed"
+        width="100%"
+        height="100%"
+        style={{ border: 0 }}
+        allowFullScreen=""
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+        title="Our Location"
+      ></iframe>
+    </div>
+  </div>
       </div>
+
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8">

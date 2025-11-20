@@ -11,10 +11,8 @@ import {
   FiTruck,
   FiShield,
   FiTag,
-  FiStar,
 } from "react-icons/fi";
 import ProductCard from "../components/ProductCard";
-import calculateDiscountedPrice from "../utils/PercentageCalculate";
 
 const LandingPage = () => {
   const [offers, setOffers] = useState([]);
@@ -37,7 +35,7 @@ const LandingPage = () => {
     };
     fetchData();
   }, []);
-
+  
   const handleSubscribe = (e) => {
     e.preventDefault();
     setIsSubscribed(true);

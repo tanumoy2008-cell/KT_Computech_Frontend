@@ -9,6 +9,7 @@ const UserAuth = () => {
    const user = useSelector(state=> state.UserReducer);
   const [ready, setReady] = useState(false);
   const navigate = useNavigate();
+  console.log(user)
 
   useEffect(() => {
     const authenticateUser = async () => {

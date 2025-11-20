@@ -107,10 +107,20 @@ const ProductEditPage = () => {
   };
 
   const removeVariantImage = (variantIndex, imgIndex) => {
-    const updatedVariants = [...colorVariants];
-    updatedVariants[variantIndex].images.splice(imgIndex, 1);
-    setValue("colorVariants", updatedVariants);
-  };
+  const updatedVariants = [...colorVariants];
+  const removedImage = updatedVariants[variantIndex].images[imgIndex];
+  updatedVariants[variantIndex].images.splice(imgIndex, 1);
+  
+  // Add to removed images array
+  if (removedImage.public_id) {
+    updatedVariants.removedImages = [
+      ...(updatedVariants.removedImages || []),
+      removedImage.public_id
+    ];
+  }
+  
+  setValue("colorVariants", updatedVariants);
+};
 
   const addColorVariant = () => {
     setValue("colorVariants", [
@@ -138,47 +148,82 @@ const ProductEditPage = () => {
   };
 
   const formSubmit = async (data) => {
-    // Validate Colorname for each variant
-    for (let i = 0; i < data.colorVariants.length; i++) {
-      if (!data.colorVariants[i].Colorname) {
-        return Swal.fire("Error", `Colorname is required for variant ${i + 1}`, "error");
-      }
-    }
-
-    const formData = new FormData();
-    formData.append("id", id);
-    ["name", "company", "Subcategory", "Maincategory", "off", "price"].forEach((key) => {
-      if (data[key] !== product[key]) formData.append(key, data[key]);
-    });
-
-    const newDescriptions = data.productDescription.split("#").filter(Boolean);
-    newDescriptions.forEach(desc => formData.append("productDescription", desc));
-
-    const removedCodes = product.barcodes.filter(b => !data.barcodes.includes(b));
-    removedCodes.forEach(code => formData.append("codesToRemove", code));
-    data.barcodes.forEach(code => formData.append("codes", code));
-
-    // Send colorVariants as JSON
-    formData.append("colorVariants", JSON.stringify(data.colorVariants));
-
-    // Append new images
-    data.colorVariants.forEach(cv => {
-      cv.images.forEach(img => {
-        if (img.file) formData.append("files", img.file);
-      });
-    });
-
     try {
+      // Validate color variants
+      for (let i = 0; i < data.colorVariants.length; i++) {
+        if (!data.colorVariants[i].Colorname) {
+          return Swal.fire("Error", `Colorname is required for variant ${i + 1}`, "error");
+        }
+      }
+
+      const formData = new FormData();
+      formData.append("id", id);
+      
+      // Add basic fields
+      ["name", "company", "Subcategory", "Maincategory", "off", "price"].forEach((key) => {
+        if (data[key] !== product[key]) formData.append(key, data[key]);
+      });
+
+      // Handle descriptions
+      const newDescriptions = data.productDescription.split("#").filter(Boolean);
+      formData.delete("productDescription"); // Clear any existing
+      newDescriptions.forEach(desc => formData.append("productDescription", desc.trim()));
+
+      // Handle barcodes
+      const removedCodes = product.barcodes?.filter(b => !data.barcodes.includes(b)) || [];
+      removedCodes.forEach(code => formData.append("codesToRemove", code));
+      data.barcodes?.forEach(code => formData.append("codes", code));
+
+      // Handle removed images
+      if (data.colorVariants.removedImages) {
+        data.colorVariants.removedImages.forEach(id => {
+          formData.append("imagesToRemove", id);
+        });
+      }
+
+      // Prepare color variants data
+      const variantsToSend = data.colorVariants.map(variant => {
+        // Only include existing images (URL strings) in the images array
+        const images = variant.images
+          .filter(img => typeof img === 'string' || img.url)
+          .map(img => typeof img === 'string' ? img : img.url);
+        
+        // Extract public_ids from existing images
+        const imagePublicIds = variant.images
+          .filter(img => img.public_id)
+          .map(img => img.public_id);
+
+        return {
+          Colorname: variant.Colorname,
+          colorCode: variant.colorCode || '#ffffff',
+          stock: Number(variant.stock) || 0,
+          images: images,
+          imagePublicIds: imagePublicIds
+        };
+      });
+
+      formData.append("colorVariants", JSON.stringify(variantsToSend));
+
+      // Add new image files
+      data.colorVariants.forEach((cv, idx) => {
+        cv.images.forEach(img => {
+          if (img?.file) {
+            formData.append("files", img.file);
+          }
+        });
+      });
+
       const res = await axios.patch("/api/product/product-update", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+
       if (res.status === 200) {
-        Swal.fire("Updated!", "Product updated successfully.", "success");
-        navigate("/admin/product");
+        Swal.fire("Success", "Product updated successfully", "success");
+        navigate("/admin/products");
       }
     } catch (err) {
-      console.error("❌ Product update error:", err);
-      Swal.fire("Error!", err.response?.data?.message || "Failed to update product.", "error");
+      console.error("Update error:", err);
+      Swal.fire("Error", err.response?.data?.message || "Failed to update product", "error");
     }
   };
 

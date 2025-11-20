@@ -26,6 +26,14 @@ import OrderPayment from '../Pages/OrderPayment'
 import PinCode from '../components/PinCode'
 import About from '../Pages/About'
 import Customer from '../components/Customer'
+import Accounting from '../components/Accounting'
+import ERPDashboard from '../components/erp/ERPDashboard'
+import Purchase from '../components/erp/Purchase'
+import Sale from '../components/erp/Sale'
+import Expenses from '../components/erp/Expenses'
+import ProfitLoss from '../components/erp/ProfitLoss'
+import BalanceSheet from '../components/erp/BalanceSheet'
+import Reports from '../components/erp/Reports/Reports'
 
 const AllRouter = () => {
   return (
@@ -53,8 +61,9 @@ const AllRouter = () => {
 
       <Route path="/admin/login" element={<AdminLogin />} />
 
-      <Route element={<AdminAuth />}>
-        <Route path="/admin" element={<Admin />} >
+      // In AllRouter.jsx, replace the admin routes section with this:
+    <Route element={<AdminAuth />}>
+      <Route path="/admin" element={<Admin />}>
         <Route index element={<ProductAdder />} />
         <Route path="products" element={<AdminProducts />} />
         <Route path="orders" element={<Order />} />
@@ -62,9 +71,23 @@ const AllRouter = () => {
         <Route path="pincode" element={<PinCode />} />
         <Route path="billing" element={<Billing />} />
         <Route path="customers" element={<Customer />} />
+        <Route path="product-edit/:id" element={<ProductEditPage />} />
+        
+        {/* Update the accounting route to include ERP as nested routes */}
+        <Route path="accounting" element={<Accounting />}>
+          <Route index element={<ERPDashboard />} />
+          <Route path="erp" element={<ERPDashboard />} />
+          <Route path="erp/purchase" element={<Purchase />} />
+          <Route path="erp/sale" element={<Sale />} />
+          <Route path="erp/expenses" element={<Expenses />} />
+          <Route path="erp/profit-loss" element={<ProfitLoss />} />
+          <Route path="erp/balance-sheet" element={<BalanceSheet />} />
+          <Route path="erp/reports" element={<Reports />}>
+          <Route index element={<div>Select a report</div>} />
+            <Route path=":reportType" element={null} />
+          </Route>
         </Route>
-        <Route path="/product-edit/:id" element={<ProductEditPage />} />
-        <Route path="/orders" element={<Order />} />
+      </Route>
       </Route>
 
     </Routes>

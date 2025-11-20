@@ -84,6 +84,7 @@ const Admin = () => {
             <NavItem to="/admin/billing" text="Billing" icon="💳" />
             <NavItem to="/admin/pincode" text="Pincodes" icon="📍" />
             <NavItem to="/admin/settings" text="Settings" icon="⚙️" />
+            <NavItem to="/admin/accounting" text="Accounting" icon="⚙️" />
             
             <button
               onClick={handleLogout}
