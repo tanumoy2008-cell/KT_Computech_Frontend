@@ -19,6 +19,7 @@ const Purchase = () => {
     unit: '',
     productSubcategory: '',
     qty: 1,
+    extraDiscount: 0,
     purchasePrice: 0,
     purchaseDiscount: 0,
     vender: '',
@@ -51,8 +52,8 @@ const Purchase = () => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'purchasePrice' || name === 'purchaseDiscount' || name === 'qty'
-        ? (name === 'qty' ? parseInt(value) || 1 : parseFloat(value) || 0)
+    [name]: name === 'purchasePrice' || name === 'purchaseDiscount' || name === 'qty' || name === 'extraDiscount'
+      ? (name === 'qty' ? parseInt(value) || 1 : parseFloat(value) || 0)
         : value
     }));
   };
@@ -98,6 +99,7 @@ const Purchase = () => {
       unit: '',
       date: '',
       qty: 1,
+      extraDiscount: 0,
       purchasePrice: 0,
       purchaseDiscount: 0,
       vender: '',
@@ -154,6 +156,7 @@ const Purchase = () => {
       productName: purchase.productId?.name || '',
       productCategory: purchase.productCategory || purchase.productId?.category || '',
       qty: purchase.qty || 1,
+      extraDiscount: purchase.extraDiscount || 0,
       unit: purchase.unit || purchase.productId?.unit || '',
       date: purchase.Date ? new Date(purchase.Date).toISOString().slice(0,10) : (purchase.date ? new Date(purchase.date).toISOString().slice(0,10) : ''),
       purchasePrice: purchase.purchasePrice,
@@ -183,8 +186,12 @@ const Purchase = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const calculateTotal = (price, discount) => {
-    return (price - (price * (discount / 100))).toFixed(2);
+  // Calculate price after primary discount and extra discount (sequential)
+  // Returns numeric value (not formatted)
+  const calculateTotal = (price = 0, discount = 0, extraDiscount = 0) => {
+    const afterPrimary = price - (price * (discount / 100));
+    const afterExtra = afterPrimary - (afterPrimary * (extraDiscount / 100));
+    return afterExtra;
   };
 
   return (
@@ -218,6 +225,7 @@ const Purchase = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Extra Discount</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -236,8 +244,9 @@ const Purchase = () => {
                       <td className="px-6 py-4 whitespace-nowrap">{purchase.vender || 'N/A'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">₹{purchase.purchasePrice?.toFixed(2)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">{purchase.purchaseDiscount}%</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">{purchase.extraDiscount ? `${purchase.extraDiscount}%` : '0%'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        ₹{(calculateTotal(purchase.purchasePrice, purchase.purchaseDiscount) * (purchase.qty || 1)).toFixed(2)}
+                        ₹{(calculateTotal(purchase.purchasePrice, purchase.purchaseDiscount, purchase.extraDiscount) * (purchase.qty || 1)).toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap capitalize">{purchase.purchaseMethod}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{purchase.Date ? formatDate(purchase.Date) : formatDate(purchase.createdAt)}</td>
@@ -434,11 +443,9 @@ const Purchase = () => {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Purchase Price
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Price</label>
                   <input
                     type="number"
                     name="purchasePrice"
@@ -451,13 +458,23 @@ const Purchase = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Discount (%)
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Discount (%)</label>
                   <input
                     type="number"
                     name="purchaseDiscount"
                     value={formData.purchaseDiscount}
+                    onChange={handleInputChange}
+                    min="0"
+                    max="100"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Extra Discount (%)</label>
+                  <input
+                    type="number"
+                    name="extraDiscount"
+                    value={formData.extraDiscount}
                     onChange={handleInputChange}
                     min="0"
                     max="100"

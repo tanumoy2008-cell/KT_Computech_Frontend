@@ -71,7 +71,6 @@ const AllRouter = () => {
         <Route path="pincode" element={<PinCode />} />
         <Route path="billing" element={<Billing />} />
         <Route path="customers" element={<Customer />} />
-        <Route path="product-edit/:id" element={<ProductEditPage />} />
         
         {/* Update the accounting route to include ERP as nested routes */}
         <Route path="accounting" element={<Accounting />}>
@@ -88,6 +87,7 @@ const AllRouter = () => {
           </Route>
         </Route>
       </Route>
+        <Route path="/product-edit/:id" element={<ProductEditPage />} />
       </Route>
 
     </Routes>
