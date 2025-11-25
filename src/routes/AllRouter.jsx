@@ -34,6 +34,7 @@ import Expenses from '../components/erp/Expenses'
 import ProfitLoss from '../components/erp/ProfitLoss'
 import BalanceSheet from '../components/erp/BalanceSheet'
 import Reports from '../components/erp/Reports/Reports'
+import BarcodePrint from '../components/BarcodePrint'
 
 const AllRouter = () => {
   return (
@@ -71,6 +72,7 @@ const AllRouter = () => {
         <Route path="pincode" element={<PinCode />} />
         <Route path="billing" element={<Billing />} />
         <Route path="customers" element={<Customer />} />
+        <Route path="barcode" element={<BarcodePrint />} />
         
         {/* Update the accounting route to include ERP as nested routes */}
         <Route path="accounting" element={<Accounting />}>

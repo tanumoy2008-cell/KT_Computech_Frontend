@@ -1,4 +1,4 @@
-import { Outlet, useNavigate, Link, Navigate } from "react-router-dom";
+import { Outlet, useNavigate, Link, Navigate, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Swal from "sweetalert2";
@@ -85,6 +85,7 @@ const Admin = () => {
             <NavItem to="/admin/pincode" text="Pincodes" icon="📍" />
             <NavItem to="/admin/settings" text="Settings" icon="⚙️" />
             <NavItem to="/admin/accounting" text="Accounting" icon="⚙️" />
+            <NavItem to="/admin/barcode" text="Barcode Print" icon="💲" />
             
             <button
               onClick={handleLogout}
@@ -112,7 +113,7 @@ const Admin = () => {
       </div>
       
       {/* Main Content */}
-      <div className="flex-1 ml-80">
+      <div className="flex-1 ml-80 p-8">
         <Outlet />
       </div>
     </div>
