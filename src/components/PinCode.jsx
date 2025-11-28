@@ -208,11 +208,12 @@ const PinCode = () => {
     
     try {
       if (editingId) {
-        // Update existing pincode
-        await axios.put(`/api/pinCode/${editingId}`, formData);
+        // For update, create a copy of formData without the pinCode field
+        const { pinCode, ...updateData } = formData;
+        await axios.put(`/api/pinCode/${editingId}`, updateData);
         toast.success('Pincode updated successfully');
       } else {
-        // Create new pincode
+        // Create new pincode (include all fields including pinCode)
         await axios.post('/api/pinCode', formData);
         toast.success('Pincode added successfully');
       }

@@ -29,6 +29,8 @@ const Order = () => {
   const [totalOrders, setTotalOrders] = useState(0);
   const [error, setError] = useState(null);
 
+  const tokenFromStore = useSelector(state => state?.auth?.token);
+
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
@@ -48,10 +50,11 @@ const Order = () => {
       // Remove undefined values from params
       Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
       
+      const authToken = tokenFromStore || localStorage.getItem('token');
       const response = await axios.get("/api/orders", {
         params,
-        headers: { 
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        headers: {
+          Authorization: authToken ? `Bearer ${authToken}` : undefined,
           'x-admin-token': localStorage.getItem('adminToken')
         }
       });
@@ -145,65 +148,67 @@ const Order = () => {
   const isFilterActive = statusFilter !== "all" || searchQuery || dateRange.start || dateRange.end;
 
     // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-  
-  // Format currency
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount).replace('₹', '₹');
-  };
-  
-  // Get status color
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'delivered':
-        return { bg: 'bg-green-100', text: 'text-green-800' };
-      case 'shipped':
-        return { bg: 'bg-blue-100', text: 'text-blue-800' };
-      case 'cancelled':
-        return { bg: 'bg-red-100', text: 'text-red-800' };
-      case 'returned':
-        return { bg: 'bg-purple-100', text: 'text-purple-800' };
-      case 'processing':
-        return { bg: 'bg-yellow-100', text: 'text-yellow-800' };
-      default: // pending
-        return { bg: 'bg-gray-100', text: 'text-gray-800' };
-    }
-  };
-  
-  // Get payment method icon
-  const getPaymentMethodIcon = (method) => {
-    switch (method?.toLowerCase()) {
-      case 'upi':
-        return '💸';
-      case 'credit card':
-      case 'debit card':
-        return '💳';
-      case 'netbanking':
-        return '🏦';
-      case 'wallet':
-        return '👛';
-      case 'cod':
-      case 'cash on delivery':
-        return '💵';
-      default:
-        return '💰';
-    }
-  };
+    const formatDate = (dateString) => {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    };
+
+    // Format currency
+    const formatCurrency = (amount) => {
+      if (amount === undefined || amount === null || isNaN(amount)) return '₹0';
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(amount).replace('₹', '₹');
+    };
+
+    // Get status color
+    const getStatusColor = (status) => {
+      switch (String(status || '').toLowerCase()) {
+        case 'delivered':
+          return { bg: 'bg-green-100', text: 'text-green-800' };
+        case 'shipped':
+          return { bg: 'bg-blue-100', text: 'text-blue-800' };
+        case 'cancelled':
+        case 'canceled':
+          return { bg: 'bg-red-100', text: 'text-red-800' };
+        case 'returned':
+          return { bg: 'bg-purple-100', text: 'text-purple-800' };
+        case 'processing':
+          return { bg: 'bg-yellow-100', text: 'text-yellow-800' };
+        default: // pending
+          return { bg: 'bg-gray-100', text: 'text-gray-800' };
+      }
+    };
+
+    // Get payment method icon
+    const getPaymentMethodIcon = (method) => {
+      switch (String(method || '').toLowerCase()) {
+        case 'upi':
+          return '💸';
+        case 'credit card':
+        case 'debit card':
+          return '💳';
+        case 'netbanking':
+          return '🏦';
+        case 'wallet':
+          return '👛';
+        case 'cod':
+        case 'cash on delivery':
+          return '💵';
+        default:
+          return '💰';
+      }
+    };
 
   const renderOrderCard = (order) => (
     <motion.div 
@@ -216,7 +221,7 @@ const Order = () => {
         <div>
           <div className="font-semibold">Order: {order.orderNumber}</div>
           <div className="text-sm text-zinc-600">
-            {new Date(order.createdAt).toLocaleString()}
+            {formatDate(order.createdAt)}
           </div>
           {order.customer?.name && (
             <div className="text-sm mt-1">
@@ -225,7 +230,7 @@ const Order = () => {
           )}
         </div>
         <div className="text-right">
-          <div className="font-semibold">₹{order.total?.toLocaleString()}</div>
+          <div className="font-semibold">{formatCurrency(order.total)}</div>
           <div className={`text-sm ${
             order.status === 'Completed' ? 'text-green-600' : 
             order.status === 'Cancelled' ? 'text-red-600' : 'text-amber-600'
@@ -252,7 +257,7 @@ const Order = () => {
             <div className="truncate max-w-[180px]">
               {item.name} × {item.qty}
             </div>
-            <div>₹{item.total?.toLocaleString()}</div>
+            <div>{formatCurrency(item.total)}</div>
           </div>
         ))}
         {order.items?.length > 2 && (
@@ -555,29 +560,30 @@ const Order = () => {
                         {order.customer?.email || 'No email provided'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {order.paymentMode}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {order.paymentStatus || 'N/A'}
-                      </div>
-                    </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 flex items-center space-x-2">
+                                  <span>{getPaymentMethodIcon(order.paymentMode)}</span>
+                                  <span>{order.paymentMode}</span>
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {order.paymentStatus || 'N/A'}
+                                </div>
+                              </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(order.createdAt).toLocaleDateString()}
+                      {formatDate(order.createdAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ₹{order.total?.toLocaleString()}
+                      {formatCurrency(order.total)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                        order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                        order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {order.status}
-                      </span>
+                      {(() => {
+                        const sc = getStatusColor(order.status);
+                        return (
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sc.bg} ${sc.text}`}>
+                            {order.status}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
@@ -588,18 +594,18 @@ const Order = () => {
                             handleStatusUpdate(order._id, e.target.value);
                           }}
                           className={`text-xs rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                            order.status === 'delivered' ? 'bg-green-50' :
-                            order.status === 'cancelled' ? 'bg-red-50' :
-                            order.status === 'shipped' ? 'bg-blue-50' :
+                            order.status === 'Delivered' ? 'bg-green-50' :
+                            order.status === 'Cancelled' ? 'bg-red-50' :
+                            order.status === 'Shipped' ? 'bg-blue-50' :
                             'bg-yellow-50'
                           }`}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <option value="pending">Pending</option>
-                          <option value="processing">Processing</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Processing">Processing</option>
+                          <option value="Shipped">Shipped</option>
+                          <option value="Delivered">Delivered</option>
+                          <option value="Cancelled">Cancelled</option>
                         </select>
                         <button
                           onClick={(e) => {
@@ -739,146 +745,155 @@ const Order = () => {
 
       {/* Order Details Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <AnimatePresence>
           <motion.div 
-            className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            <div className="flex justify-between items-start mb-4">
-              <h2 className="text-2xl font-bold">Order #{selectedOrder.orderNumber}</h2>
-              <button 
-                onClick={() => setSelectedOrder(null)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="font-semibold text-lg mb-2">Order Details</h3>
-                <div className="space-y-2 text-sm">
-                  <p><span className="font-medium">Date:</span> {new Date(selectedOrder.createdAt).toLocaleString()}</p>
-                  <p><span className="font-medium">Status:</span> 
-                    <span className={`ml-1 px-2 py-1 rounded-full text-xs ${
-                      selectedOrder.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                      selectedOrder.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
-                      'bg-amber-100 text-amber-800'
-                    }`}>
-                      {selectedOrder.status}
-                    </span>
-                  </p>
-                  <p><span className="font-medium">Payment Method:</span> {selectedOrder.paymentMode}</p>
-                  {selectedOrder.razorpayOrderId && (
-                    <p><span className="font-medium">Razorpay ID:</span> {selectedOrder.razorpayOrderId}</p>
-                  )}
-                </div>
-
-                <h3 className="font-semibold text-lg mt-6 mb-2">Customer Details</h3>
-                <div className="space-y-2 text-sm">
-                  {selectedOrder.customer?.name && (
-                    <p><span className="font-medium">Name:</span> {selectedOrder.customer.name}</p>
-                  )}
-                  {selectedOrder.customer?.email && (
-                    <p><span className="font-medium">Email:</span> {selectedOrder.customer.email}</p>
-                  )}
-                  {selectedOrder.customer?.phone && (
-                    <p><span className="font-medium">Phone:</span> {selectedOrder.customer.phone}</p>
-                  )}
-                  {selectedOrder.customer?.address && (
-                    <p className="mt-2">
-                      <span className="font-medium block">Address:</span>
-                      {selectedOrder.customer.address}
-                    </p>
-                  )}
-                </div>
+            <motion.div
+              className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+            >
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-2xl font-bold">Order #{selectedOrder.orderNumber}</h2>
+                <button 
+                  onClick={() => setSelectedOrder(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
 
-              <div>
-                <h3 className="font-semibold text-lg mb-2">Order Items</h3>
-                <div className="border rounded-lg overflow-hidden">
-                  {selectedOrder.items?.map((item, idx) => (
-                    <div key={idx} className="p-3 border-b last:border-b-0 flex justify-between items-center">
-                      <div className="flex items-center space-x-3">
-                        {item.image && (
-                          <img 
-                            src={item.image} 
-                            alt={item.name} 
-                            className="w-12 h-12 object-cover rounded"
-                          />
-                        )}
-                        <div>
-                          <p className="font-medium">{item.name}</p>
-                          <p className="text-sm text-gray-500">Qty: {item.qty}</p>
-                          {item.colorVariantId?.name && (
-                            <div className="flex items-center mt-1">
-                              <span 
-                                className="w-4 h-4 rounded-full border border-gray-300 mr-1"
-                                style={{ backgroundColor: item.colorVariantId.colorCode }}
-                                title={item.colorVariantId.name}
-                              />
-                              <span className="text-xs text-gray-500">{item.colorVariantId.name}</span>
-                            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">Order Details</h3>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Date:</span> {formatDate(selectedOrder.createdAt)}</p>
+                    <p><span className="font-medium">Status:</span> 
+                      {(() => {
+                        const sc = getStatusColor(selectedOrder.status);
+                        return (
+                          <span className={`ml-1 px-2 py-1 rounded-full text-xs ${sc.bg} ${sc.text}`}>
+                            {selectedOrder.status}
+                          </span>
+                        );
+                      })()}
+                    </p>
+                    <p className="flex items-center"><span className="font-medium mr-2">Payment Method:</span> {getPaymentMethodIcon(selectedOrder.paymentMode)} {selectedOrder.paymentMode}</p>
+                    {selectedOrder.razorpayOrderId && (
+                      <p><span className="font-medium">Razorpay ID:</span> {selectedOrder.razorpayOrderId}</p>
+                    )}
+                  </div>
+
+                  <h3 className="font-semibold text-lg mt-6 mb-2">Customer Details</h3>
+                  <div className="space-y-2 text-sm">
+                    {selectedOrder.customer?.name && (
+                      <p><span className="font-medium">Name:</span> {selectedOrder.customer.name}</p>
+                    )}
+                    {selectedOrder.customer?.email && (
+                      <p><span className="font-medium">Email:</span> {selectedOrder.customer.email}</p>
+                    )}
+                    {selectedOrder.customer?.phone && (
+                      <p><span className="font-medium">Phone:</span> {selectedOrder.customer.phone}</p>
+                    )}
+                    {selectedOrder.customer?.address && (
+                      <p className="mt-2">
+                        <span className="font-medium block">Address:</span>
+                        {selectedOrder.customer.address}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">Order Items</h3>
+                  <div className="border rounded-lg overflow-hidden">
+                    {selectedOrder.items?.map((item, idx) => (
+                      <div key={idx} className="p-3 border-b last:border-b-0 flex justify-between items-center">
+                        <div className="flex items-center space-x-3">
+                          {item.image && (
+                            <img 
+                              src={item.image} 
+                              alt={item.name} 
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                          )}
+                          <div>
+                            <p className="font-medium">{item.name}</p>
+                            <p className="text-sm text-gray-500">Qty: {item.qty}</p>
+                            {item.colorVariantId?.name && (
+                              <div className="flex items-center mt-1">
+                                <span 
+                                  className="w-4 h-4 rounded-full border border-gray-300 mr-1"
+                                  style={{ backgroundColor: item.colorVariantId.colorCode }}
+                                  title={item.colorVariantId.name}
+                                />
+                                <span className="text-xs text-gray-500">{item.colorVariantId.name}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{formatCurrency(item.total)}</p>
+                          {item.off > 0 && (
+                            <p className="text-xs text-green-600">
+                              {item.off}% off
+                            </p>
                           )}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">₹{item.total?.toLocaleString()}</p>
-                        {item.off > 0 && (
-                          <p className="text-xs text-green-600">
-                            {item.off}% off
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Subtotal:</span>
-                    <span>₹{selectedOrder.subTotal?.toLocaleString()}</span>
+                    ))}
                   </div>
-                  {selectedOrder.tax > 0 && (
+
+                  <div className="mt-4 space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span>Tax:</span>
-                      <span>₹{selectedOrder.tax?.toLocaleString()}</span>
+                      <span>Subtotal:</span>
+                      <span>{formatCurrency(selectedOrder.subTotal)}</span>
                     </div>
-                  )}
-                  <div className="flex justify-between font-semibold text-lg pt-2 border-t mt-2">
-                    <span>Total:</span>
-                    <span>₹{selectedOrder.total?.toLocaleString()}</span>
+                    {selectedOrder.tax > 0 && (
+                      <div className="flex justify-between">
+                        <span>Tax:</span>
+                        <span>{formatCurrency(selectedOrder.tax)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-semibold text-lg pt-2 border-t mt-2">
+                      <span>Total:</span>
+                      <span>{formatCurrency(selectedOrder.total)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="mt-6 pt-4 border-t flex justify-end space-x-3">
-              <button
-                onClick={() => setSelectedOrder(null)}
-                className="px-4 py-2 border rounded-md hover:bg-gray-50"
-              >
-                Close
-              </button>
-              <select
-                value={selectedOrder.status}
-                onChange={(e) => {
-                  const newStatus = e.target.value;
-                  setSelectedOrder({ ...selectedOrder, status: newStatus });
-                  handleStatusUpdate(selectedOrder._id, newStatus);
-                }}
-                className="px-4 py-2 border rounded-md bg-white"
-              >
-                <option value="Pending">Mark as Pending</option>
-                <option value="Completed">Mark as Completed</option>
-                <option value="Cancelled">Cancel Order</option>
-              </select>
-            </div>
+              <div className="mt-6 pt-4 border-t flex justify-end space-x-3">
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="px-4 py-2 border rounded-md hover:bg-gray-50"
+                >
+                  Close
+                </button>
+                <select
+                  value={selectedOrder.status}
+                  onChange={(e) => {
+                    const newStatus = e.target.value;
+                    setSelectedOrder({ ...selectedOrder, status: newStatus });
+                    handleStatusUpdate(selectedOrder._id, newStatus);
+                  }}
+                  className="px-4 py-2 border rounded-md bg-white"
+                >
+                  <option value="Pending">Mark as Pending</option>
+                  <option value="Completed">Mark as Completed</option>
+                  <option value="Cancelled">Cancel Order</option>
+                </select>
+              </div>
+            </motion.div>
           </motion.div>
-        </div>
+        </AnimatePresence>
       )}
     </div>
   );

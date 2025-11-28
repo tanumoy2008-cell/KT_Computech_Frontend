@@ -4,7 +4,7 @@ import axios from "../config/axios";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 import { FaChevronLeft, FaCartPlus, FaMapMarkerAlt } from "react-icons/fa";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { addProductToCart } from "../Store/reducers/CartReducer";
 import calculateDiscountedPrice from "../utils/PercentageCalculate";
 
@@ -13,7 +13,7 @@ const ProductDets = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const checkTimeout = useRef(null);
-
+  const user = useSelector((state) => state.UserReducer);
   const [product, setProduct] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedImage, setSelectedImage] = useState("");
@@ -23,9 +23,47 @@ const ProductDets = () => {
   const [showZoom, setShowZoom] = useState(false);
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
-  const [containerRect, setContainerRect] = useState({ left: 0, top: 0 });
+  const [containerRect, setContainerRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
   const imageRef = useRef(null);
   const containerRef = useRef(null);
+  const zoomRef = useRef(null);
+  // Configurable zoom multiplier (1 = no zoom). Lower = gentler zoom.
+  const ZOOM_SCALE = 1.25; // try 1.1 - 1.5
+
+  // Handle mouse enter/leave for zoom effect
+  const handleMouseEnter = () => {
+    if (imageRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      // store container rect (viewport coordinates) for percentage calculations
+      setContainerRect({
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height
+      });
+      setShowZoom(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setShowZoom(false);
+  };
+
+  // Handle mouse move for zoom effect
+  const handleMouseMove = (e) => {
+    if (!imageRef.current) return;
+    
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    
+    setZoomPosition({ x, y });
+    // For a fixed-position zoom bubble, use viewport coordinates (clientX/clientY)
+    setCursorPosition({ 
+      x: e.clientX,
+      y: e.clientY
+    });
+  };
 
   // Fetch product details
   useEffect(() => {
@@ -96,9 +134,48 @@ const ProductDets = () => {
         paymentMode: "UPI",
       };
       const res = await axios.post("/api/payment/online-order", payload);
-      navigate("/order-payment", { state: { paymentResponse: res.data } });
+
+      // Server should return an order object + razorpayOrderId + amount (in paise or rupees depending on your backend)
+      // Ensure your backend response includes order.id / razorpayOrderId and order.amount (paise)
+      const razorpayOrder = res.data.order || {};
+      // load script if necessary (same loader you used in Cart.jsx)
+      if (!window.Razorpay) {
+        await loadRazorpayScript(); // copy the loader from Cart.jsx
+      }
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY,
+        amount: razorpayOrder.amount, // razorpay returns paise
+        currency: razorpayOrder.currency || 'INR',
+        name: "KT Computech",
+        description: `Order for ${payload.products?.length || 1} item(s)`,
+        order_id: razorpayOrder.id || res.data.razorpayOrderId,
+        handler: async (response) => {
+          // verify on server
+          await axios.post("/api/payment/verify-payment", {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            items: payload.products || payload.items,
+            total: payload.products.reduce((s,p)=>s+((p.price || p.UnitPrice||0)*(p.quantity||p.qty||1)),0),
+            paymentMethod: 'online'
+          });
+          // show success on same page (don't navigate)
+          toast.success("Payment successful. Order placed.");
+          // optionally refresh cart or navigate to order history if user clicks a button
+        },
+         prefill: {
+            name:  `${user.fullName.firstName} ${user.fullName.lastName}` || "Customer Name", // TODO: Get from user profile
+            email: user.email || "customer@example.com",
+            contact: user.phoneNumber || "+911234567890"
+          },
+        theme: { color: "#10b981" },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Could not create order.");
+      // handle error (fallback to COD or show message)
     }
   };
 
@@ -110,19 +187,43 @@ const ProductDets = () => {
       return;
     }
 
+    // Simple validation for 6-digit pincode
+    if (!/^\d{6}$/.test(pin)) {
+      setPinResult("Please enter a valid 6-digit pincode");
+      setPinColor("text-yellow-600 font-medium");
+      return;
+    }
+
     clearTimeout(checkTimeout.current);
     checkTimeout.current = setTimeout(async () => {
       try {
-        const res = await axios.post("/api/pinCode/check-avaliable-pincode", { pin });
-        const message = res.data.message;
-        const available = !/not/i.test(message);
-        setPinResult(message);
-        setPinColor(available ? "text-green-500 font-semibold" : "text-red-500 font-semibold");
-      } catch {
-        setPinResult("Server error");
-        setPinColor("text-red-500 font-semibold");
+        const res = await axios.post("/api/pinCode/check-available-pincode", { pin });
+        
+        if (res.data.serviceable) {
+          const { message, deliveryDays, codAvailable } = res.data;
+          let resultMessage = message;
+          
+          if (deliveryDays) {
+            resultMessage += ` (${deliveryDays} ${deliveryDays === 1 ? 'day' : 'days'} delivery)`;
+          }
+          
+          if (codAvailable === false) {
+            resultMessage += " - COD not available";
+          }
+          
+          setPinResult(resultMessage);
+          setPinColor("text-green-600 font-medium");
+        } else {
+          setPinResult(res.data.message || "Delivery not available for this pincode");
+          setPinColor("text-red-600 font-medium");
+        }
+      } catch (err) {
+        console.error('Error checking pincode:', err);
+        const errorMessage = err.response?.data?.message || 'Error checking pincode';
+        setPinResult(errorMessage);
+        setPinColor("text-red-600 font-medium");
       }
-    }, 1200);
+    }, 1000);
 
     return () => clearTimeout(checkTimeout.current);
   }, [pin]);
@@ -165,26 +266,9 @@ const ProductDets = () => {
               <div 
                 className="relative aspect-square w-full bg-gray-50 rounded-xl overflow-hidden group"
                 ref={containerRef}
-                onMouseEnter={(e) => {
-                  if (containerRef.current) {
-                    const rect = containerRef.current.getBoundingClientRect();
-                    setContainerRect({ left: rect.left, top: rect.top });
-                  }
-                  setShowZoom(true);
-                }}
-                onMouseLeave={() => setShowZoom(false)}
-                onMouseMove={(e) => {
-                  if (!imageRef.current) return;
-                  
-                  const { left, top, width, height } = imageRef.current.getBoundingClientRect();
-                  const x = ((e.clientX - left) / width) * 100;
-                  const y = ((e.clientY - top) / height) * 100;
-                  setZoomPosition({ x, y });
-                  setCursorPosition({ 
-                    x: e.clientX - containerRect.left, 
-                    y: e.clientY - containerRect.top 
-                  });
-                }}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                onMouseMove={handleMouseMove}
               >
                 <motion.img
                   ref={imageRef}
@@ -198,14 +282,27 @@ const ProductDets = () => {
                   key={selectedImage}
                 />
                 {showZoom && (
-                  <div 
-                    className="fixed w-64 h-64 rounded-full overflow-hidden border-2 border-white/80 shadow-2xl pointer-events-none z-50 backdrop-blur-sm"
+                  <motion.div 
+                    ref={zoomRef}
+                    className="fixed w-64 h-64 rounded-full overflow-hidden border-2 border-white/80 shadow-2xl pointer-events-none z-50 bg-white"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
                     style={{
-                      left: `${cursorPosition.x + 75}px`,
-                      top: `${cursorPosition.y + 20}px`,
+                      left: cursorPosition.x,
+                      top: cursorPosition.y,
+                      transform: 'translate(-50%, -50%)',
                       backgroundImage: `url(${selectedImage})`,
-                      backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
-                      backgroundSize: `${imageRef.current ? imageRef.current.naturalWidth * 1.5 : 0}px ${imageRef.current ? imageRef.current.naturalHeight * 1.5 : 0}px`,
+                      // backgroundPosition uses percentage from zoomPosition
+                      backgroundPosition: `${Math.min(100, Math.max(0, zoomPosition.x))}% ${Math.min(100, Math.max(0, zoomPosition.y))}%`,
+                      // use configurable zoom scale; fallback to percentage
+                      backgroundSize: imageRef.current && imageRef.current.naturalWidth && imageRef.current.naturalHeight
+                        ? `${imageRef.current.naturalWidth * ZOOM_SCALE}px ${imageRef.current.naturalHeight * ZOOM_SCALE}px`
+                        : `${Math.round(ZOOM_SCALE * 100)}% auto`,
+                      backgroundRepeat: 'no-repeat',
+                      borderRadius: '50%',
+                      boxShadow: '0 0 0 7px #ffffff, 0 5px 15px rgba(0,0,0,0.1)'
                     }}
                   />
                 )}

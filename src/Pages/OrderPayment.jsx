@@ -45,7 +45,15 @@ const OrderPayment = () => {
   }, [initialOrder])
 
   const recalcTotals = (items) => {
-    const subtotal = items.reduce((s, it) => s + (Number(it.price || it.total || 0) * Number(it.qty || 1)), 0)
+    const subtotal = items.reduce((s, it) => {
+      const qty = Number(it.qty || 1);
+      // Prefer server-provided total (which is discounted total), otherwise compute from UnitPrice and off
+      if (it.total && Number(it.total) !== 0) return s + Number(it.total);
+      const unitBase = Number(it.UnitPrice || it.price || 0);
+      const off = Number(it.off || 0);
+      const unitFinal = unitBase * (1 - off / 100);
+      return s + unitFinal * qty;
+    }, 0)
     const shipping = Number(order?.shipping || 0) || 0
     const total = subtotal + shipping
     return { subtotal, shipping, total }
@@ -79,7 +87,8 @@ const OrderPayment = () => {
         productId: it.productId, // or it._id if that's your product id
         colorVariantId: it.colorVariantId, // must be present!
         name: it.name,
-        price: Number(it.price || it.total || 0),
+        // send base unit price (UnitPrice) so server can apply discounts consistently
+        price: Number(it.UnitPrice || it.price || it.total || 0),
         quantity: Number(it.qty || 1)
       }))
     }
@@ -206,7 +215,12 @@ const OrderPayment = () => {
                           </div>
                           <div>
                             <h3 className="font-medium text-gray-900">{it.name}</h3>
-                            <p className="text-sm text-gray-500">₹{Number(it.price || it.total || 0).toFixed(2)} each</p>
+                            <p className="text-sm text-gray-500">
+                              ₹{(
+                                // Show per-unit final price: prefer it.total/qty if available, else compute from UnitPrice and off
+                                it.total && it.qty ? (Number(it.total) / Number(it.qty)) : (Number(it.UnitPrice || it.price || 0) * (1 - (Number(it.off || 0) / 100)))
+                              ).toFixed(2)} each
+                            </p>
                           </div>
                         </div>
                         

@@ -12,6 +12,7 @@ import { FiArrowLeft, FiCheckCircle, FiCreditCard, FiDollarSign, FiLoader, FiX }
 import { BsQrCode, BsCash } from "react-icons/bs";
 
 const Cart = () => {
+  const user = useSelector((state) => state.UserReducer);
   const { items } = useSelector((state) => state.CartReducer);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
@@ -110,9 +111,9 @@ const { subtotal, discount, total, totalItems } = React.useMemo(() => {
             try {
               setIsProcessing(true);
               const result = await axios.post("/api/payment/verify-payment", {
-                order_id: response.razorpay_order_id,
-                payment_id: response.razorpay_payment_id,
-                signature: response.razorpay_signature,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
                 items: items.map(item => ({
                   productId: item._id,
                   name: item.name,
@@ -128,7 +129,7 @@ const { subtotal, discount, total, totalItems } = React.useMemo(() => {
               if (result.data.success) {
                 toast.success('Payment successful!');
                 dispatch(setCart({ items: [] }));
-                navigate(`/order/confirm/${result.data.orderId}`);
+                navigate('/user/order-history');
               }
             } catch (error) {
               console.error('Payment verification failed:', error);
@@ -138,9 +139,9 @@ const { subtotal, discount, total, totalItems } = React.useMemo(() => {
             }
           },
           prefill: {
-            name: "Customer Name", // TODO: Get from user profile
-            email: "customer@example.com",
-            contact: "+911234567890"
+            name:  `${user.fullName.firstName} ${user.fullName.lastName}` || "Customer Name", // TODO: Get from user profile
+            email: user.email || "customer@example.com",
+            contact: user.phoneNumber || "+911234567890"
           },
           theme: {
             color: "#10b981"
@@ -183,7 +184,7 @@ const { subtotal, discount, total, totalItems } = React.useMemo(() => {
         if (result.data.success) {
           toast.success('Order placed successfully! You will pay when your order is delivered.');
           dispatch(setCart({ items: [] }));
-          navigate(`/order/confirm/${result.data.orderId}`);
+          navigate('/user/order-history');
         }
       }
     } catch (error) {
