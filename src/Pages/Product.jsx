@@ -31,6 +31,8 @@ const Product = () => {
   const [firstLoad, setFirstLoad] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
   const limit = 12;
+  // layoutMode: 'comfortable' | 'compact'
+  const [layoutMode, setLayoutMode] = useState('comfortable');
   const scrollDivRef = useRef(null);
   const subcatScrollRef = useRef(null);
   const [lastMainCategory, setLastMainCategory] = useState(Maincategory);
@@ -181,10 +183,25 @@ const Product = () => {
           >
             Filters <IoMdArrowDropdown />
           </button>
+          {/* Layout toggle (desktop) */}
+          <div className="hidden md:flex items-center gap-2 ml-3">
+            <button
+              onClick={() => setLayoutMode('comfortable')}
+              className={`px-3 py-2 rounded-md text-sm ${layoutMode === 'comfortable' ? 'bg-white text-[#013220] font-bold' : 'text-white bg-transparent hover:bg-white/10'}`}
+            >
+              Comfortable
+            </button>
+            <button
+              onClick={() => setLayoutMode('compact')}
+              className={`px-3 py-2 rounded-md text-sm ${layoutMode === 'compact' ? 'bg-white text-[#013220] font-bold' : 'text-white bg-transparent hover:bg-white/10'}`}
+            >
+              Compact
+            </button>
+          </div>
         </div>
 
         {/* ===== Subcategory Buttons (Desktop) ===== */}
-        <div className="relative hidden md:flex items-center w-full max-w-6xl mx-auto py-3">
+        <div className="relative hidden md:flex items-center w-full max-w-6xl mx-auto py-1">
           {/* Left Arrow */}
           <button
             onClick={scrollLeft}
@@ -196,7 +213,7 @@ const Product = () => {
           {/* Scrollable categories */}
           <div
             ref={subcatScrollRef}
-            className="flex overflow-x-auto scrollbar-thin scrollbar-thumb-green-700 gap-2 px-10 scroll-smooth"
+            className="flex overflow-x-auto scrollbar-thin scrollbar-thumb-green-700 gap-2 px-10 mt-2 scroll-smooth"
           >
             {categories.map((cat) => (
               <button
@@ -273,7 +290,11 @@ const Product = () => {
               🎉 You’ve reached the end!
             </div>
           }
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-6 px-5 md:px-8 pb-5 pt-10 bg-green-200"
+          className={
+            layoutMode === 'compact'
+              ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 px-2 md:px-4 pb-5 pt-4 bg-green-200"
+              : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-6 gap-6 px-5 md:px-8 pb-5 pt-4 bg-green-200"
+          }
         >
           {displayItems.length > 0
             ? displayItems.map((p, i) => (
@@ -284,7 +305,7 @@ const Product = () => {
                   whileTap={{ scale: 0.98 }}
                   className="cursor-pointer"
                 >
-                  <ProductCard data={p} />
+                  <ProductCard data={p} variant={layoutMode} />
                 </motion.div>
               ))
             : !isLoading && (

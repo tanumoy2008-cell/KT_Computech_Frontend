@@ -89,7 +89,8 @@ const OrderPayment = () => {
         name: it.name,
         // send base unit price (UnitPrice) so server can apply discounts consistently
         price: Number(it.UnitPrice || it.price || it.total || 0),
-        quantity: Number(it.qty || 1)
+        quantity: Number(it.qty || 1),
+        off: Number(it.off || 0)
       }))
     }
 

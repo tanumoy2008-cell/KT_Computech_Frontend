@@ -7,13 +7,13 @@ import { FaSearch, FaFilter, FaTimes, FaSort, FaSortUp, FaSortDown } from 'react
 
 const ITEMS_PER_PAGE = 10;
 const STATUS_FILTERS = [
-  { key: "all", label: "All" },
-  { key: "pending", label: "Pending" },
-  { key: "processing", label: "Processing" },
-  { key: "shipped", label: "Shipped" },
-  { key: "delivered", label: "Delivered" },
-  { key: "cancelled", label: "Cancelled" },
-  { key: "returned", label: "Returned" }
+  { key: "", label: "All" },
+  { key: "Pending", label: "Pending" },
+  { key: "Processing", label: "Processing" },
+  { key: "Shipped", label: "Shipped" },
+  { key: "Delivered", label: "Delivered" },
+  { key: "Cancelled", label: "Cancelled" },
+  { key: "Returned", label: "Returned" }
 ];
 
 const Order = () => {

@@ -14,6 +14,7 @@ const ProductDets = () => {
   const dispatch = useDispatch();
   const checkTimeout = useRef(null);
   const user = useSelector((state) => state.UserReducer);
+  const admin = useSelector((state) => state.AdminReducer);
   const [product, setProduct] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedImage, setSelectedImage] = useState("");
@@ -89,6 +90,24 @@ const ProductDets = () => {
 
     return () => (isMounted = false);
   }, [id]);
+
+  const totalStock = product?.colorVariants?.reduce((acc, cv) => acc + (cv.stock || 0), 0) || 0;
+  const selectedStock = selectedColor ? (selectedColor.stock || 0) : totalStock;
+
+  // Admin: toggle visibility
+  const toggleVisibility = async () => {
+    try {
+      // require admin token present in axios defaults (Admin login middleware sets it)
+      const res = await axios.patch(`/api/product/visibility/${product._id}`, { visibility: !product.visibility });
+      if (res?.data?.product) {
+        setProduct(res.data.product);
+        toast.success(res.data.message || 'Visibility updated');
+      }
+    } catch (err) {
+      console.error('Toggle visibility failed', err);
+      toast.error(err.response?.data?.message || 'Failed to update visibility');
+    }
+  };
 
   // Back navigation
   const handleNavigateBack = () => {
@@ -241,14 +260,30 @@ const ProductDets = () => {
       {/* Sticky Header */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16">
-            <button 
-              onClick={handleNavigateBack}
-              className="p-2 rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
-            >
-              <FaChevronLeft className="h-5 w-5" />
-            </button>
-            <h1 className="ml-4 text-lg font-medium text-gray-900 line-clamp-1">{product.name}</h1>
+          <div className="flex items-center h-16 justify-between gap-4">
+            <div className="flex items-center">
+              <button 
+                onClick={handleNavigateBack}
+                className="p-2 rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
+              >
+                <FaChevronLeft className="h-5 w-5" />
+              </button>
+              <h1 className="ml-4 text-lg font-medium text-gray-900 line-clamp-1">{product.name}</h1>
+            </div>
+            {/* Admin visibility toggle */}
+            {admin?.isAuthenticated && admin?.user && (admin.user.role === 'admin' || admin.user.role === 'superAdmin') && (
+              <div className="flex items-center gap-3">
+                <span className={`text-sm font-medium ${product.visibility ? 'text-green-700' : 'text-gray-500'}`}>
+                  {product.visibility ? 'Visible' : 'Hidden'}
+                </span>
+                <button
+                  onClick={toggleVisibility}
+                  className={`px-3 py-1 rounded-full text-sm font-semibold transition ${product.visibility ? 'bg-green-600 text-white hover:opacity-90' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                >
+                  Toggle
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -438,6 +473,12 @@ const ProductDets = () => {
                       <FaMapMarkerAlt className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
+                    {/* Low stock label */}
+                    {(selectedStock !== undefined && selectedStock > 0 && selectedStock <= 5) && (
+                      <div className="mt-2 inline-block px-2 py-1 rounded text-sm font-semibold text-red-800 bg-red-100">
+                        Only {selectedStock} left
+                      </div>
+                    )}
                       <h4 className="font-medium text-gray-900">Delivery & Returns</h4>
                       <p className="text-sm text-gray-500">Check estimated delivery date</p>
                     </div>

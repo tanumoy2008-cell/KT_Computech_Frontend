@@ -12,6 +12,7 @@ import {
   selectError,
   selectToken
 } from '../Store/reducers/AdminReducer';
+import axios from '../config/axios';
 
 const AdminAuth = ({ requiredRoles = [] }) => {
   const dispatch = useDispatch();
@@ -25,9 +26,12 @@ const AdminAuth = ({ requiredRoles = [] }) => {
   const error = useSelector(selectError);
   const token = useSelector(selectToken) || localStorage.getItem('adminToken');
 
-  // Memoize the required role check
+  // Memoize the required role check (case-insensitive)
   const hasRequiredRole = useMemo(() => {
-    return requiredRoles.length === 0 || (userRole && requiredRoles.includes(userRole));
+    if (requiredRoles.length === 0) return true;
+    if (!userRole) return false;
+    const normalizedUserRole = String(userRole).toLowerCase();
+    return requiredRoles.some((r) => String(r).toLowerCase() === normalizedUserRole);
   }, [requiredRoles, userRole]);
 
   // Memoize the checkAuth function with proper dependencies
@@ -44,37 +48,48 @@ const AdminAuth = ({ requiredRoles = [] }) => {
       return false;
     }
 
-    // If authenticated and has required role, allow access
-    if (isAuthenticated && (requiredRoles.length === 0 || hasRequiredRole)) {
+    // If we already have authenticated state and a role, short-circuit only when no role checks are required
+    if (isAuthenticated && userRole && requiredRoles.length === 0) {
       return true;
     }
 
     try {
-      // If not authenticated but has token, fetch profile
-      if (!isAuthenticated && token) {
-        await dispatch(fetchAdminProfile()).unwrap();
+      // If we don't have profile/userRole yet but token exists, fetch profile
+      let fetchedUser = null;
+      if ((!isAuthenticated || !userRole) && token) {
+        const payload = await dispatch(fetchAdminProfile()).unwrap();
+        fetchedUser = payload?.user || null;
       }
 
-      // Check roles after potential authentication
-      if (requiredRoles.length > 0 && !hasRequiredRole) {
-        navigate('/admin/unauthorized', { 
-          replace: true,
-          state: { 
-            error: 'You do not have permission to access this page',
-            from: location.pathname
-          }
-        });
-        return false;
+      // Decide which role to validate: prefer fetchedUser.role then existing userRole
+      const roleToCheck = (fetchedUser && fetchedUser.role) || userRole || null;
+
+      // If role restrictions exist, enforce them now (case-insensitive)
+      if (requiredRoles.length > 0) {
+        const normalizedRole = roleToCheck ? String(roleToCheck).toLowerCase() : null;
+        const allowed = requiredRoles.some((r) => String(r).toLowerCase() === normalizedRole);
+        if (!allowed) {
+          navigate('/admin/unauthorized', { 
+            replace: true,
+            state: { 
+              error: 'You do not have permission to access this page',
+              from: location.pathname
+            }
+          });
+          return false;
+        }
       }
-      
+
       return true;
-    } catch (error) {
-      console.error('Authentication check failed:', error);
+    } catch (err) {
+      console.error('Authentication check failed:', err);
       localStorage.removeItem('adminToken');
+      // Clear axios header as well (safe-guard)
+      try { delete axios.defaults.headers.common['x-admin-token']; } catch (e) {}
       navigate('/admin/login', { 
         state: { 
           from: location.pathname,
-          error: error || 'Session expired. Please log in again.'
+          error: err || 'Session expired. Please log in again.'
         },
         replace: true 
       });

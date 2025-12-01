@@ -10,11 +10,19 @@ const Billing = () => {
   const [searchType, setSearchType] = useState("barcode");
   const [searchValue, setSearchValue] = useState("");
   const searchInputRef = React.useRef(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const suggestionsTimerRef = React.useRef(null);
 
   // 🖨️ QZ Tray
   const [printers, setPrinters] = useState([]);
   const [defaultPrinter, setDefaultPrinter] = useState("");
   const [qzStatus, setQzStatus] = useState("Loading...");
+  const [qrUrl, setQrUrl] = useState("");
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // 💵 Cash drawer
   const [cashGiven, setCashGiven] = useState("");
@@ -85,17 +93,49 @@ const Billing = () => {
         )
       );
     } else {
+      // Normalize discount/price fields from product object to avoid incorrect display
+      const offVal =
+        Number(
+          product.off ??
+            product.discount ??
+            product.discountPercent ??
+            product.discountPercentage ??
+            0
+        ) || 0;
+
+      const basePrice =
+        Number(
+          product.UnitPrice ??
+            product.unitPrice ??
+            product.price ??
+            product.mrp ??
+            0
+        ) || 0;
+
+      const displayPrice =
+        Math.round(basePrice * (1 - offVal / 100) * 100) / 100;
+
+      const primaryBarcode =
+        product.barcode ||
+        (Array.isArray(product.barcodes) ? product.barcodes[0] : "") ||
+        "";
+
       setProducts((prev) => [
         ...prev,
         {
           _id: product._id,
           name: product.name,
-          price: product.price,
-          off: product.off || 0,
-          barcode: product.barcode || "",
+          basePrice,
+          price: displayPrice, // price after discount for quick display
+          off: offVal,
+          barcode: primaryBarcode,
           quantity: 1,
           colorVariants: product.colorVariants || [],
-          selectedColorVariantId: product.colorVariants?.[0]?._id || null,
+          // if backend gives matchedVariantId (SKU search), use that first
+          selectedColorVariantId:
+            product.matchedVariantId ||
+            product.colorVariants?.[0]?._id ||
+            null,
         },
       ]);
     }
@@ -107,7 +147,9 @@ const Billing = () => {
       let endpoint = "";
       switch (searchType) {
         case "barcode":
-          endpoint = `/api/product/by-barcode/${encodeURIComponent(searchValue)}`;
+          endpoint = `/api/product/by-barcode/${encodeURIComponent(
+            searchValue
+          )}`;
           break;
         case "name":
           endpoint = `/api/product/by-name/${encodeURIComponent(searchValue)}`;
@@ -119,30 +161,109 @@ const Billing = () => {
           endpoint = `/api/product/search/${encodeURIComponent(searchValue)}`;
           break;
         default:
-          endpoint = `/api/product/by-barcode/${encodeURIComponent(searchValue)}`;
+          endpoint = `/api/product/by-barcode/${encodeURIComponent(
+            searchValue
+          )}`;
       }
 
       const res = await axios.get(endpoint);
       const productData = Array.isArray(res.data) ? res.data : [res.data];
       productData.forEach(addProductToList);
       setSearchValue("");
+      // clear suggestions after explicit search
+      setSuggestions([]);
+      setShowSuggestions(false);
     } catch (err) {
       console.error("Search failed:", err?.response?.data || err.message);
-      Swal.fire("Error", err?.response?.data?.message || "Product not found!", "error");
+      Swal.fire(
+        "Error",
+        err?.response?.data?.message || "Product not found!",
+        "error"
+      );
       setSearchValue("");
       searchInputRef.current?.focus();
     }
   };
 
+  // --- Suggestions (debounced) for name, sku, and all ---
+  useEffect(() => {
+    // we only show suggestions for these search types
+    if (!["name", "sku", "all"].includes(searchType)) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    // clear previous timer
+    if (suggestionsTimerRef.current) {
+      clearTimeout(suggestionsTimerRef.current);
+    }
+
+    if (!searchValue || searchValue.trim().length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setSuggestionsLoading(false);
+      return;
+    }
+
+    setSuggestionsLoading(true);
+
+    suggestionsTimerRef.current = setTimeout(async () => {
+      try {
+        const term = encodeURIComponent(searchValue.trim());
+        let endpoint = "";
+
+        if (searchType === "name") {
+          // name-specific endpoint
+          endpoint = `/api/product/by-name/${term}`;
+        } else {
+          // sku & all use smart search (barcode+sku+name)
+          endpoint = `/api/product/search/${term}`;
+        }
+
+        const res = await axios.get(endpoint);
+        const list = Array.isArray(res.data) ? res.data : [res.data];
+        setSuggestions(list.slice(0, 8)); // limit suggestions
+        setShowSuggestions(true);
+      } catch (err) {
+        console.error("Suggestion fetch failed:", err?.response?.data || err);
+        setSuggestions([]);
+        setShowSuggestions(false);
+      } finally {
+        setSuggestionsLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      if (suggestionsTimerRef.current) {
+        clearTimeout(suggestionsTimerRef.current);
+      }
+    };
+  }, [searchValue, searchType]);
+
+  const handleSuggestionClick = (prod) => {
+    addProductToList(prod);
+    setSearchValue("");
+    setSuggestions([]);
+    setShowSuggestions(false);
+    searchInputRef.current?.focus();
+  };
+
   const updateQuantity = (productId, quantity) => {
     setProducts((prev) =>
-      prev.map((p) => (p._id === productId ? { ...p, quantity: Number(quantity) } : p))
+      prev.map((p) =>
+        p._id === productId ? { ...p, quantity: Number(quantity) } : p
+      )
     );
   };
 
   const updateColorVariant = (productId, colorVariantId) => {
     setProducts((prev) =>
-      prev.map((p) => (p._id === productId ? { ...p, selectedColorVariantId: colorVariantId } : p))
+      prev.map((p) =>
+        p._id === productId
+          ? { ...p, selectedColorVariantId: colorVariantId }
+          : p
+      )
     );
   };
 
@@ -152,10 +273,11 @@ const Billing = () => {
 
   // 💰 Calculations
   const subtotal = products.reduce((acc, p) => {
-    const price = Number(p.price) || 0;
+    const base = Number(p.basePrice ?? p.price) || 0;
     const off = Number(p.off) || 0;
-    const discounted = price * (1 - off / 100);
-    return acc + discounted * (Number(p.quantity) || 0);
+    const discountedUnit =
+      Math.round(base * (1 - off / 100) * 100) / 100;
+    return acc + discountedUnit * (Number(p.quantity) || 0);
   }, 0);
 
   const discountAmount = customDiscount ? Number(customDiscount) || 0 : 0;
@@ -185,13 +307,14 @@ const Billing = () => {
     setChangeToGive(0);
   };
 
-   // ===============================
+  // ===============================
   // PRINT RECEIPT FUNCTION
   // ===============================
   const printReceiptQZTray = async (saleData) => {
     try {
       if (!window.qz) return alert("QZ Tray is not loaded!");
-      if (!window.qz.websocket?.isActive()) await window.qz.websocket.connect();
+      if (!window.qz.websocket?.isActive())
+        await window.qz.websocket.connect();
       if (!defaultPrinter) return alert("No printer selected!");
 
       const config = window.qz.configs.create(defaultPrinter);
@@ -238,16 +361,29 @@ const Billing = () => {
       const FINAL_W = 10;
 
       r += "\x1B\x45\x01"; // Bold table header
-      r += pad("Item", ITEM_W) + pad("Qty", QTY_W, true) + pad("Rate", RATE_W, true) + pad("Final", FINAL_W, true) + "\n";
+      r +=
+        pad("Item", ITEM_W) +
+        pad("Qty", QTY_W, true) +
+        pad("Rate", RATE_W, true) +
+        pad("Final", FINAL_W, true) +
+        "\n";
       r += "\x1B\x45\x00"; // Bold off
       r += "-".repeat(LINE_WIDTH) + "\n";
 
       saleData.items.forEach((item) => {
         const name = pad(item.name || "", ITEM_W);
         const qty = pad(item.quantity || item.qty || 0, QTY_W, true);
-        const rate = pad((item.rate || item.price || 0).toFixed(2), RATE_W, true);
+        const rate = pad(
+          (item.rate || item.price || 0).toFixed(2),
+          RATE_W,
+          true
+        );
         const total = pad(
-          ((item.total || (item.quantity || item.qty || 0) * (item.rate || item.price || 0)).toFixed(2)),
+          (
+            item.total ||
+            (item.quantity || item.qty || 0) *
+              (item.rate || item.price || 0)
+          ).toFixed(2),
           FINAL_W,
           true
         );
@@ -255,21 +391,41 @@ const Billing = () => {
       });
 
       r += "-".repeat(LINE_WIDTH) + "\n";
-      r += pad("Subtotal:", LINE_WIDTH - 10) + pad((saleData.subtotal || 0).toFixed(2), 10, true) + "\n";
-      if (saleData.discountPercent > 0) {
-        r += pad(`Discount (${saleData.discountPercent}%):`, LINE_WIDTH - 10) +
-             pad(`-${(saleData.discountPercentValue || 0).toFixed(2)}`, 10, true) + "\n";
-      }
-      if (saleData.discountAmount > 0) {
-        r += pad("Discount (Flat):", LINE_WIDTH - 10) +
-             pad(`-${(saleData.discountAmount || 0).toFixed(2)}`, 10, true) + "\n";
-      }
+      r +=
+        pad("Subtotal:", LINE_WIDTH - 10) +
+        pad((saleData.subtotal || 0).toFixed(2), 10, true) +
+        "\n";
+      // Always print discount lines to match cash receipt layout — show 0.00 when no discount
+      const discPercent = Number(saleData.discountPercent || 0);
+      const discPercentValue = Number(
+        saleData.discountPercentValue || 0
+      );
+      const discFlat = Number(saleData.discountAmount || 0);
+      r +=
+        pad(`Discount (${discPercent}%):`, LINE_WIDTH - 10) +
+        pad(`-${discPercentValue.toFixed(2)}`, 10, true) +
+        "\n";
+      r +=
+        pad("Discount (Flat):", LINE_WIDTH - 10) +
+        pad(`-${discFlat.toFixed(2)}`, 10, true) +
+        "\n";
       r += "-".repeat(LINE_WIDTH) + "\n";
       r += "\x1B\x45\x01"; // Bold total
-      r += pad("Total:", LINE_WIDTH - 10) + pad((saleData.totalAfterDiscount || saleData.total || 0).toFixed(2), 10, true) + "\n";
+      r +=
+        pad(
+          "Total:",
+          LINE_WIDTH - 10
+        ) +
+        pad(
+          (saleData.totalAfterDiscount || saleData.total || 0).toFixed(2),
+          10,
+          true
+        ) +
+        "\n";
       r += "\x1B\x45\x00";
       r += "-".repeat(LINE_WIDTH) + "\n";
-      r += "Payment Mode: " + (saleData.paymentMode || "N/A") + "\n\n";
+      r +=
+        "Payment Mode: " + (saleData.paymentMode || "N/A") + "\n\n";
 
       r += "\x1B\x61\x01"; // Center footer
       r += "\x1B\x45\x01";
@@ -279,41 +435,93 @@ const Billing = () => {
 
       const escpos = ["\x1B\x40", r, "\n\n\n\n\n", "\x1D\x56\x00"];
       await window.qz.print(config, escpos);
-
     } catch (err) {
       console.error(err);
-      alert("Print failed. Make sure QZ Tray is running and printer supports plain text!");
+      alert(
+        "Print failed. Make sure QZ Tray is running and printer supports plain text!"
+      );
     }
   };
 
-
   // Create order (no change printed)
   const createOrder = async () => {
-    if (!products.length) return Swal.fire("Error", "Add products first", "error");
+    if (!products.length)
+      return Swal.fire("Error", "Add products first", "error");
+
+    // Prepare payload used for both offline and online flows
+    const payload = {
+      products: products.map((p) => ({
+        _id: p._id,
+        name: p.name,
+        price: p.basePrice ?? p.price,
+        quantity: p.quantity,
+        off: p.off,
+        barcode: p.barcode,
+        colorVariantId: p.selectedColorVariantId,
+      })),
+    paymentMode,
+      clientTotal: Number(baseTotal.toFixed(2)),
+      discountPercent: Number(discount),
+      clientDiscountAmount: Number(discountAmount.toFixed(2)),
+    };
 
     try {
-      const res = await axios.post("/api/payment/create-offline-order", {
-        products: products.map((p) => ({
-          _id: p._id,
-          name: p.name,
-          price: p.price,
-          quantity: p.quantity,
-          off: p.off,
-          barcode: p.barcode,
-          colorVariantId: p.selectedColorVariantId,
-        })),
-        paymentMode,
-        clientTotal: Number(baseTotal.toFixed(2)),
-        discountPercent: Number(discount),
-        clientDiscountAmount: Number(discountAmount.toFixed(2)),
-      });
+      // If UPI is selected, call the online/razorpay order creation endpoint
+      if (paymentMode === "UPI") {
+        const res = await axios.post(
+          "/api/payment/create-offline-order",
+          { ...payload, paymentMode: "UPI" }
+        );
+
+        const qr =
+          res?.data?.qrCode ||
+          res?.data?.qr ||
+          res?.data?.qr_url ||
+          res?.data?.payment_qr;
+        const upiUri =
+          res?.data?.upiUri || res?.data?.upi_uri || null;
+        const orderId =
+          res?.data?.order?._id || res?.data?.order?.id || null;
+        if (orderId) setCreatedOrderId(orderId);
+
+        if (qr) {
+          setQrUrl(qr);
+          setShowQrModal(true);
+        } else if (upiUri) {
+          setQrUrl("");
+          setShowQrModal(true);
+          Swal.fire(
+            "Info",
+            "UPI URI returned. Please copy it from the modal.",
+            "info"
+          );
+        } else {
+          Swal.fire(
+            "Error",
+            "UPI payment initiation failed. Server did not return QR or UPI URI.",
+            "error"
+          );
+        }
+
+        return; // stop here for UPI flow
+      }
+
+      // Default: offline (Cash)
+      const res = await axios.post(
+        "/api/payment/create-offline-order",
+        payload
+      );
 
       await printReceiptQZTray(res.data.saleDataForReceipt);
       Swal.fire("Success", "Order created successfully", "success");
       resetBillingFields();
     } catch (err) {
       console.error(err);
-      Swal.fire("Error", "Something went wrong", "error");
+      Swal.fire(
+        "Error",
+        err?.response?.data?.message || "Something went wrong",
+        "error"
+      );
     }
   };
 
@@ -325,7 +533,13 @@ const Billing = () => {
       <div className="flex items-center gap-4 mb-4">
         <div>
           <strong>QZ Tray Status:</strong>{" "}
-          <span className={qzStatus === "Connected" ? "text-green-600" : "text-red-600"}>
+          <span
+            className={
+              qzStatus === "Connected"
+                ? "text-green-600"
+                : "text-red-600"
+            }
+          >
             {qzStatus}
           </span>
           {qzStatus !== "Connected" && (
@@ -355,7 +569,7 @@ const Billing = () => {
       </div>
 
       {/* 🔍 Search */}
-      <div className="flex gap-2 items-center mb-4">
+      <div className="relative flex gap-2 items-center mb-4">
         <select
           value={searchType}
           onChange={(e) => setSearchType(e.target.value)}
@@ -371,7 +585,15 @@ const Billing = () => {
           type="text"
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSearch();
+          }}
+          onFocus={() => {
+            if (suggestions.length) setShowSuggestions(true);
+          }}
+          onBlur={() => {
+            setTimeout(() => setShowSuggestions(false), 150);
+          }}
           placeholder={`Search by ${searchType}`}
           className="px-3 py-2 border rounded flex-1"
         />
@@ -381,6 +603,45 @@ const Billing = () => {
         >
           Search
         </button>
+        {/* Suggestions dropdown (name / sku / all) */}
+        {showSuggestions &&
+          ["name", "sku", "all"].includes(searchType) && (
+            <div
+              className="absolute z-50 bg-white border rounded shadow-lg max-h-60 overflow-auto"
+              style={{ left: 0, right: 0, top: "100%", marginTop: "6px" }}
+            >
+              {suggestionsLoading ? (
+                <div className="p-2 text-sm text-gray-600">
+                  Loading...
+                </div>
+              ) : suggestions.length === 0 ? (
+                <div className="p-2 text-sm text-gray-600">
+                  No suggestions
+                </div>
+              ) : (
+                suggestions.map((s) => (
+                  <div
+                    key={s._id}
+                    onMouseDown={() => handleSuggestionClick(s)}
+                    className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                  >
+                    <div className="font-medium">
+                      {s.name}{" "}
+                      {s.matchedSKU
+                        ? `(SKU: ${s.matchedSKU})`
+                        : ""}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {s.company} —{" "}
+                      {s.Subcategory ||
+                        s.Maincategory ||
+                        ""}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
       </div>
 
       {/* 🧾 Product Table */}
@@ -405,7 +666,9 @@ const Billing = () => {
                 <td className="px-4 py-2">
                   <select
                     value={p.selectedColorVariantId}
-                    onChange={(e) => updateColorVariant(p._id, e.target.value)}
+                    onChange={(e) =>
+                      updateColorVariant(p._id, e.target.value)
+                    }
                     className="px-2 py-1 border rounded"
                   >
                     {p.colorVariants.map((c) => (
@@ -415,24 +678,42 @@ const Billing = () => {
                     ))}
                   </select>
                 </td>
-                <td>₹{Number(p.price).toFixed(2)}</td>
-                <td>{Number(p.off || 0).toFixed(1)}%</td>
-                <td>
-                  ₹{(Number(p.price) * (1 - Number(p.off || 0) / 100)).toFixed(2)}
+                <td className="px-4 py-2">
+                  {p.off > 0 ? (
+                    <div className="flex flex-col items-center">
+                      <div className="text-sm text-gray-500 line-through">
+                        ₹{Number(p.basePrice).toFixed(2)}
+                      </div>
+                      <div className="font-semibold">
+                        ₹{Number(p.price).toFixed(2)}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="font-semibold">
+                      ₹{Number(p.price).toFixed(2)}
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-2">
+                  {Number(p.off || 0).toFixed(1)}%
+                </td>
+                <td className="px-4 py-2">
+                  ₹{Number(p.price).toFixed(2)}
                 </td>
                 <td>
                   <input
                     type="number"
                     min="1"
                     value={p.quantity}
-                    onChange={(e) => updateQuantity(p._id, e.target.value)}
+                    onChange={(e) =>
+                      updateQuantity(p._id, e.target.value)
+                    }
                     className="w-16 px-2 py-1 text-center border rounded"
                   />
                 </td>
                 <td>
                   {(
-                    (Number(p.price) * (1 - Number(p.off || 0) / 100)) *
-                    p.quantity
+                    Number(p.price) * Number(p.quantity || 0)
                   ).toFixed(2)}
                 </td>
                 <td>
@@ -465,7 +746,9 @@ const Billing = () => {
           </div>
 
           <div>
-            <label className="font-semibold">Custom Discount (₹):</label>
+            <label className="font-semibold">
+              Custom Discount (₹):
+            </label>
             <input
               type="number"
               min="0"
@@ -484,7 +767,9 @@ const Billing = () => {
               max="100"
               step="0.1"
               value={discountPercent}
-              onChange={(e) => setDiscountPercent(e.target.value)}
+              onChange={(e) =>
+                setDiscountPercent(e.target.value)
+              }
               className="ml-2 w-20 px-2 py-1 border rounded"
             />
           </div>
@@ -493,7 +778,9 @@ const Billing = () => {
         {/* 💵 Cash Drawer Section */}
         {paymentMode === "Cash" && (
           <div className="flex items-center gap-4 mt-3">
-            <label className="font-semibold text-lg">Cash Given (₹):</label>
+            <label className="font-semibold text-lg">
+              Cash Given (₹):
+            </label>
             <input
               type="number"
               value={cashGiven}
@@ -508,9 +795,15 @@ const Billing = () => {
         )}
 
         <div className="flex justify-between items-center mt-4 flex-wrap">
-          <div className="font-bold text-lg">Subtotal: ₹{subtotal.toFixed(2)}</div>
-          <div className="font-bold text-lg">Custom Discount: -₹{discountAmount.toFixed(2)}</div>
-          <div className="font-bold text-lg">Total After Discount: ₹{totalAmount.toFixed(2)}</div>
+          <div className="font-bold text-lg">
+            Subtotal: ₹{subtotal.toFixed(2)}
+          </div>
+          <div className="font-bold text-lg">
+            Custom Discount: -₹{discountAmount.toFixed(2)}
+          </div>
+          <div className="font-bold text-lg">
+            Total After Discount: ₹{totalAmount.toFixed(2)}
+          </div>
           <button
             onClick={createOrder}
             className="bg-green-600 px-8 py-2 rounded text-white text-xl font-semibold hover:bg-green-700"
@@ -519,6 +812,99 @@ const Billing = () => {
           </button>
         </div>
       </div>
+
+      {/* UPI QR Modal */}
+      {showQrModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg p-4 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-semibold">UPI Payment</h3>
+              <button
+                onClick={() => setShowQrModal(false)}
+                className="text-gray-600 px-2 py-1 rounded hover:bg-gray-100"
+              >
+                Close
+              </button>
+            </div>
+
+            {qrUrl ? (
+              <div className="flex flex-col items-center">
+                <img
+                  src={qrUrl}
+                  alt="UPI QR"
+                  className="max-w-full h-auto"
+                />
+                <p className="mt-2 text-sm text-gray-600">
+                  Scan this QR with your UPI app to pay.
+                </p>
+              </div>
+            ) : (
+              <div className="p-4 text-center text-sm text-gray-700">
+                <div className="break-all text-xs text-gray-800">
+                  No QR was returned by the server. If a UPI URI was
+                  returned, copy it from the server response.
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={async () => {
+                  if (!createdOrderId)
+                    return Swal.fire(
+                      "Error",
+                      "Order ID missing",
+                      "error"
+                    );
+                  try {
+                    setIsProcessing(true);
+                    const resp = await axios.post(
+                      "/api/payment/mark-paid",
+                      { orderId: createdOrderId, method: "UPI" }
+                    );
+                    if (resp.data?.success) {
+                      const saleData =
+                        resp.data.saleDataForReceipt;
+                      if (saleData)
+                        await printReceiptQZTray(saleData);
+                      Swal.fire(
+                        "Success",
+                        "Payment confirmed and receipt printed",
+                        "success"
+                      );
+                      setShowQrModal(false);
+                      resetBillingFields();
+                    } else {
+                      Swal.fire(
+                        "Error",
+                        resp.data?.message ||
+                          "Failed to mark paid",
+                        "error"
+                      );
+                    }
+                  } catch (err) {
+                    console.error("Confirm paid error:", err);
+                    Swal.fire(
+                      "Error",
+                      err?.response?.data?.message ||
+                        "Failed to confirm payment",
+                      "error"
+                    );
+                  } finally {
+                    setIsProcessing(false);
+                  }
+                }}
+                disabled={isProcessing}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                {isProcessing
+                  ? "Processing..."
+                  : "Confirm Paid & Print"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

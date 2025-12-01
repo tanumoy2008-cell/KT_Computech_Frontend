@@ -84,7 +84,8 @@ const { subtotal, discount, total, totalItems } = React.useMemo(() => {
           price: item.price,
           quantity: item.quantity,
           color: item.color,
-          image: item.image
+          image: item.image,
+          off: item.off || 0
         }))
       });
 
@@ -120,7 +121,8 @@ const { subtotal, discount, total, totalItems } = React.useMemo(() => {
                   price: item.price,
                   quantity: item.quantity,
                   color: item.color,
-                  image: item.image
+                  image: item.image,
+                  off: item.off || 0
                 })),
                 total: total,
                 paymentMethod: 'online'
@@ -175,7 +177,8 @@ const { subtotal, discount, total, totalItems } = React.useMemo(() => {
             price: item.price,
             quantity: item.quantity,
             color: item.color,
-            image: item.image
+            image: item.image,
+            off: item.off || 0
           })),
           total: total,
           paymentMethod: 'cod'
@@ -446,7 +449,7 @@ const { subtotal, discount, total, totalItems } = React.useMemo(() => {
                               Secured payment via Razorpay. All major cards, UPI, and net banking accepted.
                             </p>
                             <div className="mt-2 flex items-center text-xs text-green-700">
-                              <FiCheckCircle className="mr-1" /> Instant order confirmation
+                              <FiCheckCircle className="mr-1" /> Instant order Processing
                             </div>
                           </div>
                           <FiCreditCard className="ml-auto text-gray-400" />
@@ -482,31 +485,7 @@ const { subtotal, discount, total, totalItems } = React.useMemo(() => {
                         </div>
                       </div>
                       
-                      <div 
-                        onClick={() => setPaymentMethod('upi')}
-                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                          paymentMethod === 'upi' 
-                            ? 'border-green-500 bg-green-50' 
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center">
-                          <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center mr-3 ${
-                            paymentMethod === 'upi' 
-                              ? 'border-green-500 bg-green-500' 
-                              : 'border-gray-300'
-                          }`}>
-                            {paymentMethod === 'upi' && (
-                              <div className="h-2 w-2 bg-white rounded-full"></div>
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-medium">UPI Payment</div>
-                            <p className="text-sm text-gray-500">Pay using any UPI app</p>
-                          </div>
-                          <BsQrCode className="ml-auto text-gray-400" />
-                        </div>
-                      </div>
+                      {/* UPI payment option removed as requested */}
                     </div>
                     
                     <div className="bg-gray-50 p-4 rounded-lg mb-6">

@@ -12,6 +12,7 @@ import {
   setScrollY,
   clearScrollY,
 } from "../Store/reducers/AdminProductReducer";
+import { setProducts as setPublicProducts } from "../Store/reducers/ProductReducer";
 
 const AdminProducts = () => {
   const admin = useSelector((state) => state.AdminReducer)
@@ -25,11 +26,13 @@ const AdminProducts = () => {
     subcategory,
     scrollY,
   } = useSelector((state) => state.adminProductReducer);
+  const publicItems = useSelector((state) => state.ProductReducer.items);
 
   const [maincategories, setMaincategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [loadingVisibilityIds, setLoadingVisibilityIds] = useState([]);
   const limit = 12;
   const scrollRef = useRef(null);
 
@@ -248,6 +251,7 @@ const AdminProducts = () => {
           <h1 className="w-[14%] py-2 rounded bg-red-400">Sub</h1>
           <h1 className="w-[8%] py-2 rounded bg-violet-300">Price</h1>
           <h1 className="w-[8%] py-2 rounded bg-amber-300">Stock</h1>
+          <h1 className="w-[6%] py-2 rounded bg-indigo-300">Visible</h1>
           <h1 className="w-[16%] py-2 rounded bg-slate-400">Barcodes</h1>
           <h1 className="w-[9%] py-2 rounded px-2 bg-green-300">Edit</h1>
           <h1 className="w-[9%] py-2 rounded px-2 bg-red-300">Delete</h1>
@@ -284,6 +288,78 @@ const AdminProducts = () => {
                 <h1 className="w-[14%] text-center">{p.Subcategory}</h1>
                 <h1 className="w-[8%] text-center">{p.price}</h1>
                 <h1 className="w-[8%] text-center">{p.stock}</h1>
+                <div className="w-[6%] text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    {/* Toggle switch */}
+                    {(admin?.role === 'admin' || admin?.role === 'superAdmin') ? (
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={Boolean(p.visibility)}
+                          disabled={loadingVisibilityIds.includes(p._id)}
+                          onChange={async (e) => {
+                              // Direct toggle (no confirm) — simple switch
+                              const newVal = e.target.checked;
+                              try {
+                                setLoadingVisibilityIds((s) => [...s, p._id]);
+                                const resp = await axios.patch(`/api/product/visibility/${p._id}`, { visibility: newVal });
+                                if (resp?.data?.product) {
+                                  // Merge visibility into existing item to preserve computed fields (stock, codes, etc.)
+                                  const updatedList = items.map((it) =>
+                                    it._id === p._id ? { ...it, visibility: resp.data.product.visibility } : it
+                                  );
+                                  dispatch(setProducts({ products: updatedList, reset: true }));
+
+                                  // Sync public product list so storefront immediately reflects change
+                                  try {
+                                    const prod = resp.data.product;
+                                    const exists = publicItems.some((pi) => pi._id === prod._id);
+                                    let updatedPublic;
+                                    if (prod.visibility === false) {
+                                      updatedPublic = publicItems.filter((pi) => pi._id !== prod._id);
+                                    } else {
+                                      // If public item exists, only update visibility to preserve other fields;
+                                      // otherwise prepend the returned product (may be minimal).
+                                      if (exists) {
+                                        updatedPublic = publicItems.map((pi) =>
+                                          pi._id === prod._id ? { ...pi, visibility: prod.visibility } : pi
+                                        );
+                                      } else {
+                                        updatedPublic = [prod, ...publicItems];
+                                      }
+                                    }
+                                    dispatch(setPublicProducts({ products: updatedPublic, reset: true }));
+                                  } catch (e) {
+                                    console.warn('Failed to sync public products after visibility change', e);
+                                  }
+
+                                  toast.success(resp.data.message || 'Visibility updated');
+                                } else {
+                                  toast.error('Failed to update visibility');
+                                }
+                              } catch (err) {
+                                console.error('Visibility toggle error', err);
+                                if (err.response?.status === 403) {
+                                  toast.error('Forbidden: insufficient permissions');
+                                } else {
+                                  toast.error(err.response?.data?.message || 'Update failed');
+                                }
+                              } finally {
+                                setLoadingVisibilityIds((s) => s.filter((id) => id !== p._id));
+                              }
+                          }}
+                        />
+                        <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-green-300 peer-checked:bg-green-600 transition-colors"></div>
+                        <span className="ml-2 text-xs text-gray-700">{p.visibility ? 'On' : 'Off'}</span>
+                      </label>
+                    ) : (
+                      <span className={`text-xs font-semibold px-2 py-1 rounded ${p.visibility ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {p.visibility ? 'Yes' : 'No'}
+                      </span>
+                    )}
+                  </div>
+                </div>
                 <div className="w-[16%] text-center flex flex-col items-center overflow-x-auto">
                   {p.codes?.length
                     ? p.codes.map((code, idx) => (
