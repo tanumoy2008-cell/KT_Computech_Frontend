@@ -140,7 +140,7 @@ const DeliveryOrders = () => {
                   autoPlay
                   muted
                   playsInline
-                  className="w-full h-full object-cover rotate-y-180"
+                  className="w-full h-full object-cover"
                 />
 
                 <div className="absolute inset-0 border-2 border-dashed border-emerald-400 m-6 rounded-lg pointer-events-none" />
