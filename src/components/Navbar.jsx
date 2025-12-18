@@ -44,6 +44,12 @@ const Navbar = () => {
     if (isProductOpen) setIsProductOpen(false);
     if (isProfileOpen) setIsProfileOpen(false);
   };
+
+  // Handle navigation for authentication buttons
+  const handleAuthNavigation = (type) => {
+    setIsCartOpen(false);
+    navigate(`/user/${type}`);
+  };
   
 
   // Handle click outside cart dropdown
@@ -60,14 +66,6 @@ const Navbar = () => {
       if (cartTimeout.current) clearTimeout(cartTimeout.current);
     };
   }, []);
-
-  // Calculate cart total
-  const cartTotal = cartItems?.reduce((total, item) => {
-    const price = Number(item.price) || 0;
-    const quantity = Number(item.quantity) || 1;
-    const discount = Number(item.off) || 0;
-    return total + (price - (price * discount) / 100) * quantity;
-  }, 0);
 
   useEffect(() => {
    const authenticateUser = async () => {
@@ -195,7 +193,7 @@ const Navbar = () => {
 
   return (
     <div
-      className={`fixed w-full z-[999] py-1 bg-emerald-800 text-amber-400 shadow-lg transition-all duration-300 ${
+      className={`fixed w-full z-[999] py-1 bg-emerald-800 text-white shadow-lg transition-all duration-300 ${
         isScrollingDown ? "-top-[40%]" : "top-0"
       }`}
     >
@@ -340,7 +338,7 @@ const Navbar = () => {
       <div className="hidden lg:flex items-center justify-between px-6 py-2 max-w-7xl mx-auto">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 cursor-pointer group">
-          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-amber-400">
+          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white">
             <img src="/Logo.webp" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-semibold uppercase">KT Computech</h1>
@@ -354,8 +352,8 @@ const Navbar = () => {
               to={l.to}
               className={`font-medium ${
                 location.pathname === l.to
-                  ? "text-amber-300"
-                  : "text-amber-400 hover:text-amber-300"
+                  ? "text-white"
+                  : "text-white hover:text-amber-300"
               }`}
             >
               {l.name}
@@ -368,7 +366,7 @@ const Navbar = () => {
             onMouseEnter={handleProductEnter}
             onMouseLeave={handleProductLeave}
           >
-            <button className="flex items-center gap-1 font-medium text-amber-400 hover:text-amber-300">
+            <button className="flex items-center gap-1 font-medium text-white hover:text-amber-300">
               Products
               <motion.span animate={{ rotate: isProductOpen ? 180 : 0 }}>
                 ▼
@@ -383,7 +381,7 @@ const Navbar = () => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute left-0 top-full mt-1 w-56 bg-emerald-800 text-amber-300 rounded-lg shadow-xl overflow-hidden"
+                  className="absolute left-0 top-full mt-1 w-56 bg-emerald-900 text-white rounded-lg shadow-xl overflow-hidden"
                 >
                   {productLinks.map((item) => (
                     <Link
@@ -405,7 +403,7 @@ const Navbar = () => {
           {/* Simple Login Button */}
           <button 
             onClick={()=> navigate('/user')}
-            className="flex items-center gap-1 text-amber-400 hover:text-amber-300"
+            className="flex items-center gap-1 text-white hover:text-amber-300"
           >
             <FaRegUserCircle className="text-2xl" />
           </button>

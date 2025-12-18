@@ -31,7 +31,16 @@ const OtpValidationPage = () => {
   const submitForm = async (data) => {
     try{
       const res = await axios.post("/api/user/verify-otp", data);
-      localStorage.removeItem("identifier")
+      // persist token (if server returned) and set axios header for user requests
+      const token = res.data?.token || res.headers?.['x-user-token'];
+      if (token) {
+        try {
+          localStorage.setItem('userToken', token);
+          axios.defaults.headers.common['x-user-token'] = token;
+        } catch (e) {}
+      }
+
+      localStorage.removeItem("identifier");
       toast.success(res.data.message);
       dispatch(login(res.data.metaData));
       navigate("/product/all");

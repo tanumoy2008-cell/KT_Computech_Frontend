@@ -79,6 +79,7 @@ const Admin = () => {
             <NavItem to="/" text="Home" icon="🏠" />
             <NavItem to="/admin" text="Dashboard" icon="📊" />
             <NavItem to="/admin/products" text="Products" icon="📦" />
+            <NavItem to="/admin/deliveryId" text="Del. Agent ID" icon="📰" />
             <NavItem to="/admin/orders" text="Orders" icon="📝" />
             <NavItem to="/admin/customers" text="Customers" icon="👥" />
             <NavItem to="/admin/billing" text="Billing" icon="💳" />
@@ -113,7 +114,7 @@ const Admin = () => {
       </div>
       
       {/* Main Content */}
-      <div className="flex-1 ml-80 p-8">
+      <div className="flex-1 ml-80">
         <Outlet />
       </div>
     </div>

@@ -10,11 +10,33 @@ const setAuthToken = (token) => {
   }
 };
 
-// Initialize axios headers from localStorage if token exists
+// Initialize axios headers from token if it exists
 const token = localStorage.getItem('adminToken');
 if (token) {
   setAuthToken(token);
 }
+
+// Async thunk for admin registration
+export const registerAdmin = createAsyncThunk(
+  'admin/register',
+  async (userData, { rejectWithValue }) => {
+    try {
+      const response = await axios.post('/api/admin/register', userData);
+      const { success, message } = response.data;
+      
+      if (success) {
+        return { success, message };
+      }
+      return rejectWithValue(message || 'Registration failed');
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 
+        error.message || 
+        'Registration failed. Please try again.'
+      );
+    }
+  }
+);
 
 // Async thunk for admin login
 export const login = createAsyncThunk(
@@ -27,7 +49,6 @@ export const login = createAsyncThunk(
       if (success && token) {
         localStorage.setItem('adminToken', token);
         setAuthToken(token);
-        // Return a consistent payload structure
         return { 
           user: data,
           token,
@@ -71,7 +92,6 @@ export const fetchAdminProfile = createAsyncThunk(
       }
       return rejectWithValue(message || 'Failed to fetch profile');
     } catch (error) {
-      // If unauthorized, clear the token
       if (error.response?.status === 401) {
         localStorage.removeItem('adminToken');
         delete axios.defaults.headers.common['x-admin-token'];
@@ -93,7 +113,6 @@ export const logout = createAsyncThunk(
       await axios.post('/api/admin/logout');
     } catch (error) {
       console.error('Logout error:', error);
-      // Continue with client-side logout even if server logout fails
     } finally {
       localStorage.removeItem('adminToken');
       delete axios.defaults.headers.common['x-admin-token'];
@@ -108,38 +127,14 @@ const initialState = {
   isAuthenticated: !!token,
   isLoading: false,
   error: null,
-  role: null,
+  isInitialized: false,
   lastAction: null,
-  isInitialized: false
+  role: null
 };
 
 const adminSlice = createSlice({
   name: 'admin',
   initialState,
-  // Use Immer's createReducer for better performance
-  reducers: (create) => ({
-    clearError: create.reducer((state) => {
-      state.error = null;
-    }),
-    setLoading: create.reducer((state, action) => {
-      state.isLoading = action.payload;
-    }),
-    setCredentials: create.reducer((state, action) => {
-      const { user, token } = action.payload;
-      state.user = user;
-      state.token = token;
-      state.isAuthenticated = true;
-      state.role = user?.role || null;
-      state.isInitialized = true;
-      if (token) {
-        localStorage.setItem('adminToken', token);
-        setAuthToken(token);
-      }
-    }),
-    initializeAuth: create.reducer((state) => {
-      state.isInitialized = true;
-    })
-  }),
   reducers: {
     clearError: (state) => {
       state.error = null;
@@ -152,105 +147,80 @@ const adminSlice = createSlice({
       state.user = user;
       state.token = token;
       state.isAuthenticated = true;
-      state.role = user?.role || null;
-      state.isInitialized = true;
-      if (token) {
-        localStorage.setItem('adminToken', token);
-        setAuthToken(token);
-      }
+      state.role = user?.role || 'admin';
     },
     initializeAuth: (state) => {
       state.isInitialized = true;
     }
   },
   extraReducers: (builder) => {
+    // Register Admin
+    builder.addCase(registerAdmin.pending, (state) => {
+      state.isLoading = true;
+      state.error = null;
+    });
+    builder.addCase(registerAdmin.fulfilled, (state) => {
+      state.isLoading = false;
+      state.error = null;
+    });
+    builder.addCase(registerAdmin.rejected, (state, action) => {
+      state.isLoading = false;
+      state.error = action.payload;
+    });
+
     // Login
-    builder
-      .addCase(login.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-        state.lastAction = 'login/pending';
-      })
-      .addCase(login.fulfilled, (state, { payload }) => {
-        if (payload) {
-          state.isLoading = false;
-          state.isAuthenticated = true;
-          state.user = payload.user;
-          state.role = payload.user?.role || null;
-          state.token = payload.token;
-          state.error = null;
-          state.isInitialized = true;
-          state.lastAction = 'login/fulfilled';
-          
-          if (payload.token) {
-            localStorage.setItem('adminToken', payload.token);
-            setAuthToken(payload.token);
-          }
-        }
-      })
-      .addCase(login.rejected, (state, { payload }) => {
-        state.isLoading = false;
-        state.isAuthenticated = false;
-        state.user = null;
-        state.role = null;
-        state.token = null;
-        state.error = payload || 'Login failed';
-        state.isInitialized = true;
-        state.lastAction = 'login/rejected';
-        localStorage.removeItem('adminToken');
-        delete axios.defaults.headers.common['x-admin-token'];
-      })
+    builder.addCase(login.pending, (state) => {
+      state.isLoading = true;
+      state.error = null;
+    });
+    builder.addCase(login.fulfilled, (state, { payload }) => {
+      state.isLoading = false;
+      state.isAuthenticated = true;
+      state.user = payload.user;
+      state.token = payload.token;
+      state.role = payload.user?.role || 'admin';
+      state.error = null;
+    });
+    builder.addCase(login.rejected, (state, action) => {
+      state.isLoading = false;
+      state.isAuthenticated = false;
+      state.user = null;
+      state.token = null;
+      state.error = action.payload;
+    });
 
-      // Fetch Profile
-      .addCase(fetchAdminProfile.pending, (state) => {
-        // Only update if not already loading to prevent unnecessary re-renders
-        if (!state.isLoading) {
-          state.isLoading = true;
-          state.error = null;
-          state.lastAction = 'fetchProfile/pending';
-        }
-      })
-      .addCase(fetchAdminProfile.fulfilled, (state, { payload }) => {
-        if (payload?.user) {
-          state.isLoading = false;
-          state.user = payload.user;
-          state.role = payload.user.role || null;
-          state.isAuthenticated = true;
-          state.isInitialized = true;
-          state.error = null;
-          state.lastAction = 'fetchProfile/fulfilled';
-        }
-      })
-      .addCase(fetchAdminProfile.rejected, (state, { payload }) => {
-        state.isLoading = false;
-        state.isAuthenticated = false;
-        state.user = null;
-        state.role = null;
-        state.error = payload || 'Failed to fetch profile';
-        state.isInitialized = true;
-        state.lastAction = 'fetchProfile/rejected';
-        
-        // Only clear token if we have a 401 Unauthorized error
-        if (payload?.status === 401) {
-          localStorage.removeItem('adminToken');
-          delete axios.defaults.headers.common['x-admin-token'];
-        }
-      })
+    // Fetch Profile
+    builder.addCase(fetchAdminProfile.pending, (state) => {
+      state.isLoading = true;
+    });
+    builder.addCase(fetchAdminProfile.fulfilled, (state, { payload }) => {
+      state.isLoading = false;
+      state.user = payload.user;
+      state.isAuthenticated = true;
+      state.role = payload.user?.role || 'admin';
+    });
+    builder.addCase(fetchAdminProfile.rejected, (state, action) => {
+      state.isLoading = false;
+      state.isAuthenticated = false;
+      state.user = null;
+      state.token = null;
+      state.error = action.payload;
+      localStorage.removeItem('adminToken');
+      delete axios.defaults.headers.common['x-admin-token'];
+    });
 
-      // Logout
-      .addCase(logout.fulfilled, (state) => {
-        state.user = null;
-        state.token = null;
-        state.isAuthenticated = false;
-        state.role = null;
-        state.isLoading = false;
-        state.error = null;
-        state.lastAction = 'logout/fulfilled';
-      });
+    // Logout
+    builder.addCase(logout.fulfilled, (state) => {
+      state.user = null;
+      state.token = null;
+      state.isAuthenticated = false;
+      state.role = null;
+      state.error = null;
+    });
   }
 });
 
-// Memoized selectors using createSelector for better performance
+// Selectors
 const selectAdminState = (state) => state.AdminReducer;
 
 export const selectIsAuthenticated = createSelector(
@@ -295,4 +265,4 @@ export const selectIsInitialized = createSelector(
 
 export const { clearError, setLoading, setCredentials, initializeAuth } = adminSlice.actions;
 
-export default adminSlice.reducer;
+export const AdminReducer = adminSlice.reducer;

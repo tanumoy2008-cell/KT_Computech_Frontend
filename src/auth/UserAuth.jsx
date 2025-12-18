@@ -10,13 +10,39 @@ const UserAuth = () => {
   const [ready, setReady] = useState(false);
   const navigate = useNavigate();
 
+  // Ensure axios has the user token header if present
+  try {
+    const userToken = localStorage.getItem('userToken');
+    if (userToken) {
+      axios.defaults.headers.common['x-user-token'] = userToken;
+    } else {
+      delete axios.defaults.headers.common['x-user-token'];
+    }
+  } catch (e) {
+    /* ignore */
+
+  }
+
   useEffect(() => {
     const authenticateUser = async () => {
       try {
         let currentUser = user;
         if (!user) {
-          const res = await axios.get("/api/user/profile");
+          // try to use stored token header first; if not present, allow cookie-based auth
+          const res = await axios.get("/api/user/profile", { withCredentials: true });
           currentUser = res.data.metaData;
+          // if server returned a token in response body or header, persist it
+          const tokenFromBody = res.data?.token;
+          const tokenFromHeader = res.headers?.['x-user-token'];
+          const tokenToUse = tokenFromBody || tokenFromHeader;
+          if (tokenToUse) {
+            try {
+              localStorage.setItem('userToken', tokenToUse);
+              axios.defaults.headers.common['x-user-token'] = tokenToUse;
+            } catch (e) {
+              /* ignore */
+            }
+          }
           dispatch(authData(currentUser));
         }
         setReady(true);

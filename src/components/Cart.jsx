@@ -9,7 +9,7 @@ import axios from "../config/axios";
 import { setCart } from "../Store/reducers/CartReducer";
 import { toast } from "react-toastify";
 import { FiArrowLeft, FiCheckCircle, FiCreditCard, FiDollarSign, FiLoader, FiX } from "react-icons/fi";
-import { BsQrCode, BsCash } from "react-icons/bs";
+import { BsCash } from "react-icons/bs";
 
 const Cart = () => {
   const user = useSelector((state) => state.UserReducer);

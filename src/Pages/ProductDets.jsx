@@ -217,7 +217,6 @@ const ProductDets = () => {
     checkTimeout.current = setTimeout(async () => {
       try {
         const res = await axios.post("/api/pinCode/check-available-pincode", { pin });
-        
         if (res.data.serviceable) {
           const { message, deliveryDays, codAvailable } = res.data;
           let resultMessage = message;

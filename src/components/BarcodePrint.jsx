@@ -4,15 +4,18 @@ import JsBarcode from "jsbarcode";
 import { toast } from "react-toastify";
 
 const STORAGE_KEY = "tspl_safe_scales_v3";
+
 const DEFAULT_CALIB = {
   dpi: 203,
   offsetXmm: 0,
   offsetYmm: 0,
-  labelOffsetYmm: 0, // vertical nudge for entire label (mm)
-  barcodeOffsetXmm: 0, // horizontal nudge for barcode only (mm)
-  barcodeOffsetYmm: 0, // vertical nudge for barcode only (mm) - fine tune
+  labelOffsetYmm: 0,
+  barcodeOffsetXmm: 0,
+  barcodeOffsetYmm: 0,
   moduleWidthDots: 2,
   barcodeHeightMM: 11,
+  labelWidthMm: 50,
+  labelHeightMm: 25,
   namePreset: "medium",
   nameCustomPx: 14,
   pricePreset: "small",
@@ -28,11 +31,12 @@ const DEFAULT_CALIB = {
   useFeedAfterLabel: true,
   useBitmapForText: true,
   bitmapThreshold: 180,
+  showHumanReadable: true,
+  // NEW: header layout mode
+  headerLayout: "row", // "row" = name|sku|price in one line, "column" = name / sku / price vertical
 };
 
 const mmToDots = (mm, dpi) => Math.round((mm / 25.4) * dpi);
-const dotsToMm = (dots, dpi) => (dots / dpi) * 25.4;
-// convert printer dots -> CSS px (assumes CSS reference 96ppi)
 const dotsToCssPx = (dots, dpi) => Math.round(dots * (96 / dpi));
 
 const loadCalib = () => {
@@ -57,24 +61,32 @@ const PRESET_TO_PX = {
 
 export default function BarcodePrint() {
   const [searchValue, setSearchValue] = useState("");
+  const [searchType, setSearchType] = useState("name");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const suggestionsTimerRef = useRef(null);
+
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedVariantId, setSelectedVariantId] = useState(null);
+
   const [copies, setCopies] = useState(1);
   const [printers, setPrinters] = useState([]);
   const [defaultPrinter, setDefaultPrinter] = useState("");
   const [qzStatus, setQzStatus] = useState("Loading...");
+
   const [calib, setCalib] = useState(loadCalib());
   const svgRef = useRef(null);
   const searchRef = useRef(null);
 
-  // preview image objects: { dataUrl, cssWidth, cssHeight }
   const [namePreview, setNamePreview] = useState(null);
   const [pricePreview, setPricePreview] = useState(null);
+  const [skuPreview, setSkuPreview] = useState(null);
   const [barcodePreview, setBarcodePreview] = useState(null);
-  const [previewReady, setPreviewReady] = useState(false);
 
   useEffect(() => saveCalib(calib), [calib]);
 
-  // QZ init
+  // ------------ QZ INIT ------------
   useEffect(() => {
     const waitForQZ = () =>
       new Promise((resolve, reject) => {
@@ -96,17 +108,23 @@ export default function BarcodePrint() {
       try {
         setQzStatus("Connecting...");
         await waitForQZ();
+
         if (window.qz?.security) {
           window.qz.security.setCertificatePromise((resolve) =>
             resolve(process.env.REACT_APP_QZ_CERTIFICATE || "")
           );
         }
-        if (!window.qz.websocket?.isActive?.()) await window.qz.websocket.connect();
+        if (!window.qz.websocket?.isActive?.()) {
+          await window.qz.websocket.connect();
+        }
+
         setQzStatus("Connected");
         const found = await window.qz.printers.find();
         setPrinters(found || []);
         const saved = localStorage.getItem("barcodePrinter");
-        setDefaultPrinter(saved && found?.includes(saved) ? saved : found?.[0] || "");
+        setDefaultPrinter(
+          saved && found?.includes(saved) ? saved : found?.[0] || ""
+        );
       } catch (err) {
         console.error("QZ init error:", err);
         setQzStatus("Error");
@@ -118,23 +136,76 @@ export default function BarcodePrint() {
 
     return () => {
       window.removeEventListener("qz:ready", init);
-      if (window.qz?.websocket?.isActive?.()) window.qz.websocket.disconnect();
+      if (window.qz?.websocket?.isActive?.()) {
+        window.qz.websocket.disconnect();
+      }
     };
   }, []);
 
-  // Product search
+  // keep selectedVariantId in sync
+  useEffect(() => {
+    if (!selectedProduct) {
+      setSelectedVariantId(null);
+      return;
+    }
+    if (
+      Array.isArray(selectedProduct.colorVariants) &&
+      selectedProduct.colorVariants.length > 0
+    ) {
+      const prefer =
+        selectedProduct.matchedVariantId || selectedProduct.colorVariants[0]._id;
+      setSelectedVariantId(prefer || null);
+    }
+  }, [selectedProduct]);
+
+  // ------------ SEARCH ------------
   const handleSearch = async () => {
     if (!searchValue.trim()) {
-      toast.error("Enter barcode or sku");
+      toast.error("Enter search value");
       return;
     }
     try {
-      const res = await axios.get(`/api/product/by-barcode/${encodeURIComponent(searchValue)}`);
-      const product = res.data?.data ? res.data.data : res.data;
+      let endpoint = "";
+      switch (searchType) {
+        case "barcode":
+          endpoint = `/api/product/by-barcode/${encodeURIComponent(searchValue)}`;
+          break;
+        case "name":
+          endpoint = `/api/product/by-name/${encodeURIComponent(searchValue)}`;
+          break;
+        case "sku":
+          endpoint = `/api/product/by-sku/${encodeURIComponent(searchValue)}`;
+          break;
+        case "all":
+          endpoint = `/api/product/search/${encodeURIComponent(searchValue)}`;
+          break;
+        default:
+          endpoint = `/api/product/by-barcode/${encodeURIComponent(searchValue)}`;
+      }
+
+      const res = await axios.get(endpoint);
+      const product = Array.isArray(res.data)
+        ? res.data[0]
+        : res.data?.data
+        ? res.data.data
+        : res.data;
+
       const barcodeVal =
-        product?.barcode || (Array.isArray(product?.barcodes) && product.barcodes[0]) || product?.sku || "";
+        product?.barcode ||
+        (Array.isArray(product?.barcodes) && product.barcodes[0]) ||
+        product?.sku ||
+        "";
+
       setSelectedProduct({ ...product, barcode: String(barcodeVal) });
+
+      const matchVar =
+        Array.isArray(product?.colorVariants) &&
+        (product.matchedVariantId || product.colorVariants[0]?._id);
+      setSelectedVariantId(matchVar || null);
+
       setSearchValue("");
+      setSuggestions([]);
+      setShowSuggestions(false);
       searchRef.current?.focus();
     } catch (err) {
       console.error(err);
@@ -142,17 +213,84 @@ export default function BarcodePrint() {
     }
   };
 
-  // Keep old SVG-based JsBarcode so fallback works when barcodePreview not ready
+  const handleSuggestionClick = (prod) => {
+    const barcodeVal =
+      prod?.barcode ||
+      (Array.isArray(prod?.barcodes) && prod.barcodes[0]) ||
+      prod?.sku ||
+      "";
+    setSelectedProduct({ ...prod, barcode: String(barcodeVal) });
+    const matchVar =
+      Array.isArray(prod?.colorVariants) &&
+      (prod.matchedVariantId || prod.colorVariants[0]?._id);
+    setSelectedVariantId(matchVar || null);
+    setSearchValue("");
+    setSuggestions([]);
+    setShowSuggestions(false);
+    searchRef.current?.focus();
+  };
+
+  // suggestions (for name/sku/all)
+  useEffect(() => {
+    if (!["name", "sku", "all"].includes(searchType)) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    if (suggestionsTimerRef.current) clearTimeout(suggestionsTimerRef.current);
+
+    if (!searchValue || searchValue.trim().length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setSuggestionsLoading(false);
+      return;
+    }
+
+    setSuggestionsLoading(true);
+    suggestionsTimerRef.current = setTimeout(async () => {
+      try {
+        const term = encodeURIComponent(searchValue.trim());
+        let endpoint = "";
+        if (searchType === "name") endpoint = `/api/product/by-name/${term}`;
+        else endpoint = `/api/product/search/${term}`;
+
+        const res = await axios.get(endpoint);
+        const list = Array.isArray(res.data) ? res.data : [res.data];
+        setSuggestions(list.slice(0, 8));
+        setShowSuggestions(true);
+      } catch (err) {
+        console.error("Suggestion fetch failed:", err);
+        setSuggestions([]);
+        setShowSuggestions(false);
+      } finally {
+        setSuggestionsLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      if (suggestionsTimerRef.current) clearTimeout(suggestionsTimerRef.current);
+    };
+  }, [searchValue, searchType]);
+
+  // svg fallback for barcode
   useEffect(() => {
     const code = selectedProduct?.barcode;
     if (!code || !svgRef.current) return;
     try {
       svgRef.current.innerHTML = "";
-      const format = /^\d+$/.test(code) && code.length === 13 ? "EAN13" : "CODE128";
-      const previewNumFont = Math.max(10, 8 + Math.round((calib.numberFontSize || 12) / 6));
+      const format =
+        /^\d+$/.test(code) && code.length === 13 ? "EAN13" : "CODE128";
+      const previewNumFont = Math.max(
+        10,
+        8 + Math.round((calib.numberFontSize || 12) / 6)
+      );
       JsBarcode(svgRef.current, String(code), {
         format,
-        width: Math.max(0.8, (calib.moduleWidthDots * (calib.dpi / 203)) * 0.9),
+        width: Math.max(
+          0.8,
+          (calib.moduleWidthDots * (calib.dpi / 203)) * 0.9
+        ),
         height: 44,
         displayValue: true,
         fontSize: previewNumFont,
@@ -163,8 +301,14 @@ export default function BarcodePrint() {
     }
   }, [selectedProduct, calib]);
 
-  // ---------- Canvas -> 1-bit Bitmap helpers ----------
-  const renderTextToCanvas = ({ text, fontPx, fontFamily = "Arial", dpi = 203, maxWidthDots }) => {
+  // ------------ CANVAS HELPERS ------------
+  const renderTextToCanvas = ({
+    text,
+    fontPx,
+    fontFamily = "Arial",
+    dpi = 203,
+    maxWidthDots,
+  }) => {
     const cssPpi = 96;
     const scale = dpi / cssPpi;
     const fontSizeDots = Math.max(1, Math.round(fontPx * scale));
@@ -204,12 +348,18 @@ export default function BarcodePrint() {
     return canvas;
   };
 
-  // Render barcode to SVG via JsBarcode, then rasterize into a canvas sized in printer dots
-  const renderBarcodeToCanvas = async ({ code, bcType, moduleWidth, barcodeHeightDots, targetWidthDots, dpi }) => {
+  const renderBarcodeToCanvas = async ({
+    code,
+    bcType,
+    moduleWidth,
+    barcodeHeightDots,
+    targetWidthDots,
+    dpi,
+  }) => {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     svg.setAttribute("width", String(targetWidthDots));
-    svg.setAttribute("height", String(barcodeHeightDots + 24)); // room for text under barcode
+    svg.setAttribute("height", String(barcodeHeightDots + 24));
 
     try {
       JsBarcode(svg, String(code), {
@@ -260,12 +410,14 @@ export default function BarcodePrint() {
       const rowBytes = new Uint8Array(widthBytes);
       for (let x = 0; x < w; x++) {
         const idx = (y * w + x) * 4;
-        const r = img[idx], g = img[idx + 1], b = img[idx + 2];
-        const lum = (r * 0.299 + g * 0.587 + b * 0.114);
+        const r = img[idx],
+          g = img[idx + 1],
+          b = img[idx + 2];
+        const lum = r * 0.299 + g * 0.587 + b * 0.114;
         const bit = lum < threshold ? 1 : 0;
         const byteIndex = Math.floor(x / 8);
         const bitIndex = 7 - (x % 8);
-        if (bit) rowBytes[byteIndex] |= (1 << bitIndex);
+        if (bit) rowBytes[byteIndex] |= 1 << bitIndex;
       }
       rows.push(rowBytes);
     }
@@ -283,52 +435,87 @@ export default function BarcodePrint() {
     return { widthBytes, height: h, hex };
   };
 
-  // ---------- Generate preview bitmaps whenever product or calibration changes ----------
+  // ------------ PREVIEW (supports row/column layout) ------------
   useEffect(() => {
     let mounted = true;
+
     const makePreview = async () => {
-      setPreviewReady(false);
       setNamePreview(null);
       setPricePreview(null);
+      setSkuPreview(null);
       setBarcodePreview(null);
 
       if (!selectedProduct) return;
 
       const dpi = Number(calib.dpi || 203);
-      const labelWmm = 50;
+      const labelWmm = Number(calib.labelWidthMm || 50);
       const pwDots = mmToDots(labelWmm, dpi);
-
       const printableW = pwDots - 12;
 
-      // Name canvas (dots)
-      const namePreviewPx = calib.namePreset === "custom" ? Number(calib.nameCustomPx || 14) : PRESET_TO_PX[calib.namePreset];
+      const priceUnit = calib.priceUnit || "Rs.";
+      const priceText = `${priceUnit}${(selectedProduct.price || 0).toFixed(
+        2
+      )}`;
+
+      const activeSkuVal =
+        (selectedProduct.colorVariants &&
+          selectedVariantId &&
+          selectedProduct.colorVariants.find(
+            (v) => v._id === selectedVariantId
+          )?.sku) ||
+        selectedProduct.sku ||
+        "";
+
+      const namePreviewPx =
+        calib.namePreset === "custom"
+          ? Number(calib.nameCustomPx || 14)
+          : PRESET_TO_PX[calib.namePreset];
+      const rawName = selectedProduct.name || "Product";
+      const nameText =
+        calib.truncate && rawName.length > (calib.truncateLen || 40)
+          ? rawName.substring(0, calib.truncateLen - 1) + "…"
+          : rawName;
+
       const nameCanvas = renderTextToCanvas({
-        text: calib.truncate
-          ? ((selectedProduct.name || "Product").length > (calib.truncateLen || 40)
-              ? (selectedProduct.name || "Product").substring(0, calib.truncateLen - 1) + "…"
-              : (selectedProduct.name || "Product"))
-          : (selectedProduct.name || "Product"),
+        text: nameText.toUpperCase(),
         fontPx: namePreviewPx,
         dpi,
         maxWidthDots: printableW,
       });
 
-      // Price canvas (dots)
-      const pricePreviewPx = calib.pricePreset === "custom" ? Number(calib.priceCustomPx || 12) : PRESET_TO_PX[calib.pricePreset];
+      const pricePreviewPx =
+        calib.pricePreset === "custom"
+          ? Number(calib.priceCustomPx || 12)
+          : PRESET_TO_PX[calib.pricePreset];
       const priceCanvas = renderTextToCanvas({
-        text: `${calib.priceUnit || "Rs."}${(selectedProduct.price || 0).toFixed(2)}`,
+        text: priceText,
         fontPx: pricePreviewPx,
         dpi,
         maxWidthDots: printableW,
       });
 
-      // Barcode canvas
-      const code = String(selectedProduct.barcode || selectedProduct.sku || "000000000000");
-      const bcType = /^\d+$/.test(code) && code.length === 13 ? "EAN13" : "CODE128";
+      let skuCanvas = null;
+      if (activeSkuVal) {
+        skuCanvas = renderTextToCanvas({
+          text: `SKU: ${activeSkuVal}`,
+          fontPx: pricePreviewPx,
+          dpi,
+          maxWidthDots: printableW,
+        });
+      }
+
+      const code = String(
+        selectedProduct.barcode || selectedProduct.sku || "000000000000"
+      );
+      const bcType =
+        /^\d+$/.test(code) && code.length === 13 ? "EAN13" : "CODE128";
       const modules = Math.max(60, code.length * 11);
       const moduleWidth = Math.max(1, Math.round(calib.moduleWidthDots || 2));
       const barcodeWidthDots = Math.max(120, modules * moduleWidth);
-      const barcodeHeightDots = mmToDots(Number(calib.barcodeHeightMM || 11), dpi);
+      const barcodeHeightDots = mmToDots(
+        Number(calib.barcodeHeightMM || 11),
+        dpi
+      );
 
       const barcodeCanvas = await renderBarcodeToCanvas({
         code,
@@ -341,29 +528,37 @@ export default function BarcodePrint() {
 
       if (!mounted) return;
 
-      // convert canvas size (dots) -> css px
-      const nameCssW = dotsToCssPx(nameCanvas.width, dpi);
-      const nameCssH = dotsToCssPx(nameCanvas.height, dpi);
-      const priceCssW = dotsToCssPx(priceCanvas.width, dpi);
-      const priceCssH = dotsToCssPx(priceCanvas.height, dpi);
-      const barcodeCssW = barcodeCanvas ? dotsToCssPx(barcodeCanvas.width, dpi) : 0;
-      const barcodeCssH = barcodeCanvas ? dotsToCssPx(barcodeCanvas.height, dpi) : 0;
-
       setNamePreview({
         dataUrl: nameCanvas.toDataURL(),
-        cssWidth: nameCssW,
-        cssHeight: nameCssH,
+        cssWidth: dotsToCssPx(nameCanvas.width, dpi),
+        cssHeight: dotsToCssPx(nameCanvas.height, dpi),
       });
+
       setPricePreview({
         dataUrl: priceCanvas.toDataURL(),
-        cssWidth: priceCssW,
-        cssHeight: priceCssH,
+        cssWidth: dotsToCssPx(priceCanvas.width, dpi),
+        cssHeight: dotsToCssPx(priceCanvas.height, dpi),
       });
-      setBarcodePreview(
-        barcodeCanvas ? { dataUrl: barcodeCanvas.toDataURL(), cssWidth: barcodeCssW, cssHeight: barcodeCssH } : null
+
+      setSkuPreview(
+        skuCanvas
+          ? {
+              dataUrl: skuCanvas.toDataURL(),
+              cssWidth: dotsToCssPx(skuCanvas.width, dpi),
+              cssHeight: dotsToCssPx(skuCanvas.height, dpi),
+            }
+          : null
       );
 
-      setPreviewReady(true);
+      setBarcodePreview(
+        barcodeCanvas
+          ? {
+              dataUrl: barcodeCanvas.toDataURL(),
+              cssWidth: dotsToCssPx(barcodeCanvas.width, dpi),
+              cssHeight: dotsToCssPx(barcodeCanvas.height, dpi),
+            }
+          : null
+      );
     };
 
     makePreview();
@@ -371,9 +566,9 @@ export default function BarcodePrint() {
     return () => {
       mounted = false;
     };
-  }, [selectedProduct, calib]);
+  }, [selectedProduct, calib, selectedVariantId]);
 
-  // ---------- Print function (same pipeline) ----------
+  // ------------ PRINT (row/column) ------------
   const printTSPL = async () => {
     if (!selectedProduct) {
       toast.error("Select product");
@@ -381,40 +576,79 @@ export default function BarcodePrint() {
     }
     try {
       if (!window.qz) throw new Error("QZ Tray not loaded");
-      if (!window.qz.websocket?.isActive?.()) await window.qz.websocket.connect();
+      if (!window.qz.websocket?.isActive?.()) {
+        await window.qz.websocket.connect();
+      }
       if (!defaultPrinter) throw new Error("No printer selected");
 
       const dpi = Number(calib.dpi || 203);
-      const labelWmm = 50;
-      const labelHmm = 25;
+      const labelWmm = Number(calib.labelWidthMm || 50);
+      const labelHmm = Number(calib.labelHeightMm || 25);
       const gapmm = 3;
 
       const pwDots = mmToDots(labelWmm, dpi);
-      const phDots = mmToDots(labelHmm, dpi);
-
       const offXdots = mmToDots(Number(calib.offsetXmm || 0), dpi);
-      const offYdots = mmToDots(Number((calib.labelOffsetYmm ?? calib.offsetYmm) || 0), dpi);
-      const barcodeOffXdots = mmToDots(Number(calib.barcodeOffsetXmm || 0), dpi);
-      const barcodeOffYdots = mmToDots(Number(calib.barcodeOffsetYmm || 0), dpi);
+      const offYdots = mmToDots(
+        Number((calib.labelOffsetYmm ?? calib.offsetYmm) || 0),
+        dpi
+      );
+      const barcodeOffXdots = mmToDots(
+        Number(calib.barcodeOffsetXmm || 0),
+        dpi
+      );
+      const barcodeOffYdots = mmToDots(
+        Number(calib.barcodeOffsetYmm || 0),
+        dpi
+      );
 
-      const nameYdots = mmToDots(2.6, dpi) + offYdots;
-      const priceYdots = nameYdots + mmToDots(6.0, dpi);
-      const barcodeYdots = priceYdots + mmToDots(6.5, dpi) + offYdots + barcodeOffYdots;
+      // header line base
+      const headerTopMm = 5.0;
+      const skuOffsetMm = calib.headerLayout === "column" ? 3.0 : 0;
+      const priceOffsetMm = calib.headerLayout === "column" ? 6.0 : 0;
 
-      const nameRaw = safeText((selectedProduct.name || "Product").substring(0, 240));
-      const priceRaw = safeText(`${calib.priceUnit || "Rs."}${(selectedProduct.price || 0).toFixed(2)}`);
-      const code = String(selectedProduct.barcode || selectedProduct.sku || "000000000000");
-      const bcType = /^\d+$/.test(code) && code.length === 13 ? "EAN13" : "CODE128";
+      const headerYdots = mmToDots(headerTopMm, dpi) + offYdots;
+      const skuYdots = headerYdots + mmToDots(skuOffsetMm, dpi);
+      const priceYdots = headerYdots + mmToDots(priceOffsetMm, dpi);
+
+      // barcode below text (a bit lower when stacked)
+      const barcodeTopMm = calib.headerLayout === "column" ? 15.0 : 13.0;
+      const barcodeYdots =
+        mmToDots(barcodeTopMm, dpi) + offYdots + barcodeOffYdots;
+
+      const rawName = (selectedProduct.name || "Product").substring(0, 240);
+      let nameRaw = safeText(rawName).toUpperCase();
+      if (calib.truncate && nameRaw.length > (calib.truncateLen || 40)) {
+        nameRaw = nameRaw.substring(0, calib.truncateLen - 1) + "…";
+      }
+
+      const priceRaw = safeText(
+        `${calib.priceUnit || "Rs."}${(selectedProduct.price || 0).toFixed(2)}`
+      );
+
+      const skuBase =
+        (selectedProduct.colorVariants &&
+          selectedVariantId &&
+          selectedProduct.colorVariants.find(
+            (v) => v._id === selectedVariantId
+          )?.sku) ||
+        selectedProduct.sku ||
+        "";
+      const skuDisplay = skuBase ? `SKU: ${safeText(String(skuBase))}` : "";
+
+      const code = String(
+        selectedProduct.barcode || selectedProduct.sku || "000000000000"
+      );
+      const bcType =
+        /^\d+$/.test(code) && code.length === 13 ? "EAN13" : "CODE128";
 
       const modules = Math.max(60, code.length * 11);
       const moduleWidth = Math.max(1, Math.round(calib.moduleWidthDots || 2));
       const barcodeWidthDots = modules * moduleWidth;
-      let barcodeXdots = Math.round((pwDots - barcodeWidthDots) / 2) + offXdots + barcodeOffXdots;
+      let barcodeXdots =
+        Math.round((pwDots - barcodeWidthDots) / 2) +
+        offXdots +
+        barcodeOffXdots;
       if (barcodeXdots < 4) barcodeXdots = 4;
-
-      const sku = safeText(selectedProduct.sku || "");
-      const skuXdots = 6 + offXdots;
-      const skuYdots = Math.round(phDots - mmToDots(3.5, dpi) + offYdots);
 
       const tsplParts = [];
       tsplParts.push(`SIZE ${labelWmm} mm,${labelHmm} mm`);
@@ -426,52 +660,144 @@ export default function BarcodePrint() {
 
       if (calib.useBitmapForText) {
         const printableW = pwDots - 12;
-        const namePreviewPx = calib.namePreset === "custom" ? Number(calib.nameCustomPx || 14) : PRESET_TO_PX[calib.namePreset] || PRESET_TO_PX.medium;
-        const pricePreviewPx = calib.pricePreset === "custom" ? Number(calib.priceCustomPx || 12) : PRESET_TO_PX[calib.pricePreset] || PRESET_TO_PX.small;
+        const namePreviewPx =
+          calib.namePreset === "custom"
+            ? Number(calib.nameCustomPx || 14)
+            : PRESET_TO_PX[calib.namePreset] || PRESET_TO_PX.medium;
+        const pricePreviewPx =
+          calib.pricePreset === "custom"
+            ? Number(calib.priceCustomPx || 12)
+            : PRESET_TO_PX[calib.pricePreset] || PRESET_TO_PX.small;
 
+        const marginDots = mmToDots(2, dpi);
+
+        // NAME bitmap (left)
         const nameCanvas = renderTextToCanvas({
-          text: calib.truncate && nameRaw.length > (calib.truncateLen || 40) ? nameRaw.substring(0, calib.truncateLen - 1) + "…" : nameRaw,
+          text: nameRaw,
           fontPx: namePreviewPx,
           dpi,
           maxWidthDots: printableW,
         });
-        const nameBmp = canvasToTsplHex(nameCanvas, Number(calib.bitmapThreshold || 180));
-        const nameX = Math.max(4, Math.round((pwDots - nameCanvas.width) / 2) + offXdots);
-        tsplParts.push(`BITMAP ${nameX},${nameYdots},${nameBmp.widthBytes},${nameBmp.height},1,${nameBmp.hex}`);
+        const nameBmp = canvasToTsplHex(
+          nameCanvas,
+          Number(calib.bitmapThreshold || 180)
+        );
+        const nameX = offXdots + marginDots;
+        tsplParts.push(
+          `BITMAP ${nameX},${headerYdots},${nameBmp.widthBytes},${nameBmp.height},1,${nameBmp.hex}`
+        );
 
+        // PRICE bitmap (right or 3rd line)
         const priceCanvas = renderTextToCanvas({
           text: priceRaw,
           fontPx: pricePreviewPx,
           dpi,
           maxWidthDots: printableW,
         });
-        const priceBmp = canvasToTsplHex(priceCanvas, Number(calib.bitmapThreshold || 180));
-        const priceX = Math.max(4, Math.round((pwDots - priceCanvas.width) / 2) + offXdots);
-        tsplParts.push(`BITMAP ${priceX},${priceYdots},${priceBmp.widthBytes},${priceBmp.height},1,${priceBmp.hex}`);
+        const priceBmp = canvasToTsplHex(
+          priceCanvas,
+          Number(calib.bitmapThreshold || 180)
+        );
+
+        if (calib.headerLayout === "row") {
+          const priceX =
+            pwDots - priceCanvas.width - marginDots + offXdots;
+          tsplParts.push(
+            `BITMAP ${priceX},${headerYdots},${priceBmp.widthBytes},${priceBmp.height},1,${priceBmp.hex}`
+          );
+        } else {
+          const priceX =
+            Math.round((pwDots - priceCanvas.width) / 2) + offXdots;
+          tsplParts.push(
+            `BITMAP ${priceX},${priceYdots},${priceBmp.widthBytes},${priceBmp.height},1,${priceBmp.hex}`
+          );
+        }
+
+        // SKU bitmap (center or 2nd line)
+        if (skuDisplay) {
+          const skuCanvas = renderTextToCanvas({
+            text: skuDisplay,
+            fontPx: pricePreviewPx,
+            dpi,
+            maxWidthDots: printableW,
+          });
+          const skuBmp = canvasToTsplHex(
+            skuCanvas,
+            Number(calib.bitmapThreshold || 180)
+          );
+          const skuX =
+            Math.round((pwDots - skuCanvas.width) / 2) + offXdots;
+          const skuY = calib.headerLayout === "row" ? headerYdots : skuYdots;
+          tsplParts.push(
+            `BITMAP ${skuX},${skuY},${skuBmp.widthBytes},${skuBmp.height},1,${skuBmp.hex}`
+          );
+        }
       } else {
-        const namePx = calib.namePreset === "custom" ? Number(calib.nameCustomPx || 14) : PRESET_TO_PX[calib.namePreset] || PRESET_TO_PX.medium;
-        const pricePx = calib.pricePreset === "custom" ? Number(calib.priceCustomPx || 12) : PRESET_TO_PX[calib.pricePreset] || PRESET_TO_PX.small;
+        const namePx =
+          calib.namePreset === "custom"
+            ? Number(calib.nameCustomPx || 14)
+            : PRESET_TO_PX[calib.namePreset] || PRESET_TO_PX.medium;
+        const pricePx =
+          calib.pricePreset === "custom"
+            ? Number(calib.priceCustomPx || 12)
+            : PRESET_TO_PX[calib.pricePreset] || PRESET_TO_PX.small;
         const mulFromPx = (px) => Math.max(1, Math.round(px / 6));
         const nameMul = Math.max(1, Math.min(40, mulFromPx(namePx)));
         const priceMul = Math.max(1, Math.min(40, mulFromPx(pricePx)));
 
-        let nameToPrint = nameRaw;
-        if (calib.truncate) nameToPrint = nameRaw.length > (calib.truncateLen || 40) ? nameRaw.substring(0, calib.truncateLen - 1) + "…" : nameRaw;
+        const marginDots = mmToDots(2, dpi);
 
-        const approxNameWidth = Math.round(nameToPrint.length * (6 + nameMul));
-        const nameXdots = Math.max(4, Math.round((pwDots - approxNameWidth) / 2) + offXdots);
-        tsplParts.push(`TEXT ${nameXdots},${nameYdots},"0",0,${nameMul},${nameMul},"${nameToPrint}"`);
+        // NAME left
+        const nameXdots = offXdots + marginDots;
+        tsplParts.push(
+          `TEXT ${nameXdots},${headerYdots},"0",0,${nameMul},${nameMul},"${nameRaw}"`
+        );
 
-        const approxPriceWidth = Math.round(priceRaw.length * (6 + priceMul));
-        const priceXdots = Math.max(4, Math.round((pwDots - approxPriceWidth) / 2) + offXdots);
-        tsplParts.push(`TEXT ${priceXdots},${priceYdots},"0",0,${priceMul},${priceMul},"${priceRaw}"`);
+        // PRICE
+        if (calib.headerLayout === "row") {
+          const approxPriceWidth = Math.round(
+            priceRaw.length * (6 + priceMul)
+          );
+          const priceXdots =
+            pwDots - approxPriceWidth - offXdots - marginDots;
+          tsplParts.push(
+            `TEXT ${priceXdots},${headerYdots},"0",0,${priceMul},${priceMul},"${priceRaw}"`
+          );
+        } else {
+          const approxPriceWidth = Math.round(
+            priceRaw.length * (6 + priceMul)
+          );
+          const priceXdots =
+            Math.round((pwDots - approxPriceWidth) / 2) + offXdots;
+          tsplParts.push(
+            `TEXT ${priceXdots},${priceYdots},"0",0,${priceMul},${priceMul},"${priceRaw}"`
+          );
+        }
+
+        // SKU centre
+        if (skuDisplay) {
+          const approxSkuWidth = Math.round(
+            skuDisplay.length * (6 + priceMul)
+          );
+          const skuXdots =
+            Math.round((pwDots - approxSkuWidth) / 2) + offXdots;
+          const skuY = calib.headerLayout === "row" ? headerYdots : skuYdots;
+          tsplParts.push(
+            `TEXT ${skuXdots},${skuY},"0",0,${priceMul},${priceMul},"${skuDisplay}"`
+          );
+        }
       }
 
-      if (sku) tsplParts.push(`TEXT ${skuXdots},${skuYdots},"0",90,1,1,"${sku}"`);
-
-      const bcHeightDots = mmToDots(Number(calib.barcodeHeightMM || 11), dpi);
+      const bcHeightDots = mmToDots(
+        Number(calib.barcodeHeightMM || 11),
+        dpi
+      );
       const wide = Math.max(2, Math.round(moduleWidth * 2));
-      tsplParts.push(`BARCODE ${barcodeXdots},${barcodeYdots},"${bcType}",${bcHeightDots},1,0,${moduleWidth},${wide},"${code}"`);
+      const hri = calib.showHumanReadable ? 1 : 0;
+
+      tsplParts.push(
+        `BARCODE ${barcodeXdots},${barcodeYdots},"${bcType}",${bcHeightDots},${hri},0,${moduleWidth},${wide},"${code}"`
+      );
 
       tsplParts.push(`PRINT ${copies}`);
       if (calib.useFeedAfterLabel) tsplParts.push(`FEED 1`);
@@ -479,7 +805,9 @@ export default function BarcodePrint() {
       const tspl = tsplParts.join("\n") + "\n";
 
       const config = window.qz.configs.create(defaultPrinter);
-      await window.qz.print(config, [{ type: "raw", format: "plain", data: tspl }]);
+      await window.qz.print(config, [
+        { type: "raw", format: "plain", data: tspl },
+      ]);
 
       toast.success(`Sent TSPL to printer (${copies} copies).`);
     } catch (err) {
@@ -502,192 +830,556 @@ export default function BarcodePrint() {
     return () => window.removeEventListener("keydown", onKey);
   }, [searchValue]);
 
-  const previewNamePx = calib.namePreset === "custom" ? Number(calib.nameCustomPx || 14) : PRESET_TO_PX[calib.namePreset];
-  const previewPricePx = calib.pricePreset === "custom" ? Number(calib.priceCustomPx || 12) : PRESET_TO_PX[calib.pricePreset];
-
-  // local image path you uploaded (for visual comparison)
-  const referenceImagePath = "/mnt/data/WhatsApp Image 2025-11-24 at 2.14.23 PM.jpeg";
-
-  // --- compute CSS positions for preview using printer dpi and label offsets ---
+  // ------------ PREVIEW POSITIONS (with row/column support) ------------
   const computePreviewPositions = () => {
     const dpi = Number(calib.dpi || 203);
-    const labelWmm = 50;
-    const labelHmm = 25;
+    const labelWmm = Number(calib.labelWidthMm || 50);
+    const labelHmm = Number(calib.labelHeightMm || 25);
     const pwDots = mmToDots(labelWmm, dpi);
-    const offYdots = mmToDots(Number((calib.labelOffsetYmm ?? calib.offsetYmm) || 0), dpi);
-    const nameYdots = mmToDots(2.6, dpi) + offYdots;
-    const priceYdots = nameYdots + mmToDots(6.0, dpi);
-    const barcodeYdots = priceYdots + mmToDots(6.5, dpi) + offYdots + mmToDots(Number(calib.barcodeOffsetYmm || 0), dpi);
-    const skuYdots = Math.round(mmToDots(labelHmm, dpi) - mmToDots(3.5, dpi) + offYdots);
+    const offYdots = mmToDots(
+      Number((calib.labelOffsetYmm ?? calib.offsetYmm) || 0),
+      dpi
+    );
+
+    const headerTopMm = 5.0;
+    const skuOffsetMm = calib.headerLayout === "column" ? 3.0 : 0;
+    const priceOffsetMm = calib.headerLayout === "column" ? 6.0 : 0;
+
+    const headerYdots = mmToDots(headerTopMm, dpi) + offYdots;
+    const skuYdots = headerYdots + mmToDots(skuOffsetMm, dpi);
+    const priceYdots = headerYdots + mmToDots(priceOffsetMm, dpi);
+
+    const barcodeTopMm = calib.headerLayout === "column" ? 15.0 : 13.0;
+    const barcodeYdots =
+      mmToDots(barcodeTopMm, dpi) +
+      offYdots +
+      mmToDots(Number(calib.barcodeOffsetYmm || 0), dpi);
+
     return {
       dpi,
-      pwDots,
-      nameYdots,
-      priceYdots,
-      barcodeYdots,
-      skuYdots,
-      leftPadCss: dotsToCssPx(mmToDots(6, dpi), dpi),
-      nameTopCss: dotsToCssPx(nameYdots, dpi),
+      labelCssWidth: dotsToCssPx(pwDots, dpi),
+      labelCssHeight: dotsToCssPx(mmToDots(labelHmm, dpi), dpi),
+      headerTopCss: dotsToCssPx(headerYdots, dpi),
+      skuTopCss: dotsToCssPx(skuYdots, dpi),
       priceTopCss: dotsToCssPx(priceYdots, dpi),
       barcodeTopCss: dotsToCssPx(barcodeYdots, dpi),
-      skuBottomCss: dotsToCssPx(6, dpi),
+      leftPadCss: dotsToCssPx(mmToDots(2, dpi), dpi),
     };
   };
 
   const pos = computePreviewPositions();
+  const PREVIEW_MAX_WIDTH = 220;
+  const previewScale =
+    pos.labelCssWidth > PREVIEW_MAX_WIDTH
+      ? PREVIEW_MAX_WIDTH / pos.labelCssWidth
+      : 1;
+
+  const activeSku =
+    (selectedProduct?.colorVariants &&
+      selectedVariantId &&
+      selectedProduct.colorVariants.find(
+        (v) => v._id === selectedVariantId
+      )?.sku) ||
+    selectedProduct?.sku ||
+    "";
+
+  const skuTopCss =
+    calib.headerLayout === "column" ? pos.skuTopCss : pos.headerTopCss;
+  const priceTopCss =
+    calib.headerLayout === "column" ? pos.priceTopCss : pos.headerTopCss;
 
   return (
     <div className="container mx-auto p-4 max-w-6xl">
-      <h1 className="text-2xl font-bold mb-4">TSPL Barcode Printing — Bitmap-capable</h1>
+      <h1 className="text-2xl font-bold mb-4">
+        TSPL Barcode Printing — Label Designer
+      </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Search */}
-        <div className="bg-white rounded p-4 shadow">
+        {/* SEARCH */}
+        <div className="bg-white rounded p-4 shadow min-w-0">
           <h2 className="font-semibold mb-2">Product Search</h2>
-          <div className="flex gap-2 mb-3">
-            <input ref={searchRef} value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="Scan or type barcode" className="flex-1 px-3 py-2 border rounded" />
-            <button onClick={handleSearch} className="px-4 py-2 bg-blue-600 text-white rounded">Search</button>
+          <div className="relative mb-3">
+            <div className="flex gap-2">
+              <select
+                value={searchType}
+                onChange={(e) => setSearchType(e.target.value)}
+                className="px-3 py-2 border rounded bg-white"
+              >
+                <option value="barcode">Barcode</option>
+                <option value="name">Name</option>
+                <option value="sku">SKU</option>
+                <option value="all">All</option>
+              </select>
+              <input
+                ref={searchRef}
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSearch();
+                }}
+                onFocus={() => {
+                  if (suggestions.length) setShowSuggestions(true);
+                }}
+                onBlur={() => {
+                  setTimeout(() => setShowSuggestions(false), 150);
+                }}
+                placeholder={`Search by ${searchType}`}
+                className="flex-1 px-3 py-2 border rounded"
+              />
+              <button
+                onClick={handleSearch}
+                className="px-4 py-2 bg-blue-600 text-white rounded whitespace-nowrap"
+              >
+                Search
+              </button>
+            </div>
+
+            {showSuggestions &&
+              ["name", "sku", "all"].includes(searchType) && (
+                <div className="absolute z-50 bg-white border rounded shadow-lg w-full mt-1 max-h-60 overflow-auto">
+                  {suggestionsLoading ? (
+                    <div className="p-2 text-sm text-gray-600">
+                      Loading...
+                    </div>
+                  ) : suggestions.length === 0 ? (
+                    <div className="p-2 text-sm text-gray-600">
+                      No suggestions
+                    </div>
+                  ) : (
+                    suggestions.map((s) => (
+                      <div
+                        key={s._id}
+                        onMouseDown={() => handleSuggestionClick(s)}
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                      >
+                        <div className="font-medium">
+                          {s.name}{" "}
+                          {s.matchedSKU ? `(SKU: ${s.matchedSKU})` : ""}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {s.company || ""} —{" "}
+                          {s.Subcategory || s.Maincategory || ""}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
           </div>
+
           {selectedProduct ? (
-            <div className="bg-gray-50 p-3 rounded border">
-              <div className="font-medium">{selectedProduct.name}</div>
-              <div className="text-sm text-gray-600">SKU: {selectedProduct.sku || "N/A"}</div>
-              <div className="text-sm text-gray-600">Barcode: {selectedProduct.barcode || "N/A"}</div>
+            <div className="bg-gray-50 p-3 rounded border space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="truncate">
+                  <div className="font-medium truncate">
+                    {selectedProduct.name}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {selectedProduct.company || ""}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-semibold">
+                    ₹{(selectedProduct.price || 0).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Off: {Number(selectedProduct.off || 0).toFixed(1)}%
+                  </div>
+                </div>
+              </div>
+
+              {Array.isArray(selectedProduct.colorVariants) &&
+                selectedProduct.colorVariants.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm">Variant:</label>
+                    <select
+                      value={selectedVariantId || ""}
+                      onChange={(e) => setSelectedVariantId(e.target.value)}
+                      className="px-2 py-1 border rounded flex-1"
+                    >
+                      {selectedProduct.colorVariants.map((v) => (
+                        <option key={v._id} value={v._id}>
+                          {v.Colorname}{" "}
+                          {v.sku ? `(SKU: ${v.sku})` : ""}{" "}
+                          {v.stock ? ` - ${v.stock} in stock` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+              <div className="flex flex-wrap items-center gap-4 text-sm">
+                <div>
+                  SKU:{" "}
+                  <span className="font-medium">
+                    {activeSku || "N/A"}
+                  </span>
+                </div>
+                <div>
+                  Barcode:{" "}
+                  <span className="font-medium">
+                    {selectedProduct.barcode ||
+                      (selectedProduct.barcodes &&
+                        selectedProduct.barcodes[0]) ||
+                      "N/A"}
+                  </span>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="text-sm text-gray-500">No product selected</div>
           )}
-          <div className="mt-3 text-xs text-gray-600">
-            Ref image:
-            <div className="mt-2">
-              <img src={referenceImagePath} alt="reference" style={{ maxWidth: "100%", borderRadius: 6 }} />
-            </div>
-          </div>
         </div>
 
-        {/* Preview */}
-        <div className="bg-white rounded p-4 shadow">
-          <h2 className="font-semibold mb-2">Label Preview (50×25 mm)</h2>
+        {/* PREVIEW */}
+        <div className="bg-white rounded p-4 shadow min-w-0">
+          <h2 className="font-semibold mb-2">
+            Label Preview ({calib.labelWidthMm}×{calib.labelHeightMm} mm)
+          </h2>
 
-          <div
-            style={{
-              width: "50mm",
-              height: "25mm",
-              position: "relative",
-              border: "1px solid #e5e7eb",
-              borderRadius: 6,
-              overflow: "hidden",
-              background: "#fff",
-            }}
-          >
-            {/* Name bitmap */}
-            {namePreview ? (
-              <img
-                src={namePreview.dataUrl}
-                alt="name"
+          <div className="flex justify-center">
+            <div
+              style={{
+                width: PREVIEW_MAX_WIDTH,
+                height: pos.labelCssHeight * previewScale + 8,
+                overflow: "hidden",
+                position: "relative",
+              }}
+            >
+              <div
                 style={{
-                  position: "absolute",
-                  left: pos.leftPadCss + "px",
-                  top: pos.nameTopCss + "px",
-                  width: `${namePreview.cssWidth}px`,
-                  height: `${namePreview.cssHeight}px`,
-                  objectFit: "contain",
+                  width: pos.labelCssWidth,
+                  height: pos.labelCssHeight,
+                  position: "relative",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 6,
+                  overflow: "hidden",
+                  background: "#fff",
+                  transform: `scale(${previewScale})`,
+                  transformOrigin: "top left",
                 }}
-              />
-            ) : (
-              <div style={{ position: "absolute", left: pos.leftPadCss + "px", top: pos.nameTopCss + "px" }}>Product Name</div>
-            )}
+              >
+                {/* NAME (always top left) */}
+                {namePreview ? (
+                  <img
+                    src={namePreview.dataUrl}
+                    alt="name"
+                    style={{
+                      position: "absolute",
+                      left: pos.leftPadCss + "px",
+                      top: pos.headerTopCss + "px",
+                      width: `${namePreview.cssWidth}px`,
+                      height: `${namePreview.cssHeight}px`,
+                      objectFit: "contain",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: pos.leftPadCss + "px",
+                      top: pos.headerTopCss + "px",
+                      fontWeight: "bold",
+                      fontSize: 10,
+                    }}
+                  >
+                    PRODUCT NAME
+                  </div>
+                )}
 
-            {/* Price bitmap centered */}
-            {pricePreview ? (
-              <img
-                src={pricePreview.dataUrl}
-                alt="price"
-                style={{
-                  position: "absolute",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  top: pos.priceTopCss + "px",
-                  width: `${pricePreview.cssWidth}px`,
-                  height: `${pricePreview.cssHeight}px`,
-                }}
-              />
-            ) : (
-              <div style={{ position: "absolute", left: 0, right: 0, top: pos.priceTopCss + "px", textAlign: "center" }}>
-                {selectedProduct ? `${calib.priceUnit || "Rs."}${(selectedProduct.price || 0).toFixed(2)}` : ""}
+                {/* SKU */}
+                {skuPreview && activeSku ? (
+                  <img
+                    src={skuPreview.dataUrl}
+                    alt="sku"
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      top: skuTopCss + "px",
+                      width: `${skuPreview.cssWidth}px`,
+                      height: `${skuPreview.cssHeight}px`,
+                      objectFit: "contain",
+                      textAlign: "center",
+                    }}
+                  />
+                ) : activeSku ? (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      top: skuTopCss + "px",
+                      fontSize: 10,
+                      textAlign: "center",
+                    }}
+                  >
+                    SKU: {activeSku}
+                  </div>
+                ) : null}
+
+                {/* PRICE */}
+                {pricePreview ? (
+                  <img
+                    src={pricePreview.dataUrl}
+                    alt="price"
+                    style={{
+                      position: "absolute",
+                      right: calib.headerLayout === "row"
+                        ? pos.leftPadCss + "px"
+                        : "50%",
+                      transform:
+                        calib.headerLayout === "row"
+                          ? "none"
+                          : "translateX(50%)",
+                      top: priceTopCss + "px",
+                      width: `${pricePreview.cssWidth}px`,
+                      height: `${pricePreview.cssHeight}px`,
+                      objectFit: "contain",
+                      textAlign:
+                        calib.headerLayout === "row" ? "right" : "center",
+                    }}
+                  />
+                ) : selectedProduct ? (
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: calib.headerLayout === "row"
+                        ? pos.leftPadCss + "px"
+                        : "50%",
+                      transform:
+                        calib.headerLayout === "row"
+                          ? "none"
+                          : "translateX(50%)",
+                      top: priceTopCss + "px",
+                      fontSize: 10,
+                      textAlign:
+                        calib.headerLayout === "row" ? "right" : "center",
+                    }}
+                  >
+                    {(calib.priceUnit || "Rs.") +
+                      (selectedProduct.price || 0).toFixed(2)}
+                  </div>
+                ) : null}
+
+                {/* BARCODE */}
+                {barcodePreview ? (
+                  <img
+                    src={barcodePreview.dataUrl}
+                    alt="barcode"
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      top: pos.barcodeTopCss + "px",
+                      width: `${barcodePreview.cssWidth}px`,
+                      height: `${barcodePreview.cssHeight}px`,
+                      objectFit: "contain",
+                    }}
+                  />
+                ) : (
+                  <svg
+                    ref={svgRef}
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      top: pos.barcodeTopCss + "px",
+                      height: 44,
+                    }}
+                  />
+                )}
               </div>
-            )}
-
-            {/* Barcode bitmap */}
-            {barcodePreview ? (
-              <img
-                src={barcodePreview.dataUrl}
-                alt="barcode"
-                style={{
-                  position: "absolute",
-                  left: pos.leftPadCss + "px",
-                  top: pos.barcodeTopCss + "px",
-                  width: `${barcodePreview.cssWidth}px`,
-                  height: `${barcodePreview.cssHeight}px`,
-                  objectFit: "contain",
-                }}
-              />
-            ) : (
-              <svg ref={svgRef} style={{ position: "absolute", left: pos.leftPadCss + "px", top: pos.barcodeTopCss + "px", height: 44 }} />
-            )}
-
-            {/* SKU */}
-            <div style={{ position: "absolute", left: pos.leftPadCss + "px", bottom: pos.skuBottomCss + "px", fontSize: 9 }}>
-              <small>{selectedProduct?.sku || ""}</small>
             </div>
           </div>
 
           <div className="mt-2 text-xs text-gray-600">
-            Tip: enable <b>Use Bitmap for Name/Price</b> to print exact large fonts (bitmap).
+            Layout:{" "}
+            {calib.headerLayout === "row" ? (
+              <>
+                <b>Name | SKU | Price</b> in one line, barcode below.
+              </>
+            ) : (
+              <>
+                <b>Name</b> then <b>SKU</b> then <b>Price</b> vertically,
+                barcode below.
+              </>
+            )}
           </div>
         </div>
 
-        {/* Calibration & Print */}
-        <div className="bg-white rounded p-4 shadow">
+        {/* CALIBRATION & PRINT */}
+        <div className="bg-white rounded p-4 shadow min-w-0">
           <h2 className="font-semibold mb-2">Calibration & Print</h2>
 
           <div className="space-y-3">
             <div>
               <label className="block text-sm">Printer</label>
-              <select value={defaultPrinter} onChange={(e) => { setDefaultPrinter(e.target.value); localStorage.setItem("barcodePrinter", e.target.value); }} className="w-full px-2 py-2 border rounded">
-                {printers.length ? printers.map(p => <option key={p} value={p}>{p}</option>) : <option value="">No printers found</option>}
+              <select
+                value={defaultPrinter}
+                onChange={(e) => {
+                  setDefaultPrinter(e.target.value);
+                  localStorage.setItem("barcodePrinter", e.target.value);
+                }}
+                className="w-full px-2 py-2 border rounded"
+              >
+                {printers.length ? (
+                  printers.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No printers found</option>
+                )}
               </select>
-              <div className={`mt-1 text-xs ${qzStatus === "Connected" ? "text-green-600" : "text-red-600"}`}>Status: {qzStatus}</div>
+              <div
+                className={`mt-1 text-xs ${
+                  qzStatus === "Connected"
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
+                Status: {qzStatus}
+              </div>
+            </div>
+
+            {/* NEW: header layout option */}
+            <div>
+              <label className="block text-sm">Header layout</label>
+              <select
+                value={calib.headerLayout}
+                onChange={(e) =>
+                  updateCalib({ headerLayout: e.target.value })
+                }
+                className="w-full px-2 py-2 border rounded"
+              >
+                <option value="row">Name | SKU | Price (one line)</option>
+                <option value="column">
+                  Name / SKU / Price (vertical)
+                </option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Use <b>vertical</b> when you want price and SKU stacked like
+                your other stickers.
+              </p>
             </div>
 
             <div>
               <label className="block text-sm">DPI: {calib.dpi}</label>
-              <input type="range" min="203" max="300" step="1" value={calib.dpi} onChange={(e) => updateCalib({ dpi: Number(e.target.value) })} />
+              <input
+                type="range"
+                min="203"
+                max="300"
+                step="1"
+                value={calib.dpi}
+                onChange={(e) =>
+                  updateCalib({ dpi: Number(e.target.value) })
+                }
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-sm">
+                  Label width (mm): {calib.labelWidthMm}
+                </label>
+                <input
+                  type="number"
+                  min={10}
+                  max={200}
+                  value={calib.labelWidthMm}
+                  onChange={(e) =>
+                    updateCalib({
+                      labelWidthMm: Number(e.target.value),
+                    })
+                  }
+                  className="w-full px-2 py-1 border rounded"
+                />
+              </div>
+              <div>
+                <label className="block text-sm">
+                  Label height (mm): {calib.labelHeightMm}
+                </label>
+                <input
+                  type="number"
+                  min={5}
+                  max={200}
+                  value={calib.labelHeightMm}
+                  onChange={(e) =>
+                    updateCalib({
+                      labelHeightMm: Number(e.target.value),
+                    })
+                  }
+                  className="w-full px-2 py-1 border rounded"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm">Label vertical offset (mm): {calib.labelOffsetYmm}</label>
-              <input type="range" min={-10} max={10} step={0.1} value={calib.labelOffsetYmm} onChange={(e) => updateCalib({ labelOffsetYmm: Number(e.target.value) })} />
-              <div className="text-xs text-gray-500">Move the entire label (name, price, barcode, SKU) up/down (mm).</div>
+              <label className="block text-sm">
+                Label vertical offset (mm): {calib.labelOffsetYmm}
+              </label>
+              <input
+                type="range"
+                min={-10}
+                max={10}
+                step={0.1}
+                value={calib.labelOffsetYmm}
+                onChange={(e) =>
+                  updateCalib({
+                    labelOffsetYmm: Number(e.target.value),
+                  })
+                }
+              />
             </div>
 
             <div>
-              <label className="block text-sm">Barcode horizontal offset (mm): {calib.barcodeOffsetXmm}</label>
-              <input type="range" min={-10} max={10} step={0.5} value={calib.barcodeOffsetXmm} onChange={(e) => updateCalib({ barcodeOffsetXmm: Number(e.target.value) })} />
-              <div className="text-xs text-gray-500">Move barcode left/right independently (mm).</div>
+              <label className="block text-sm">
+                Barcode horizontal offset (mm): {calib.barcodeOffsetXmm}
+              </label>
+              <input
+                type="range"
+                min={-10}
+                max={10}
+                step={0.5}
+                value={calib.barcodeOffsetXmm}
+                onChange={(e) =>
+                  updateCalib({
+                    barcodeOffsetXmm: Number(e.target.value),
+                  })
+                }
+              />
             </div>
 
             <div>
-              <label className="block text-sm">Barcode vertical offset (mm): {calib.barcodeOffsetYmm}</label>
-              <input type="range" min={-10} max={10} step={0.5} value={calib.barcodeOffsetYmm} onChange={(e) => updateCalib({ barcodeOffsetYmm: Number(e.target.value) })} />
-              <div className="text-xs text-gray-500">Fine-tune barcode up/down relative to label (mm).</div>
+              <label className="block text-sm">
+                Barcode vertical offset (mm): {calib.barcodeOffsetYmm}
+              </label>
+              <input
+                type="range"
+                min={-10}
+                max={10}
+                step={0.5}
+                value={calib.barcodeOffsetYmm}
+                onChange={(e) =>
+                  updateCalib({
+                    barcodeOffsetYmm: Number(e.target.value),
+                  })
+                }
+              />
             </div>
 
-            {/* rest of calibration controls (same as before) */}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-sm">Name preset</label>
-                <select value={calib.namePreset} onChange={(e) => updateCalib({ namePreset: e.target.value })} className="w-full px-2 py-2 border rounded">
+                <select
+                  value={calib.namePreset}
+                  onChange={(e) =>
+                    updateCalib({ namePreset: e.target.value })
+                  }
+                  className="w-full px-2 py-2 border rounded"
+                >
                   <option value="small">Small</option>
                   <option value="medium">Medium</option>
                   <option value="large">Large</option>
@@ -697,12 +1389,30 @@ export default function BarcodePrint() {
               </div>
               <div>
                 <label className="block text-sm">Name custom px</label>
-                <input type="number" min="8" max="8000" value={calib.nameCustomPx} onChange={(e) => updateCalib({ nameCustomPx: Number(e.target.value), namePreset: 'custom' })} className="w-full px-2 py-2 border rounded" />
+                <input
+                  type="number"
+                  min="8"
+                  max="8000"
+                  value={calib.nameCustomPx}
+                  onChange={(e) =>
+                    updateCalib({
+                      nameCustomPx: Number(e.target.value),
+                      namePreset: "custom",
+                    })
+                  }
+                  className="w-full px-2 py-2 border rounded"
+                />
               </div>
 
               <div>
                 <label className="block text-sm">Price preset</label>
-                <select value={calib.pricePreset} onChange={(e) => updateCalib({ pricePreset: e.target.value })} className="w-full px-2 py-2 border rounded">
+                <select
+                  value={calib.pricePreset}
+                  onChange={(e) =>
+                    updateCalib({ pricePreset: e.target.value })
+                  }
+                  className="w-full px-2 py-2 border rounded"
+                >
                   <option value="small">Small</option>
                   <option value="medium">Medium</option>
                   <option value="large">Large</option>
@@ -712,93 +1422,256 @@ export default function BarcodePrint() {
               </div>
               <div>
                 <label className="block text-sm">Price custom px</label>
-                <input type="number" min="8" max="8000" value={calib.priceCustomPx} onChange={(e) => updateCalib({ priceCustomPx: Number(e.target.value), pricePreset: 'custom' })} className="w-full px-2 py-2 border rounded" />
-              </div>
-
-              <div>
-                <label className="block text-sm">Truncate name (preview):</label>
-                <div className="flex gap-2 items-center">
-                  <input id="truncate" type="checkbox" checked={calib.truncate} onChange={(e) => updateCalib({ truncate: e.target.checked })} />
-                  <label htmlFor="truncate" className="text-sm">Enable</label>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm">Truncate length</label>
-                <input type="number" min={10} max={240} value={calib.truncateLen} onChange={(e) => updateCalib({ truncateLen: Number(e.target.value) })} className="w-full px-2 py-2 border rounded" />
-              </div>
-
-              <div>
-                <label className="block text-sm">Name weight</label>
-                <input type="number" min={100} max={900} step={100} value={calib.nameWeight} onChange={(e) => updateCalib({ nameWeight: Number(e.target.value) })} className="w-full px-2 py-2 border rounded" />
-              </div>
-              <div>
-                <label className="block text-sm">Price weight</label>
-                <input type="number" min={100} max={900} step={100} value={calib.priceWeight} onChange={(e) => updateCalib({ priceWeight: Number(e.target.value) })} className="w-full px-2 py-2 border rounded" />
+                <input
+                  type="number"
+                  min="8"
+                  max="8000"
+                  value={calib.priceCustomPx}
+                  onChange={(e) =>
+                    updateCalib({
+                      priceCustomPx: Number(e.target.value),
+                      pricePreset: "custom",
+                    })
+                  }
+                  className="w-full px-2 py-2 border rounded"
+                />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm">Use Bitmap for Name/Price</label>
+              <label className="block text-sm">Truncate name</label>
+              <div className="flex gap-2 items-center">
+                <input
+                  id="truncate"
+                  type="checkbox"
+                  checked={calib.truncate}
+                  onChange={(e) =>
+                    updateCalib({ truncate: e.target.checked })
+                  }
+                />
+                <label htmlFor="truncate" className="text-sm">
+                  Enable
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm">Truncate length</label>
+              <input
+                type="number"
+                min={10}
+                max={240}
+                value={calib.truncateLen}
+                onChange={(e) =>
+                  updateCalib({
+                    truncateLen: Number(e.target.value),
+                  })
+                }
+                className="w-full px-2 py-2 border rounded"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm">
+                Use Bitmap for Name/Price
+              </label>
               <div className="flex items-center gap-2">
-                <input id="useBitmap" type="checkbox" checked={calib.useBitmapForText} onChange={(e) => updateCalib({ useBitmapForText: e.target.checked })} />
-                <label htmlFor="useBitmap" className="text-sm">Exact rendering (recommended for huge fonts)</label>
+                <input
+                  id="useBitmap"
+                  type="checkbox"
+                  checked={calib.useBitmapForText}
+                  onChange={(e) =>
+                    updateCalib({
+                      useBitmapForText: e.target.checked,
+                    })
+                  }
+                />
+                <label htmlFor="useBitmap" className="text-sm">
+                  Exact rendering (recommended)
+                </label>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm">Bitmap threshold (0-255): {calib.bitmapThreshold}</label>
-              <input type="range" min="0" max="255" step="1" value={calib.bitmapThreshold} onChange={(e) => updateCalib({ bitmapThreshold: Number(e.target.value) })} />
+              <label className="block text-sm">
+                Show barcode text (HRI)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="showHRI"
+                  type="checkbox"
+                  checked={calib.showHumanReadable}
+                  onChange={(e) =>
+                    updateCalib({
+                      showHumanReadable: e.target.checked,
+                    })
+                  }
+                />
+                <label htmlFor="showHRI" className="text-sm">
+                  Show digits under barcode
+                </label>
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm">Module width (dots): {calib.moduleWidthDots}</label>
-              <input type="range" min={1} max={6} step={1} value={calib.moduleWidthDots} onChange={(e) => updateCalib({ moduleWidthDots: Number(e.target.value) })} />
-              <div className="text-xs text-gray-500">Start with 2. Increase to 3–4 if bars show white holes.</div>
+              <label className="block text-sm">
+                Bitmap threshold: {calib.bitmapThreshold}
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="255"
+                step="1"
+                value={calib.bitmapThreshold}
+                onChange={(e) =>
+                  updateCalib({
+                    bitmapThreshold: Number(e.target.value),
+                  })
+                }
+              />
             </div>
 
             <div>
-              <label className="block text-sm">Barcode height (mm): {calib.barcodeHeightMM}</label>
-              <input type="range" min="8" max="14" step="0.5" value={calib.barcodeHeightMM} onChange={(e) => updateCalib({ barcodeHeightMM: Number(e.target.value) })} />
+              <label className="block text-sm">
+                Module width (dots): {calib.moduleWidthDots}
+              </label>
+              <input
+                type="range"
+                min={1}
+                max={6}
+                step={1}
+                value={calib.moduleWidthDots}
+                onChange={(e) =>
+                  updateCalib({
+                    moduleWidthDots: Number(e.target.value),
+                  })
+                }
+              />
             </div>
 
             <div>
-              <label className="block text-sm">Number font scale (under barcode) (1–5): {Math.round((calib.numberFontSize || 12) / 4)}</label>
-              <input type="range" min={1} max={5} step={1} value={Math.round((calib.numberFontSize || 12) / 4)} onChange={(e) => updateCalib({ numberFontSize: Number(e.target.value) * 4 })} />
+              <label className="block text-sm">
+                Barcode height (mm): {calib.barcodeHeightMM}
+              </label>
+              <input
+                type="range"
+                min="8"
+                max="14"
+                step="0.5"
+                value={calib.barcodeHeightMM}
+                onChange={(e) =>
+                  updateCalib({
+                    barcodeHeightMM: Number(e.target.value),
+                  })
+                }
+              />
             </div>
 
             <div>
-              <label className="block text-sm">Print Speed: {calib.speed}</label>
-              <input type="range" min="2" max="6" step="1" value={calib.speed} onChange={(e) => updateCalib({ speed: Number(e.target.value) })} />
+              <label className="block text-sm">
+                Number font scale:{" "}
+                {Math.round((calib.numberFontSize || 12) / 4)}
+              </label>
+              <input
+                type="range"
+                min="1"
+                max="5"
+                step="1"
+                value={Math.round((calib.numberFontSize || 12) / 4)}
+                onChange={(e) =>
+                  updateCalib({
+                    numberFontSize: Number(e.target.value) * 4,
+                  })
+                }
+              />
             </div>
 
             <div>
-              <label className="block text-sm">Density: {calib.density}</label>
-              <input type="range" min="6" max="15" step={1} value={calib.density} onChange={(e) => updateCalib({ density: Number(e.target.value) })} />
+              <label className="block text-sm">
+                Print Speed: {calib.speed}
+              </label>
+              <input
+                type="range"
+                min="2"
+                max="6"
+                step="1"
+                value={calib.speed}
+                onChange={(e) =>
+                  updateCalib({
+                    speed: Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm">
+                Density: {calib.density}
+              </label>
+              <input
+                type="range"
+                min="6"
+                max="15"
+                step={1}
+                value={calib.density}
+                onChange={(e) =>
+                  updateCalib({
+                    density: Number(e.target.value),
+                  })
+                }
+              />
             </div>
 
             <div className="flex items-center gap-2">
-              <input id="feed" type="checkbox" checked={calib.useFeedAfterLabel} onChange={(e) => updateCalib({ useFeedAfterLabel: e.target.checked })} />
-              <label htmlFor="feed" className="text-sm">Use feed-after-label fallback</label>
+              <input
+                id="feed"
+                type="checkbox"
+                checked={calib.useFeedAfterLabel}
+                onChange={(e) =>
+                  updateCalib({
+                    useFeedAfterLabel: e.target.checked,
+                  })
+                }
+              />
+              <label htmlFor="feed" className="text-sm">
+                Use feed-after-label
+              </label>
             </div>
 
             <div className="flex gap-2">
-              <input type="number" min="1" value={copies} onChange={(e) => setCopies(Math.max(1, parseInt(e.target.value || 1)))} className="w-20 px-2 py-1 border rounded" />
-              <button onClick={printTSPL} disabled={!selectedProduct || !defaultPrinter || qzStatus !== "Connected"} className="flex-1 py-2 bg-green-600 text-white rounded disabled:opacity-50">Print Test Label</button>
-              <button onClick={() => { setCalib(DEFAULT_CALIB); saveCalib(DEFAULT_CALIB); toast.info("Reset calibration"); }} className="py-2 px-3 border rounded">Reset</button>
+              <input
+                type="number"
+                min="1"
+                value={copies}
+                onChange={(e) =>
+                  setCopies(Math.max(1, parseInt(e.target.value || 1)))
+                }
+                className="w-20 px-2 py-1 border rounded"
+              />
+              <button
+                onClick={printTSPL}
+                disabled={
+                  !selectedProduct ||
+                  !defaultPrinter ||
+                  qzStatus !== "Connected"
+                }
+                className="flex-1 py-2 bg-green-600 text-white rounded disabled:opacity-50"
+              >
+                Print Test Label
+              </button>
+              <button
+                onClick={() => {
+                  setCalib(DEFAULT_CALIB);
+                  saveCalib(DEFAULT_CALIB);
+                  toast.info("Reset calibration");
+                }}
+                className="py-2 px-3 border rounded"
+              >
+                Reset
+              </button>
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="mt-4 text-sm text-gray-600">
-        Quick checklist:
-        <ol className="list-decimal pl-5">
-          <li>Driver: Graphics → <b>Dithering = None</b>.</li>
-          <li>Driver: Options → uncheck "Use Current Printer Setting" for Darkness & Speed, set Darkness ≈ 8–12 and Speed = 3–4.</li>
-          <li>Stock → <b>Labels With Gaps</b>, width 50 mm, height 25 mm, gap 3 mm.</li>
-          <li>Recommended start: name = <b>Medium (14px)</b>, price = <b>Small (10px)</b>, moduleWidthDots = <b>2</b>, barcodeHeightMM = <b>11</b>, density = <b>12</b>, speed = <b>3</b>.</li>
-        </ol>
-        <p className="mt-1 text-xs">If text overlaps barcode or prints differently than preview: nudge <b>Label vertical offset (mm)</b> +/- 0.1 and re-print. Paste the <code>=== TSPL START ===</code> block here after a test print and I will tell the single numeric tweak needed.</p>
       </div>
     </div>
   );

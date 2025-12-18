@@ -311,137 +311,178 @@ const Billing = () => {
   // PRINT RECEIPT FUNCTION
   // ===============================
   const printReceiptQZTray = async (saleData) => {
-    try {
-      if (!window.qz) return alert("QZ Tray is not loaded!");
-      if (!window.qz.websocket?.isActive())
-        await window.qz.websocket.connect();
-      if (!defaultPrinter) return alert("No printer selected!");
+  try {
+    if (!window.qz) return alert("QZ Tray is not loaded!");
+    if (!window.qz.websocket?.isActive()) await window.qz.websocket.connect();
+    if (!defaultPrinter) return alert("No printer selected!");
 
-      const config = window.qz.configs.create(defaultPrinter);
-      const LINE_WIDTH = 48;
+    const config = window.qz.configs.create(defaultPrinter);
+    const LINE_WIDTH = 48;
 
-      const pad = (text, length, alignRight = false) => {
-        text = String(text ?? "");
-        if (text.length >= length) return text.slice(0, length);
-        return alignRight
-          ? " ".repeat(length - text.length) + text
-          : text + " ".repeat(length - text.length);
-      };
+    const pad = (text, length, alignRight = false) => {
+      text = String(text ?? "");
+      if (text.length >= length) return text.slice(0, length);
+      return alignRight
+        ? " ".repeat(length - text.length) + text
+        : text + " ".repeat(length - text.length);
+    };
 
-      const center = (text) => {
-        text = String(text ?? "");
-        if (text.length >= LINE_WIDTH) return text.slice(0, LINE_WIDTH);
-        const left = Math.floor((LINE_WIDTH - text.length) / 2);
-        const right = LINE_WIDTH - text.length - left;
-        return " ".repeat(left) + text + " ".repeat(right);
-      };
+    const center = (text) => {
+      text = String(text ?? "");
+      if (text.length >= LINE_WIDTH) return text.slice(0, LINE_WIDTH);
+      const left = Math.floor((LINE_WIDTH - text.length) / 2);
+      const right = LINE_WIDTH - text.length - left;
+      return " ".repeat(left) + text + " ".repeat(right);
+    };
 
-      let r = "";
-      r += "\x1B\x45\x01"; // Bold
-      r += "\x1B\x61\x01"; // Center
-      r += (saleData.shopName?.toUpperCase() || "") + "\n";
-      r += "\x1B\x45\x00"; // Bold off
-      if (saleData.address) r += center(saleData.address) + "\n";
-      if (saleData.phone) r += center("Ph: " + saleData.phone) + "\n";
-      r += "-".repeat(LINE_WIDTH) + "\n";
-      r += "\x1B\x61\x00"; // Left align
+    let r = "";
 
-      r += "Invoice: " + (saleData.invoiceNo || "N/A") + "\n";
-      r +=
-        "Date: " +
-        new Date().toLocaleDateString() +
-        "  " +
-        new Date().toLocaleTimeString() +
-        "\n";
-      r += "-".repeat(LINE_WIDTH) + "\n";
+    // ===== HEADER =====
+    r += "\x1B\x45\x01"; // Bold
+    r += "\x1B\x61\x01"; // Center
+    r += (saleData.shopName?.toUpperCase() || "") + "\n";
+    r += "\x1B\x45\x00"; // Bold off
+    if (saleData.address) r += center(saleData.address) + "\n";
+    if (saleData.phone) r += center("Ph: " + saleData.phone) + "\n";
+    r += "-".repeat(LINE_WIDTH) + "\n";
+    r += "\x1B\x61\x00"; // Left align
 
-      const ITEM_W = 22;
-      const QTY_W = 6;
-      const RATE_W = 8;
-      const FINAL_W = 10;
+    // Invoice number as normal text (top)
+    r += "Invoice: " + (saleData.invoiceNo || "N/A") + "\n";
+    r +=
+      "Date: " +
+      new Date().toLocaleDateString() +
+      "  " +
+      new Date().toLocaleTimeString() +
+      "\n";
+    r += "-".repeat(LINE_WIDTH) + "\n";
 
-      r += "\x1B\x45\x01"; // Bold table header
-      r +=
-        pad("Item", ITEM_W) +
-        pad("Qty", QTY_W, true) +
-        pad("Rate", RATE_W, true) +
-        pad("Final", FINAL_W, true) +
-        "\n";
-      r += "\x1B\x45\x00"; // Bold off
-      r += "-".repeat(LINE_WIDTH) + "\n";
+    // ===== ITEMS TABLE =====
+    const ITEM_W = 22;
+    const QTY_W = 6;
+    const RATE_W = 8;
+    const FINAL_W = 10;
 
-      saleData.items.forEach((item) => {
-        const name = pad(item.name || "", ITEM_W);
-        const qty = pad(item.quantity || item.qty || 0, QTY_W, true);
-        const rate = pad(
-          (item.rate || item.price || 0).toFixed(2),
-          RATE_W,
-          true
-        );
-        const total = pad(
-          (
-            item.total ||
-            (item.quantity || item.qty || 0) *
-              (item.rate || item.price || 0)
-          ).toFixed(2),
-          FINAL_W,
-          true
-        );
-        r += `${name}${qty}${rate}${total}\n`;
-      });
+    r += "\x1B\x45\x01"; // Bold table header
+    r +=
+      pad("Item", ITEM_W) +
+      pad("Qty", QTY_W, true) +
+      pad("Rate", RATE_W, true) +
+      pad("Final", FINAL_W, true) +
+      "\n";
+    r += "\x1B\x45\x00"; // Bold off
+    r += "-".repeat(LINE_WIDTH) + "\n";
 
-      r += "-".repeat(LINE_WIDTH) + "\n";
-      r +=
-        pad("Subtotal:", LINE_WIDTH - 10) +
-        pad((saleData.subtotal || 0).toFixed(2), 10, true) +
-        "\n";
-      // Always print discount lines to match cash receipt layout — show 0.00 when no discount
-      const discPercent = Number(saleData.discountPercent || 0);
-      const discPercentValue = Number(
-        saleData.discountPercentValue || 0
+    saleData.items.forEach((item) => {
+      const name = pad(item.name || "", ITEM_W);
+      const qty = pad(item.quantity || item.qty || 0, QTY_W, true);
+      const rate = pad(
+        (item.rate || item.price || 0).toFixed(2),
+        RATE_W,
+        true
       );
-      const discFlat = Number(saleData.discountAmount || 0);
-      r +=
-        pad(`Discount (${discPercent}%):`, LINE_WIDTH - 10) +
-        pad(`-${discPercentValue.toFixed(2)}`, 10, true) +
-        "\n";
-      r +=
-        pad("Discount (Flat):", LINE_WIDTH - 10) +
-        pad(`-${discFlat.toFixed(2)}`, 10, true) +
-        "\n";
-      r += "-".repeat(LINE_WIDTH) + "\n";
-      r += "\x1B\x45\x01"; // Bold total
-      r +=
-        pad(
-          "Total:",
-          LINE_WIDTH - 10
-        ) +
-        pad(
-          (saleData.totalAfterDiscount || saleData.total || 0).toFixed(2),
-          10,
-          true
-        ) +
-        "\n";
-      r += "\x1B\x45\x00";
-      r += "-".repeat(LINE_WIDTH) + "\n";
-      r +=
-        "Payment Mode: " + (saleData.paymentMode || "N/A") + "\n\n";
-
-      r += "\x1B\x61\x01"; // Center footer
-      r += "\x1B\x45\x01";
-      r += "*** THANK YOU - VISIT AGAIN ***\n";
-      r += "\x1B\x45\x00";
-      r += "\x1B\x61\x00";
-
-      const escpos = ["\x1B\x40", r, "\n\n\n\n\n", "\x1D\x56\x00"];
-      await window.qz.print(config, escpos);
-    } catch (err) {
-      console.error(err);
-      alert(
-        "Print failed. Make sure QZ Tray is running and printer supports plain text!"
+      const total = pad(
+        (
+          item.total ||
+          (item.quantity || item.qty || 0) *
+            (item.rate || item.price || 0)
+        ).toFixed(2),
+        FINAL_W,
+        true
       );
+      r += `${name}${qty}${rate}${total}\n`;
+    });
+
+    // ===== TOTALS =====
+    r += "-".repeat(LINE_WIDTH) + "\n";
+    r +=
+      pad("Subtotal:", LINE_WIDTH - 10) +
+      pad((saleData.subtotal || 0).toFixed(2), 10, true) +
+      "\n";
+
+    const discPercent = Number(saleData.discountPercent || 0);
+    const discPercentValue = Number(saleData.discountPercentValue || 0);
+    const discFlat = Number(saleData.discountAmount || 0);
+
+    r +=
+      pad(`Discount (${discPercent}%):`, LINE_WIDTH - 10) +
+      pad(`-${discPercentValue.toFixed(2)}`, 10, true) +
+      "\n";
+    r +=
+      pad("Discount (Flat):", LINE_WIDTH - 10) +
+      pad(`-${discFlat.toFixed(2)}`, 10, true) +
+      "\n";
+    r += "-".repeat(LINE_WIDTH) + "\n";
+
+    r += "\x1B\x45\x01"; // Bold total
+    r +=
+      pad("Total:", LINE_WIDTH - 10) +
+      pad(
+        (saleData.totalAfterDiscount || saleData.total || 0).toFixed(2),
+        10,
+        true
+      ) +
+      "\n";
+    r += "\x1B\x45\x00";
+    r += "-".repeat(LINE_WIDTH) + "\n";
+
+    r += "Payment Mode: " + (saleData.paymentMode || "N/A") + "\n\n";
+
+    // ===== FOOTER TEXT =====
+    r += "\x1B\x61\x01"; // Center footer
+    r += "\x1B\x45\x01";
+    r += "*** THANK YOU - VISIT AGAIN ***\n";
+    r += "\x1B\x45\x00";
+    r += "\x1B\x61\x00"; // Back to left
+
+    // ===== BARCODE AT THE END (ONLY SYMBOL, NO TEXT) =====
+    const invoiceCode = (saleData.invoiceNo || "").toUpperCase().trim();
+    let barcodeCmd = "";
+
+    if (invoiceCode) {
+      // Center barcode
+      barcodeCmd += "\x1B\x61\x01";   // ESC a 1 -> center
+
+      // No human readable text (HRI)
+      barcodeCmd += "\x1D\x48\x00";   // GS H 0
+
+      // Barcode height
+      barcodeCmd += "\x1D\x68\x50";   // GS h 80 (0x50)
+
+      // Module width
+      barcodeCmd += "\x1D\x77\x02";   // GS w 2
+
+      // --- Code128, function B ---
+      // GS k m n d1..dn
+      // m = 73 (0x49) -> CODE128
+      const data = invoiceCode;                 // e.g. "KTC/25-26/000000096"
+      const lenChar = String.fromCharCode(data.length); // n = length
+
+      barcodeCmd += "\x1D\x6B\x49" + lenChar + data;
+
+      // Gap after barcode & reset alignment
+      barcodeCmd += "\n\n";
+      barcodeCmd += "\x1B\x61\x00";   // ESC a 0 -> left
     }
-  };
+
+    // ===== SEND TO PRINTER =====
+    const escpos = [
+      "\x1B\x40",   // init
+      r,            // text part
+      barcodeCmd,   // barcode at bottom
+      "\n\n\n",     // extra feed
+      "\x1D\x56\x00"// full cut
+    ];
+
+    await window.qz.print(config, escpos);
+  } catch (err) {
+    console.error(err);
+    alert(
+      "Print failed. Make sure QZ Tray is running and printer supports ESC/POS!"
+    );
+  }
+};
+
 
   // Create order (no change printed)
   const createOrder = async () => {
@@ -511,7 +552,6 @@ const Billing = () => {
         "/api/payment/create-offline-order",
         payload
       );
-
       await printReceiptQZTray(res.data.saleDataForReceipt);
       Swal.fire("Success", "Order created successfully", "success");
       resetBillingFields();

@@ -9,9 +9,8 @@ const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 55000,
   withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  }
+  // Do not set a default Content-Type here. Let the browser set it
+  // automatically (especially important for FormData / file uploads).
 });
 
 // Add a request interceptor to include the token
@@ -20,6 +19,15 @@ axiosInstance.interceptors.request.use(
     const token = localStorage.getItem('adminToken'); // or 'token' if you're using user tokens
     if (token) {
       config.headers['x-admin-token'] = token;
+    }
+    // If we're sending a FormData instance (file upload), remove any
+    // explicit Content-Type header so the browser can add the correct
+    // multipart/form-data; boundary=... header. Having 'application/json'
+    // prevents multer from parsing the file.
+    if (config.data && typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (config.headers && config.headers['Content-Type']) {
+        delete config.headers['Content-Type'];
+      }
     }
     return config;
   },
