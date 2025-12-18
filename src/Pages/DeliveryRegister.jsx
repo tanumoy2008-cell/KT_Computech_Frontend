@@ -38,7 +38,7 @@ const DeliveryRegister = () => {
       });
 
       if (response.data.success) {
-        localStorage.setItem("deliveryAgentEmail", data.email);
+        localStorage.setItem("del-identifier", data.email);
         toast.success('OTP has been sent to your email. Please verify your account.');
         navigate('/delivery-otp-verification');
       }

@@ -11,7 +11,7 @@ const DeliveryAgentOtpPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { register, handleSubmit, formState: { errors } } = useForm();
-  const email = localStorage.getItem("deliveryAgentEmail");
+  const email = localStorage.getItem("del-identifier");
   const [timeLeft, setTimeLeft] = useState(300);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ const DeliveryAgentOtpPage = () => {
   const submitForm = async (data) => {
     try {
       const res = await axios.post("/api/delivery/verify-otp", data);
-      localStorage.removeItem("deliveryAgentEmail");
+      localStorage.removeItem("del-identifier");
       toast.success(res.data.message);
       
       // Dispatch login success with user data and token
