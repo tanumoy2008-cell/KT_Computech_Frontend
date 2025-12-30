@@ -6,6 +6,7 @@ import { useDispatch } from 'react-redux';
 import {toast} from "react-toastify";
 import { login } from '../Store/reducers/UserReducer';
 import { useNavigate } from 'react-router-dom';
+import { env } from "../config/key";
 
 const OtpValidationPage = () => {
   const dispatch = useDispatch();
@@ -32,11 +33,11 @@ const OtpValidationPage = () => {
     try{
       const res = await axios.post("/api/user/verify-otp", data);
       // persist token (if server returned) and set axios header for user requests
-      const token = res.data?.token || res.headers?.['x-user-token'];
+      const token = res.data?.token || res.headers?.[env.VITE_USER_TOKEN_NAME];
       if (token) {
         try {
           localStorage.setItem('userToken', token);
-          axios.defaults.headers.common['x-user-token'] = token;
+          axios.defaults.headers.common[env.VITE_USER_TOKEN_NAME] = token;
         } catch (e) {}
       }
 

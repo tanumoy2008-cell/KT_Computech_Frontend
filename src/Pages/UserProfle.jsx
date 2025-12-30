@@ -53,7 +53,7 @@ const UserProfile = () => {
 
 
   return (
-    <div className="w-full h-screen flex bg-emerald-100">
+    <div className="w-full h-screen flex bg-emerald-200/60">
       {/* Sidebar for desktop */}
       <div className="hidden md:flex flex-col justify-between h-screen w-[30%] lg:w-[25%] 2xl:w-[20%] bg-emerald-900 text-white shadow-xl">
         <div className="py-10 px-6">
@@ -78,7 +78,7 @@ const UserProfile = () => {
           </div>
         </div>
         <div className="px-6 py-6 border-t border-zinc-200">
-          <button onClick={logout} className="flex items-center gap-x-3 px-4 py-3 rounded-lg w-full hover:bg-red-600 transition-colors">
+          <button onClick={logout} className="flex items-center gap-x-3 px-4 py-3 rounded-lg w-full hover:bg-rose-500 transition-colors">
             <FaSignOutAlt className="text-lg" />
             <span className="uppercase tracking-wide">Logout</span>
           </button>
@@ -130,7 +130,7 @@ const UserProfile = () => {
             </div>
           </div>
           <div className="px-6 py-6 border-t border-zinc-700">
-            <button onClick={logout} className="flex items-center gap-x-3 px-4 py-3 rounded-lg w-full hover:bg-red-600 transition-colors">
+            <button onClick={logout} className="flex items-center gap-x-3 px-4 py-3 rounded-lg w-full hover:bg-rose-500 transition-colors">
               <FaSignOutAlt className="text-lg" />
               <span className="uppercase tracking-wide">Logout</span>
             </button>
@@ -139,7 +139,7 @@ const UserProfile = () => {
       </div>
 
       {/* Main content */}
-      <div className="h-full w-full md:w-[70%] lg:w-[75%] 2xl:w-[80%] px-5 md:px-10 lg:px-12">
+      <div className="h-full w-full md:w-[80%] lg:w-[100%] 2xl:w-[100%] px-2 md:px-0 lg:px-0">
         {/* Mobile navbar with hamburger */}
         <div className="fixed top-0 left-0 w-full md:hidden z-40 bg-white shadow">
           <div className="flex items-center justify-between px-4 py-3">

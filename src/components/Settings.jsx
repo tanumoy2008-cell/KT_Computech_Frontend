@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { FiEye, FiEyeOff, FiUpload, FiSave, FiX, FiUser, FiMail, FiLock, FiGlobe, FiBell, FiMoon, FiSun } from 'react-icons/fi';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { FiEye, FiEyeOff, FiUser, FiMail, FiLock, FiGlobe } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import axios from '../config/axios';
 
@@ -8,15 +8,23 @@ const Settings = () => {
   const [currentTab, setCurrentTab] = useState('profile');
   const [isLoading, setIsLoading] = useState(false);
   const [adminData, setAdminData] = useState(null);
-  const [darkMode, setDarkMode] = useState(false);
+  const [shopData, setShopData] = useState(null);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [profileImage, setProfileImage] = useState(null);
-  const fileInputRef = React.useRef(null);
 
   const { register, handleSubmit, formState: { errors }, reset, watch } = useForm();
-  const newPassword = watch('newPassword');
+  // Separate form instance for password to avoid collisions with profile
+  const { register: registerPassword, handleSubmit: handleSubmitPassword, formState: { errors: passwordErrors }, reset: resetPassword, watch: watchPassword } = useForm();
+  const newPassword = watchPassword('newPassword');
+  // Separate form instance for shop settings to avoid field name collisions
+  const { register: registerShop, handleSubmit: handleSubmitShop, formState: { errors: shopErrors }, reset: resetShop, control, watch: watchShop } = useForm({
+    defaultValues: { phoneNumber: [{ number: '' }] }
+  });
+  const { fields: phoneFields, append: appendPhone, remove: removePhone } = useFieldArray({
+    control,
+    name: 'phoneNumber'
+  });
 
   useEffect(() => {
     // Load admin data
@@ -29,75 +37,53 @@ const Settings = () => {
           name: response.data.data.name,
           email: response.data.data.email,
         });
-        if (response.data.data.avatar) {
-          setProfileImage(response.data.data.avatar);
-        }
+        // Admin has no avatar property; image not used
       } catch (error) {
         console.error('Error fetching admin data:', error);
         toast.error('Failed to load profile data');
       }
     };
 
-    fetchAdminData();
-    
-    // Check for dark mode preference
-    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      setDarkMode(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setDarkMode(false);
-      document.documentElement.classList.remove('dark');
-    }
-  }, [reset]);
-
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error('Image size should be less than 2MB');
-        return;
+    const fetchShopSettings = async () => {
+      try {
+        const res = await axios.get('/api/admin/shop-settings');
+        if (res.data && res.data.data) {
+          setShopData(res.data.data);
+          resetShop({
+            shopName: res.data.data.name || '',
+            description: res.data.data.description || '',
+            address: res.data.data.address || '',
+            // backend stores phoneNumber as an array — map to objects for useFieldArray
+            phoneNumber: Array.isArray(res.data.data.phoneNumber) && res.data.data.phoneNumber.length
+              ? res.data.data.phoneNumber.map(p => ({ number: String(p) }))
+              : [{ number: '' }],
+            email: res.data.data.email || '',
+            pincode: res.data.data.pincode || ''
+          });
+          if (res.data.data.logo) {
+            setLogoPreview(res.data.data.logo);
+          }
+        }
+      } catch (err) {
+        // It's okay if no settings exist yet
+        console.warn('No shop settings found or failed to fetch:', err?.response?.data || err.message);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileImage(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+    };
 
-  const handleRemoveImage = () => {
-    setProfileImage(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
+  fetchAdminData();
+  fetchShopSettings();
+    
+    // Theme selection removed for admins
+  }, [reset, resetShop, resetPassword]);
 
-  const toggleDarkMode = () => {
-    const newDarkMode = !darkMode;
-    setDarkMode(newDarkMode);
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.theme = 'dark';
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.theme = 'light';
-    }
-  };
+  // Profile image and theme toggle removed for admins per request
 
   const onSubmitProfile = async (data) => {
     try {
       setIsLoading(true);
-      const formData = new FormData();
-      if (fileInputRef.current?.files[0]) {
-        formData.append('avatar', fileInputRef.current.files[0]);
-      }
-      formData.append('name', data.name);
-      formData.append('email', data.email);
-
-      const response = await axios.patch('/api/admin/profile', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const response = await axios.patch('/api/admin/profile', {
+        name: data.name,
+        email: data.email,
       });
       
       setAdminData(response.data.data);
@@ -120,12 +106,13 @@ const Settings = () => {
       setIsLoading(true);
       await axios.post('/api/admin/change-password', {
         currentPassword: data.currentPassword,
-        newPassword: data.newPassword
+        newPassword: data.newPassword,
+        confirmPassword: data.confirmPassword
       });
       
       toast.success('Password updated successfully');
-      // Reset the form
-      reset({
+      // Reset the password form
+      resetPassword({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
@@ -138,16 +125,63 @@ const Settings = () => {
     }
   };
 
-  const onUpdatePreferences = async (data) => {
+  // Preferences removed for admin
+
+  // Logo preview state & ref
+  const [logoPreview, setLogoPreview] = useState(null);
+  const logoInputRef = React.useRef(null);
+
+  const handleLogoUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Logo size should be less than 5MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoPreview(null);
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
+
+  const onSubmitShopSettings = async (data) => {
     try {
       setIsLoading(true);
-      // Here you would typically send the preferences to your API
-      // For now, we'll just show a success message
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success('Preferences updated successfully');
-    } catch (error) {
-      console.error('Error updating preferences:', error);
-      toast.error('Failed to update preferences');
+      const formData = new FormData();
+      if (logoInputRef.current?.files[0]) {
+        formData.append('logo', logoInputRef.current.files[0]);
+      }
+      // Map form fields to expected schema keys
+      formData.append('name', data.shopName || '');
+      formData.append('description', data.description || '');
+      formData.append('address', data.address || '');
+      // backend expects phoneNumber as an array — extract numbers from objects
+      const phones = (data.phoneNumber || []).map(item => String(item.number || '').trim()).filter(p => p !== '');
+      formData.append('phoneNumber', JSON.stringify(phones));
+      formData.append('email', data.email || '');
+      // pincode stored as number in backend schema — send numeric value when possible
+      if (data.pincode !== undefined && data.pincode !== '') {
+        formData.append('pincode', Number(data.pincode));
+      } else {
+        formData.append('pincode', '');
+      }
+
+      const res = await axios.put('/api/admin/shop-settings', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      setShopData(res.data.data);
+      toast.success('Shop settings updated successfully');
+    } catch (err) {
+      console.error('Error updating shop settings:', err);
+      toast.error(err.response?.data?.message || 'Failed to update shop settings');
     } finally {
       setIsLoading(false);
     }
@@ -158,170 +192,149 @@ const Settings = () => {
       <div className="flex flex-col md:flex-row gap-8">
         {/* Sidebar */}
         <div className="w-full md:w-64 flex-shrink-0">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 mb-6">
+          <div className="bg-emerald-200 rounded-xl shadow p-4 mb-6">
             <div className="flex flex-col items-center py-4">
               <div className="relative mb-4">
-                <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
-                  {profileImage ? (
-                    <img 
-                      src={profileImage} 
-                      alt="Profile" 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <FiUser className="w-12 h-12 text-gray-400" />
-                  )}
+                <div className="w-24 h-24 rounded-full border-2 border-emerald-700 bg-gray-200 flex items-center justify-center overflow-hidden">
+                  <FiUser className="w-12 h-12 text-gray-400" />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 transition-colors"
-                >
-                  <FiUpload className="w-4 h-4" />
-                </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageUpload}
-                  accept="image/*"
-                  className="hidden"
-                />
-                {profileImage && (
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-                  >
-                    <FiX className="w-3 h-3" />
-                  </button>
-                )}
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {adminData?.name || 'Admin User'}
+              <h2 className="text-lg font-semibold text-gray-900">
+                {adminData?.name || "Admin User"}
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {adminData?.role === 'superadmin' ? 'Super Admin' : 'Admin'}
+              <p className="text-sm text-gray-500">
+                {adminData?.role === "superAdmin" ? "Super Admin" : "Admin"}
               </p>
             </div>
           </div>
 
-          <nav className="space-y-1">
+          <nav className="space-y-1 border border-zinc-300 px-2 py-10 rounded-md flex flex-col gap-y-4">
             <button
-              onClick={() => setCurrentTab('profile')}
+              onClick={() => setCurrentTab("profile")}
               className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                currentTab === 'profile'
-                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                  : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/50'
-              }`}
-            >
+                currentTab === "profile"
+                  ? "bg-emerald-200 text-emerald-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}>
               <FiUser className="w-5 h-5 mr-3" />
               Profile
             </button>
             <button
-              onClick={() => setCurrentTab('password')}
+              onClick={() => setCurrentTab("password")}
               className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                currentTab === 'password'
-                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                  : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/50'
-              }`}
-            >
+                currentTab === "password"
+                  ? "bg-emerald-200 text-emerald-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}>
               <FiLock className="w-5 h-5 mr-3" />
               Password
             </button>
             <button
-              onClick={() => setCurrentTab('preferences')}
+              onClick={() => setCurrentTab("shop")}
               className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                currentTab === 'preferences'
-                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                  : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/50'
-              }`}
-            >
-              <FiBell className="w-5 h-5 mr-3" />
-              Preferences
+                currentTab === "shop"
+                  ? "bg-emerald-200 text-emerald-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}>
+              <FiGlobe className="w-5 h-5 mr-3" />
+              Shop Settings
             </button>
           </nav>
         </div>
 
         {/* Main Content */}
         <div className="flex-1">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {currentTab === 'profile' && 'Profile Information'}
-                {currentTab === 'password' && 'Update Password'}
-                {currentTab === 'preferences' && 'Preferences'}
+          <div className="bg-emerald-200 border-2 border-emerald-600 rounded-xl shadow-xl overflow-hidden">
+            <div className="px-6 py-5 border-b-2 border-emerald-700">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {currentTab === "profile" && "Profile Information"}
+                {currentTab === "password" && "Update Password"}
+                {currentTab === "shop" && "Shop"}
               </h2>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {currentTab === 'profile' && 'Update your account profile information.'}
-                {currentTab === 'password' && 'Ensure your account is using a long, random password to stay secure.'}
-                {currentTab === 'preferences' && 'Manage your application preferences.'}
+              <p className="mt-1 text-sm text-gray-500">
+                {currentTab === "profile" &&
+                  "Update your account profile information."}
+                {currentTab === "password" &&
+                  "Ensure your account is using a long, random password to stay secure."}
+                {currentTab === "shop" &&
+                  "Manage your Shop settings."}
               </p>
             </div>
 
             <div className="p-6">
               {/* Profile Tab */}
-              {currentTab === 'profile' && (
-                <form onSubmit={handleSubmit(onSubmitProfile)} className="space-y-6">
+              {currentTab === "profile" && (
+                <form
+                  onSubmit={handleSubmit(onSubmitProfile)}
+                  className="space-y-6">
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label
+                        htmlFor="name"
+                        className="block text-sm font-medium text-gray-700 mb-1">
                         Full Name
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <FiUser className="h-5 w-5 text-gray-400" />
+                          <FiUser className="h-full text-emerald-400" />
                         </div>
                         <input
                           id="name"
                           type="text"
-                          {...register('name', {
-                            required: 'Name is required',
+                          {...register("name", {
+                            required: "Name is required",
                             minLength: {
                               value: 3,
-                              message: 'Name must be at least 3 characters',
+                              message: "Name must be at least 3 characters",
                             },
                           })}
-                          className={`pl-10 block w-full rounded-md shadow-sm ${
+                          className={`p-2 pl-8 block w-full rounded-md border-2 outline-none border-black shadow-sm ${
                             errors.name
-                              ? 'border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500'
-                              : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'
+                              ? "text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500"
+                              : "focus:ring-emerald-500 focus:border-emerald-500"
                           }`}
                           placeholder="John Doe"
                         />
                       </div>
                       {errors.name && (
-                        <p className="mt-2 text-sm text-red-600">{errors.name.message}</p>
+                        <p className="mt-2 text-sm text-red-600">
+                          {errors.name.message}
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label
+                        htmlFor="email"
+                        className="block text-sm font-medium text-gray-700 mb-1">
                         Email Address
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <FiMail className="h-5 w-5 text-gray-400" />
+                          <FiMail className="h-full text-emerald-400" />
                         </div>
                         <input
                           id="email"
                           type="email"
-                          {...register('email', {
-                            required: 'Email is required',
+                          {...register("email", {
+                            required: "Email is required",
                             pattern: {
                               value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                              message: 'Invalid email address',
+                              message: "Invalid email address",
                             },
                           })}
-                          className={`pl-10 block w-full rounded-md shadow-sm ${
+                          className={`p-2 pl-8 block w-full rounded-md border-2 outline-none border-black shadow-sm ${
                             errors.email
-                              ? 'border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500'
-                              : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'
+                              ? "text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500"
+                              : "focus:border-emerald-500"
                           }`}
                           placeholder="you@example.com"
                         />
                       </div>
                       {errors.email && (
-                        <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>
+                        <p className="mt-2 text-sm text-red-600">
+                          {errors.email.message}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -330,139 +343,372 @@ const Settings = () => {
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isLoading ? 'Saving...' : 'Save Changes'}
+                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                      {isLoading ? "Saving..." : "Save Changes"}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Shop Settings Tab */}
+              {currentTab === "shop" && (
+                <form
+                  onSubmit={handleSubmitShop(onSubmitShopSettings)}
+                  className="space-y-6">
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                      <label
+                        htmlFor="shopName"
+                        className="block text-sm font-medium text-gray-700 mb-1">
+                        Shop Name
+                      </label>
+                      <input
+                        id="shopName"
+                        type="text"
+                        {...registerShop("shopName", {
+                          required: "Shop name is required",
+                        })}
+                        className="p-2 block w-full rounded-md border-2 outline-none border-black shadow-sm focus:border-emerald-700"
+                        placeholder="My Shop"
+                      />
+                      {shopErrors.shopName && (
+                        <p className="mt-2 text-sm text-red-600">
+                          {shopErrors.shopName.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label
+                        className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone Number(s)
+                      </label>
+                      <div className="flex flex-col gap-2">
+                        {phoneFields.map((field, index) => (
+                          <div key={field.id} className="flex items-center gap-2">
+                            <input
+                              id={`phoneNumberShop-${index}`}
+                              type="tel"
+                              {...registerShop(`phoneNumber.${index}.number`, {
+                                pattern: {
+                                  value: /^[0-9]{10}$/,
+                                  message: 'Enter 10 digit phone',
+                                },
+                                required: index === 0 ? 'Phone number is required' : false,
+                              })}
+                              defaultValue={field.number}
+                              className="p-2 flex-1 rounded-md border-2 outline-none border-black shadow-sm focus:border-emerald-700"
+                              placeholder="9123456789"
+                            />
+                            <div className="flex gap-2">
+                              {phoneFields.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removePhone(index)}
+                                  className="px-3 py-2 bg-red-600 text-white rounded">
+                                  Remove
+                                </button>
+                              )}
+                              {index === phoneFields.length - 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => appendPhone({ number: '' })}
+                                  className="px-3 py-2 bg-emerald-600 text-white rounded">
+                                  Add
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {shopErrors.phoneNumber && Array.isArray(shopErrors.phoneNumber) && shopErrors.phoneNumber.map((err, i) => (
+                        err?.number ? (
+                          <p key={i} className="mt-2 text-sm text-red-600">{err.number.message}</p>
+                        ) : null
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="description"
+                      className="block text-sm font-medium text-gray-700 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      id="description"
+                      rows={4}
+                      {...registerShop("description")}
+                      className="p-2  block w-full rounded-md border-2 outline-none border-black shadow-sm focus:border-emerald-700"
+                      placeholder="Add the Description"
+                    />
+                    {shopErrors.description && (
+                      <p className="mt-2 text-sm text-red-600">
+                        {shopErrors.description.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="address"
+                      className="block text-sm font-medium text-gray-700 mb-1">
+                      Address
+                    </label>
+                    <textarea
+                      id="address"
+                      rows={3}
+                      {...registerShop("address")}
+                      className="p-2  block w-full rounded-md border-2 outline-none border-black shadow-sm focus:border-emerald-700"
+                      placeholder="Add address"
+                    />
+                    {shopErrors.address && (
+                      <p className="mt-2 text-sm text-red-600">
+                        {shopErrors.address.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                    <div>
+                      <label
+                        htmlFor="emailShop"
+                        className="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                      </label>
+                      <input
+                        id="emailShop"
+                        type="email"
+                        {...registerShop("email")}
+                        className="p-2  block w-full rounded-md border-2 outline-none border-black shadow-sm focus:border-emerald-700"
+                      />
+                      {shopErrors.email && (
+                        <p className="mt-2 text-sm text-red-600">
+                          {shopErrors.email.message}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* backend doesn't include alternatePhoneNumber in current schema */}
+
+                    <div>
+                      <label
+                        htmlFor="pincode"
+                        className="block text-sm font-medium text-gray-700 mb-1">
+                        Pincode
+                      </label>
+                      <input
+                        id="pincode"
+                        type="number"
+                        {...registerShop("pincode")}
+                        className="p-2  block w-full rounded-md border-2 outline-none border-black shadow-sm focus:border-emerald-700"
+                      />
+                      {shopErrors.pincode && (
+                        <p className="mt-2 text-sm text-red-600">
+                          {shopErrors.pincode.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Logo
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <div className="w-52 aspect-square rounded-md border-2 bg-gray-200 overflow-hidden flex items-center justify-center">
+                        {logoPreview ? (
+                          <img
+                            src={logoPreview}
+                            alt="Logo"
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <span className="text-sm text-gray-500">No logo</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          ref={logoInputRef}
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                          id="logo-input"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => logoInputRef.current?.click()}
+                            className="px-3 py-2 bg-emerald-600 text-white rounded">
+                            Upload
+                          </button>
+                          {logoPreview && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveLogo}
+                              className="px-3 py-2 bg-red-600 text-white rounded">
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700">
+                      {isLoading ? "Saving..." : "Save Shop Settings"}
                     </button>
                   </div>
                 </form>
               )}
 
               {/* Password Tab */}
-              {currentTab === 'password' && (
-                <form onSubmit={handleSubmit(onChangePassword)} className="space-y-6">
+              {currentTab === "password" && (
+                <form
+                  onSubmit={handleSubmitPassword(onChangePassword)}
+                  className="space-y-6">
                   <div>
-                    <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      htmlFor="currentPassword"
+                      className="block text-sm font-medium text-gray-700 mb-1">
                       Current Password
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FiLock className="h-5 w-5 text-gray-400" />
+                        <FiLock className="h-full text-emerald-400" />
                       </div>
                       <input
                         id="currentPassword"
-                        type={showCurrentPassword ? 'text' : 'password'}
-                        {...register('currentPassword', {
-                          required: 'Current password is required',
+                        type={showCurrentPassword ? "text" : "password"}
+                        {...registerPassword("currentPassword", {
+                          required: "Current password is required",
                         })}
-                        className={`pl-10 pr-10 block w-full rounded-md shadow-sm ${
+                        className={`p-2 pl-8 block w-full rounded-md border-2 outline-none border-black shadow-sm ${
                           errors.currentPassword
-                            ? 'border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500'
-                            : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'
+                            ? "text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500"
+                            : "focus:ring-emerald-500 focus:border-emerald-500"
                         }`}
                         placeholder="••••••••"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-500"
-                      >
+                        onClick={() =>
+                          setShowCurrentPassword(!showCurrentPassword)
+                        }
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-500">
                         {showCurrentPassword ? (
-                          <FiEyeOff className="h-5 w-5" />
+                          <FiEyeOff className="h-full text-emerald-400" />
                         ) : (
-                          <FiEye className="h-5 w-5" />
+                          <FiEye className="h-full text-emerald-400" />
                         )}
                       </button>
                     </div>
-                    {errors.currentPassword && (
-                      <p className="mt-2 text-sm text-red-600">{errors.currentPassword.message}</p>
+                    {passwordErrors.currentPassword && (
+                      <p className="mt-2 text-sm text-red-600">
+                        {passwordErrors.currentPassword.message}
+                      </p>
                     )}
                   </div>
 
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div>
-                      <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label
+                        htmlFor="newPassword"
+                        className="block text-sm font-medium text-gray-700 mb-1">
                         New Password
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <FiLock className="h-5 w-5 text-gray-400" />
+                          <FiLock className="h-full text-emerald-400" />
                         </div>
                         <input
                           id="newPassword"
-                          type={showNewPassword ? 'text' : 'password'}
-                          {...register('newPassword', {
-                            required: 'New password is required',
+                          type={showNewPassword ? "text" : "password"}
+                          {...registerPassword("newPassword", {
+                            required: "New password is required",
                             minLength: {
                               value: 8,
-                              message: 'Password must be at least 8 characters',
+                              message: "Password must be at least 8 characters",
                             },
                             pattern: {
-                              value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-                              message: 'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character',
+                              value:
+                                /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+                              message:
+                                "Password must contain at least one uppercase letter, one lowercase letter, one number and one special character",
                             },
                           })}
-                          className={`pl-10 pr-10 block w-full rounded-md shadow-sm ${
+                          className={`p-2 pl-8 block w-full rounded-md border-2 outline-none border-black shadow-sm ${
                             errors.newPassword
-                              ? 'border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500'
-                              : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'
+                              ? "text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500"
+                              : "focus:ring-emerald-500 focus:border-emerald-500"
                           }`}
                           placeholder="••••••••"
                         />
                         <button
                           type="button"
                           onClick={() => setShowNewPassword(!showNewPassword)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-500"
-                        >
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-500">
                           {showNewPassword ? (
-                            <FiEyeOff className="h-5 w-5" />
+                            <FiEyeOff className="h-full text-emerald-400" />
                           ) : (
-                            <FiEye className="h-5 w-5" />
+                            <FiEye className="h-full text-emerald-400" />
                           )}
                         </button>
                       </div>
-                      {errors.newPassword && (
-                        <p className="mt-2 text-sm text-red-600">{errors.newPassword.message}</p>
+                      {passwordErrors.newPassword && (
+                        <p className="mt-2 text-sm text-red-600">
+                          {passwordErrors.newPassword.message}
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label
+                        htmlFor="confirmPassword"
+                        className="block text-sm font-medium text-gray-700 mb-1">
                         Confirm New Password
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <FiLock className="h-5 w-5 text-gray-400" />
+                          <FiLock className="h-full text-emerald-400" />
                         </div>
                         <input
                           id="confirmPassword"
-                          type={showConfirmPassword ? 'text' : 'password'}
-                          {...register('confirmPassword', {
-                            required: 'Please confirm your password',
+                          type={showConfirmPassword ? "text" : "password"}
+                          {...registerPassword("confirmPassword", {
+                            required: "Please confirm your password",
                             validate: (value) =>
-                              value === newPassword || 'Passwords do not match',
+                              value === newPassword || "Passwords do not match",
                           })}
-                          className={`pl-10 pr-10 block w-full rounded-md shadow-sm ${
+                          className={`p-2 pl-8 block w-full rounded-md border-2 outline-none border-black shadow-sm ${
                             errors.confirmPassword
-                              ? 'border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500'
-                              : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'
+                              ? "text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500"
+                              : "focus:ring-emerald-500 focus:border-emerald-500"
                           }`}
                           placeholder="••••••••"
                         />
                         <button
                           type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-500"
-                        >
+                          onClick={() =>
+                            setShowConfirmPassword(!showConfirmPassword)
+                          }
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-500">
                           {showConfirmPassword ? (
-                            <FiEyeOff className="h-5 w-5" />
+                            <FiEyeOff className="h-full text-emerald-400" />
                           ) : (
-                            <FiEye className="h-5 w-5" />
+                            <FiEye className="h-full text-emerald-400" />
                           )}
                         </button>
                       </div>
-                      {errors.confirmPassword && (
-                        <p className="mt-2 text-sm text-red-600">{errors.confirmPassword.message}</p>
+                      {passwordErrors.confirmPassword && (
+                        <p className="mt-2 text-sm text-red-600">
+                          {passwordErrors.confirmPassword.message}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -471,130 +717,14 @@ const Settings = () => {
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isLoading ? 'Updating...' : 'Update Password'}
+                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                      {isLoading ? "Updating..." : "Update Password"}
                     </button>
                   </div>
                 </form>
               )}
 
-              {/* Preferences Tab */}
-              {currentTab === 'preferences' && (
-                <form onSubmit={handleSubmit(onUpdatePreferences)} className="space-y-6">
-                  <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-                    <div className="px-4 py-5 sm:p-6">
-                      <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-                        Theme
-                      </h3>
-                      <div className="mt-2 max-w-xl text-sm text-gray-500 dark:text-gray-400">
-                        <p>Choose between light and dark themes.</p>
-                      </div>
-                      <div className="mt-5">
-                        <div className="flex items-center">
-                          <button
-                            type="button"
-                            onClick={toggleDarkMode}
-                            className={`${
-                              darkMode ? 'bg-blue-600' : 'bg-gray-200'
-                            } relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
-                            role="switch"
-                            aria-checked={darkMode}
-                          >
-                            <span className="sr-only">Toggle dark mode</span>
-                            <span
-                              className={`${
-                                darkMode ? 'translate-x-5' : 'translate-x-0'
-                              } pointer-events-none relative inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`}
-                            >
-                              <span
-                                className={`${
-                                  darkMode
-                                    ? 'opacity-0 ease-out duration-100'
-                                    : 'opacity-100 ease-in duration-200'
-                                } absolute inset-0 h-full w-full flex items-center justify-center transition-opacity`}
-                                aria-hidden="true"
-                              >
-                                <FiSun className="h-3 w-3 text-gray-400" />
-                              </span>
-                              <span
-                                className={`${
-                                  darkMode
-                                    ? 'opacity-100 ease-in duration-200'
-                                    : 'opacity-0 ease-out duration-100'
-                                } absolute inset-0 h-full w-full flex items-center justify-center transition-opacity`}
-                                aria-hidden="true"
-                              >
-                                <FiMoon className="h-3 w-3 text-blue-600" />
-                              </span>
-                            </span>
-                          </button>
-                          <span className="ml-3">
-                            <span className="text-sm font-medium text-gray-900 dark:text-white">
-                              {darkMode ? 'Dark' : 'Light'} mode
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-                    <div className="px-4 py-5 sm:p-6">
-                      <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-                        Notifications
-                      </h3>
-                      <div className="mt-2 max-w-xl text-sm text-gray-500 dark:text-gray-400">
-                        <p>Manage how you receive notifications.</p>
-                      </div>
-                      <div className="mt-5 space-y-4">
-                        <div className="flex items-start">
-                          <div className="flex items-center h-5">
-                            <input
-                              id="email-notifications"
-                              type="checkbox"
-                              className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                              defaultChecked
-                            />
-                          </div>
-                          <div className="ml-3 text-sm">
-                            <label htmlFor="email-notifications" className="font-medium text-gray-700 dark:text-gray-300">
-                              Email notifications
-                            </label>
-                            <p className="text-gray-500 dark:text-gray-400">Get notified about important updates.</p>
-                          </div>
-                        </div>
-                        <div className="flex items-start">
-                          <div className="flex items-center h-5">
-                            <input
-                              id="push-notifications"
-                              type="checkbox"
-                              className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                              defaultChecked
-                            />
-                          </div>
-                          <div className="ml-3 text-sm">
-                            <label htmlFor="push-notifications" className="font-medium text-gray-700 dark:text-gray-300">
-                              Push notifications
-                            </label>
-                            <p className="text-gray-500 dark:text-gray-400">Receive push notifications on your device.</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isLoading ? 'Saving...' : 'Save Preferences'}
-                    </button>
-                  </div>
-                </form>
-              )}
+              {/* Preferences removed */}
             </div>
           </div>
         </div>

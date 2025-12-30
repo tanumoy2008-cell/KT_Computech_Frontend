@@ -1,12 +1,13 @@
 import { createSlice, createSelector } from '@reduxjs/toolkit';
 import axios from '../../config/axios';
+import { env } from "../../config/key"
 
 // Helper to set auth token header for delivery-related requests
 const setAuthToken = (token) => {
   if (token) {
-    axios.defaults.headers.common['x-delivery-token'] = token;
+    axios.defaults.headers.common[env.VITE_DELIVERY_TOKEN_NAME] = token;
   } else {
-    delete axios.defaults.headers.common['x-delivery-token'];
+    delete axios.defaults.headers.common[env.VITE_DELIVERY_TOKEN_NAME];
   }
 };
 

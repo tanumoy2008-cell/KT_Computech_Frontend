@@ -38,6 +38,17 @@ const adminProductSlice = createSlice({
     clearScrollY: (state) => {
       state.scrollY = 0;
     },
+    // Upsert single product for immediate UI update after edits
+    upsertProduct: (state, action) => {
+      const prod = action.payload;
+      if (!prod || !prod._id) return;
+      const idx = state.items.findIndex((p) => p._id === prod._id);
+      if (idx === -1) {
+        state.items = [prod, ...state.items];
+      } else {
+        state.items[idx] = { ...state.items[idx], ...prod };
+      }
+    },
   },
 });
 
@@ -47,6 +58,7 @@ export const {
   setFilters,
   setScrollY,
   clearScrollY,
+  upsertProduct,
 } = adminProductSlice.actions;
 
 export const adminProductReducer = adminProductSlice.reducer;

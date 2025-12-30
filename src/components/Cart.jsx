@@ -10,6 +10,7 @@ import { setCart } from "../Store/reducers/CartReducer";
 import { toast } from "react-toastify";
 import { FiArrowLeft, FiCheckCircle, FiCreditCard, FiDollarSign, FiLoader, FiX } from "react-icons/fi";
 import { BsCash } from "react-icons/bs";
+import { env } from "../config/key"
 
 const Cart = () => {
   const user = useSelector((state) => state.UserReducer);
@@ -74,40 +75,33 @@ const { subtotal, discount, total, totalItems } = React.useMemo(() => {
     
     try {
       if (paymentMethod === 'online') {
-        // Process online payment with Razorpay
-        const orderResponse = await axios.post('/api/payment/create-razorpay-order', {
-        amount: total, // Send amount in rupees, not paise
-        currency: 'INR',
-        items: items.map(item => ({
-          productId: item._id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          color: item.color,
-          image: item.image,
-          off: item.off || 0
-        }))
-      });
+        // Create DB order (and Razorpay order server-side) then open checkout
+        const payload = {
+          items: items.map(item => ({
+            productId: item._id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            color: item.color,
+            image: item.image,
+            off: item.off || 0
+          })),
+          total,
+          paymentMode: 'Online'
+        };
 
-        // Load Razorpay script if not already loaded
-        if (!window.Razorpay) {
-          await loadRazorpayScript();
-        }
+        const orderResponse = await axios.post('/api/payment/online-order', payload);
 
-        console.log('Razorpay options before init:', {
-        amount: orderResponse.data.order.amount,
-        currency: orderResponse.data.order.currency,
-        order_id: orderResponse.data.order.id
-      });
+        // load script and open Razorpay using server-provided razorpayOrderId
+        if (!window.Razorpay) await loadRazorpayScript();
 
-        // In your processPayment function, update the Razorpay options:
+        const razorpayOrderId = orderResponse.data.razorpayOrderId || orderResponse.data.order?.razorpayOrderId;
+
         const options = {
-          key: import.meta.env.VITE_RAZORPAY_KEY,
-          amount: orderResponse.data.order.amount, // Make sure to use order.amount
-          currency: orderResponse.data.order.currency,
+          key: env.VITE_RAZORPAY_KEY,
+          order_id: razorpayOrderId,
           name: "KT Computech",
           description: `Order for ${items.length} item${items.length > 1 ? 's' : ''}`,
-          order_id: orderResponse.data.order.id,
           handler: async function (response) {
             try {
               setIsProcessing(true);
@@ -115,15 +109,7 @@ const { subtotal, discount, total, totalItems } = React.useMemo(() => {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
-                items: items.map(item => ({
-                  productId: item._id,
-                  name: item.name,
-                  price: item.price,
-                  quantity: item.quantity,
-                  color: item.color,
-                  image: item.image,
-                  off: item.off || 0
-                })),
+                items: payload.items,
                 total: total,
                 paymentMethod: 'online'
               });
@@ -132,6 +118,8 @@ const { subtotal, discount, total, totalItems } = React.useMemo(() => {
                 toast.success('Payment successful!');
                 dispatch(setCart({ items: [] }));
                 navigate('/user/order-history');
+              } else {
+                toast.error(result.data.message || 'Payment verification failed');
               }
             } catch (error) {
               console.error('Payment verification failed:', error);
@@ -141,33 +129,21 @@ const { subtotal, discount, total, totalItems } = React.useMemo(() => {
             }
           },
           prefill: {
-            name:  `${user.fullName.firstName} ${user.fullName.lastName}` || "Customer Name", // TODO: Get from user profile
+            name:  `${user.fullName.firstName} ${user.fullName.lastName}` || "Customer Name",
             email: user.email || "customer@example.com",
             contact: user.phoneNumber || "+911234567890"
           },
-          theme: {
-            color: "#10b981"
-          },
-          modal: {
-            ondismiss: function() {
-              toast.info("Payment window closed. Your order was not placed.");
-            }
-          }
+          theme: { color: "#10b981" },
+          modal: { ondismiss: () => toast.info("Payment window closed. Your order was not placed.") }
         };
 
         const rzp = new window.Razorpay(options);
-        
         rzp.on('payment.failed', function(response) {
-          const errorMessage = response.error.description || 'Payment was not successful. Please try again.';
+          const errorMessage = response.error?.description || 'Payment was not successful. Please try again.';
           toast.error(`Payment failed: ${errorMessage}`);
         });
-        
-        rzp.on('payment.authorized', function(response) {
-          // This will be handled by the handler function
-        });
-        
+
         rzp.open();
-        
       } else {
         // Process Cash on Delivery
         const result = await axios.post("/api/payment/create-offline-order", {

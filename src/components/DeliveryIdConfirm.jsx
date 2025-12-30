@@ -107,13 +107,13 @@ const DeliveryIdConfirm = () => {
   /* ---------------- UI HELPERS ---------------- */
   const statusBadge = (status) => {
     const map = {
-      processing: "bg-amber-200 text-amber-700 h-fit border border-amber-600",
-      verified: "bg-blue-200 text-blue-700 h-fit border border-blue-600",
-      rejected: "bg-rose-200 text-rose-700 h-fit border border-rose-600",
-      reupload: "bg-indigo-200 text-indigo-700 h-fit border border-indigo-600",
+      processing: "bg-amber-100 text-amber-800 font-semibold h-fit font-mono border-2 border-amber-700",
+      verified: "bg-blue-100 text-blue-800 font-semibold h-fit border-2 font-mono border-blue-700",
+      rejected: "bg-rose-100 text-rose-800 font-semibold h-fit border-2 font-mono border-rose-700",
+      reupload: "bg-indigo-100 text-indigo-800 font-semibold h-fit border-2 font-mono border-indigo-700",
     };
     return (
-      <span className={`px-2 py-1 rounded-full text-xs ${map[status]}`}>
+      <span className={`px-2 py-1 rounded-md text-xs ${map[status]}`}>
         {status.toUpperCase()}
       </span>
     );
@@ -121,26 +121,28 @@ const DeliveryIdConfirm = () => {
 
   const getStatusColor = (status) => {
     const map = {
-      verified: "border-blue-600 text-blue-600 bg-blue-200 font-bold",
-      reupload: "border-orange-600 text-orange-600 bg-orange-200 font-bold",
-      rejected: "border-rose-600 text-rose-600 bg-rose-200 font-bold",
+      verified: "border-blue-600 text-blue-600 bg-blue-200 font-semibold font-mono",
+      reupload: "border-orange-600 text-orange-600 bg-orange-200 font-semibold font-mono",
+      rejected: "border-rose-600 text-rose-600 bg-rose-200 font-semibold font-mono",
     };
-    return map[status] || "border-slate-600 text-slate-600";
+    return map[status] || "border-slate-600 text-slate-600 font-mono";
   }
 
   const vehicleIcon = (type) =>
     type === "car" ? <Car size={20} className="text-emerald-800" /> : type === "bike" ? <Bike size={20} className="text-sky-800"/> : type === "scooter" ? <Scooter size={20} className="text-indigo-800" /> : <Bicycle size={20} className="text-rose-800" />;
 
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
+    <div className="min-h-screen bg-gray-200 p-6">
       <div className="max-w-7xl mx-auto">
 
         {/* HEADER */}
-        <div className="mb-6">
+        <div className="mb-6 bg-white p-2 rounded-lg border border-zinc-300 shadow-md">
+          <div className="p-2 border-l-4 rounded-lg border-gray-300 font-PublicSans">
           <h1 className="text-3xl font-bold">Agent Verification</h1>
           <p className="text-slate-500">
             Search, filter and manage verification requests
           </p>
+          </div>
         </div>
 
         {/* SEARCH + FILTER */}
@@ -153,7 +155,7 @@ const DeliveryIdConfirm = () => {
               placeholder="Search by name, email or phone..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl border focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-10 pr-4 py-2 bg-white rounded-xl border border-zinc-300 shadow-sm outline-none focus:border-indigo-500"
             />
           </div>
 
@@ -212,7 +214,7 @@ const DeliveryIdConfirm = () => {
                     )}
                     <div>
                       <h3 className="font-semibold">{agent.name}</h3>
-                      <p className="text-sm text-slate-500 font-bold flex gap-1">
+                      <p className="text-sm text-blue-700 font-bold flex gap-1">
                         <Phone size={14} className="mt-1" /> {agent.phone}
                       </p>
                     </div>
@@ -223,7 +225,7 @@ const DeliveryIdConfirm = () => {
                 {/* BODY */}
                 <div className="p-4 text-sm space-y-2">
                   <div className="flex gap-2">
-                    <Mail size={14} /> {agent.email || "No email"}
+                    <Mail size={16} className="mt-1 text-blue-800" /> {agent.email || "No email"}
                   </div>
                   <div className="flex gap-2 font-bold">
                     {vehicleIcon(agent.vehicle?.type)}

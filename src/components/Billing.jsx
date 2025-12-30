@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "../config/axios";
 import Swal from "sweetalert2";
+import { FaArrowRight } from "react-icons/fa6";
+import { VscDebugContinue } from "react-icons/vsc";
 
 const Billing = () => {
   const [products, setProducts] = useState([]);
@@ -14,6 +16,11 @@ const Billing = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const suggestionsTimerRef = React.useRef(null);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [customerInfo, setCustomerInfo] = useState({
+    name: "",
+    phone: ""
+  });
 
   // 🖨️ QZ Tray
   const [printers, setPrinters] = useState([]);
@@ -305,6 +312,7 @@ const Billing = () => {
     setSearchValue("");
     setCashGiven("");
     setChangeToGive(0);
+     setCustomerInfo({ name: "", phone: "" });
   };
 
   // ===============================
@@ -484,89 +492,118 @@ const Billing = () => {
 };
 
 
-  // Create order (no change printed)
-  const createOrder = async () => {
-    if (!products.length)
-      return Swal.fire("Error", "Add products first", "error");
+// Create order (no change printed)
+const createOrder = async (extra = {}) => {
+  if (isProcessing) return;
 
-    // Prepare payload used for both offline and online flows
-    const payload = {
-      products: products.map((p) => ({
-        _id: p._id,
-        name: p.name,
-        price: p.basePrice ?? p.price,
-        quantity: p.quantity,
-        off: p.off,
-        barcode: p.barcode,
-        colorVariantId: p.selectedColorVariantId,
-      })),
+  if (!products.length) {
+    return Swal.fire("Error", "Add products first", "error");
+  }
+
+  // Optional customer validation (NON-blocking)
+  if (
+    extra.customer?.phone &&
+    !/^[6-9]\d{9}$/.test(extra.customer.phone)
+  ) {
+    return Swal.fire(
+      "Invalid Phone",
+      "Please enter a valid 10-digit mobile number",
+      "warning"
+    );
+  }
+
+  setIsProcessing(true);
+
+  // Prepare payload
+  const payload = {
+    products: products.map((p) => ({
+      _id: p._id,
+      name: p.name,
+      price: p.basePrice ?? p.price,
+      quantity: p.quantity,
+      off: p.off,
+      barcode: p.barcode,
+      colorVariantId: p.selectedColorVariantId,
+    })),
     paymentMode,
-      clientTotal: Number(baseTotal.toFixed(2)),
-      discountPercent: Number(discount),
-      clientDiscountAmount: Number(discountAmount.toFixed(2)),
-    };
+    discountPercent: Number(discount),
+    clientDiscountAmount: Number(discountAmount.toFixed(2)),
+    ...(extra.customer ? { customer: extra.customer } : {}),
+  };
 
-    try {
-      // If UPI is selected, call the online/razorpay order creation endpoint
-      if (paymentMode === "UPI") {
-        const res = await axios.post(
-          "/api/payment/create-offline-order",
-          { ...payload, paymentMode: "UPI" }
-        );
-
-        const qr =
-          res?.data?.qrCode ||
-          res?.data?.qr ||
-          res?.data?.qr_url ||
-          res?.data?.payment_qr;
-        const upiUri =
-          res?.data?.upiUri || res?.data?.upi_uri || null;
-        const orderId =
-          res?.data?.order?._id || res?.data?.order?.id || null;
-        if (orderId) setCreatedOrderId(orderId);
-
-        if (qr) {
-          setQrUrl(qr);
-          setShowQrModal(true);
-        } else if (upiUri) {
-          setQrUrl("");
-          setShowQrModal(true);
-          Swal.fire(
-            "Info",
-            "UPI URI returned. Please copy it from the modal.",
-            "info"
-          );
-        } else {
-          Swal.fire(
-            "Error",
-            "UPI payment initiation failed. Server did not return QR or UPI URI.",
-            "error"
-          );
-        }
-
-        return; // stop here for UPI flow
-      }
-
-      // Default: offline (Cash)
+  try {
+    // =====================
+    // UPI FLOW
+    // =====================
+    if (paymentMode === "UPI") {
       const res = await axios.post(
         "/api/payment/create-offline-order",
         payload
       );
-      await printReceiptQZTray(res.data.saleDataForReceipt);
-      Swal.fire("Success", "Order created successfully", "success");
-      resetBillingFields();
-    } catch (err) {
-      console.error(err);
-      Swal.fire(
-        "Error",
-        err?.response?.data?.message || "Something went wrong",
-        "error"
-      );
+
+      const qr =
+        res?.data?.qrCode ||
+        res?.data?.qr ||
+        res?.data?.qr_url ||
+        res?.data?.payment_qr;
+
+      const upiUri =
+        res?.data?.upiUri || res?.data?.upi_uri || null;
+
+      const orderId =
+        res?.data?.order?._id || res?.data?.order?.id || null;
+
+      if (orderId) setCreatedOrderId(orderId);
+
+      if (qr) {
+        setQrUrl(qr);
+        setShowQrModal(true);
+      } else if (upiUri) {
+        setQrUrl("");
+        setShowQrModal(true);
+        Swal.fire(
+          "Info",
+          "UPI URI returned. Please copy it from the modal.",
+          "info"
+        );
+      } else {
+        Swal.fire(
+          "Error",
+          "UPI payment initiation failed.",
+          "error"
+        );
+      }
+
+      return; // stop flow here for UPI
     }
-  };
+
+    // =====================
+    // CASH FLOW
+    // =====================
+    const res = await axios.post(
+      "/api/payment/create-offline-order",
+      payload
+    );
+
+    await printReceiptQZTray(res.data.saleDataForReceipt);
+
+    Swal.fire("Success", "Order created successfully", "success");
+
+    resetBillingFields();
+  } catch (err) {
+    console.error(err);
+    Swal.fire(
+      "Error",
+      err?.response?.data?.message || "Something went wrong",
+      "error"
+    );
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
   return (
-    <div className="h-screen w-full bg-gray-100 px-8 py-6 flex flex-col gap-4">
+    <div className="min-h-screen w-full bg-gray-200 px-8 py-6 flex flex-col gap-4">
       <div className="text-2xl font-bold text-gray-800 mb-2">Billing</div>
 
       {/* 🖨️ QZ Tray Status + Printer Selection */}
@@ -575,18 +612,14 @@ const Billing = () => {
           <strong>QZ Tray Status:</strong>{" "}
           <span
             className={
-              qzStatus === "Connected"
-                ? "text-green-600"
-                : "text-red-600"
-            }
-          >
+              qzStatus === "Connected" ? "text-emerald-600" : "text-red-600"
+            }>
             {qzStatus}
           </span>
           {qzStatus !== "Connected" && (
             <button
               onClick={initQZ}
-              className="ml-4 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
+              className="ml-4 px-2 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700">
               Reconnect
             </button>
           )}
@@ -597,8 +630,7 @@ const Billing = () => {
           <select
             value={defaultPrinter}
             onChange={(e) => handlePrinterChange(e.target.value)}
-            className="px-3 py-2 border rounded bg-white"
-          >
+            className="px-3 py-2 border rounded bg-white outline-none">
             {printers.map((p) => (
               <option key={p} value={p}>
                 {p}
@@ -613,8 +645,7 @@ const Billing = () => {
         <select
           value={searchType}
           onChange={(e) => setSearchType(e.target.value)}
-          className="px-3 py-2 border rounded bg-white"
-        >
+          className="px-3 py-2 border rounded bg-white outline-none">
           <option value="barcode">Barcode</option>
           <option value="name">Name</option>
           <option value="sku">SKU</option>
@@ -635,59 +666,45 @@ const Billing = () => {
             setTimeout(() => setShowSuggestions(false), 150);
           }}
           placeholder={`Search by ${searchType}`}
-          className="px-3 py-2 border rounded flex-1"
+          className="px-3 py-2 border rounded outline-none focus:border-emerald-500 flex-1"
         />
         <button
           onClick={handleSearch}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-        >
+          className="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700">
           Search
         </button>
         {/* Suggestions dropdown (name / sku / all) */}
-        {showSuggestions &&
-          ["name", "sku", "all"].includes(searchType) && (
-            <div
-              className="absolute z-50 bg-white border rounded shadow-lg max-h-60 overflow-auto"
-              style={{ left: 0, right: 0, top: "100%", marginTop: "6px" }}
-            >
-              {suggestionsLoading ? (
-                <div className="p-2 text-sm text-gray-600">
-                  Loading...
-                </div>
-              ) : suggestions.length === 0 ? (
-                <div className="p-2 text-sm text-gray-600">
-                  No suggestions
-                </div>
-              ) : (
-                suggestions.map((s) => (
-                  <div
-                    key={s._id}
-                    onMouseDown={() => handleSuggestionClick(s)}
-                    className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                  >
-                    <div className="font-medium">
-                      {s.name}{" "}
-                      {s.matchedSKU
-                        ? `(SKU: ${s.matchedSKU})`
-                        : ""}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {s.company} —{" "}
-                      {s.Subcategory ||
-                        s.Maincategory ||
-                        ""}
-                    </div>
+        {showSuggestions && ["name", "sku", "all"].includes(searchType) && (
+          <div
+            className="absolute z-50 bg-white border rounded shadow-lg max-h-60 overflow-auto"
+            style={{ left: 0, right: 0, top: "100%", marginTop: "6px" }}>
+            {suggestionsLoading ? (
+              <div className="p-2 text-sm text-gray-600">Loading...</div>
+            ) : suggestions.length === 0 ? (
+              <div className="p-2 text-sm text-gray-600">No suggestions</div>
+            ) : (
+              suggestions.map((s) => (
+                <div
+                  key={s._id}
+                  onMouseDown={() => handleSuggestionClick(s)}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm">
+                  <div className="font-medium">
+                    {s.name} {s.matchedSKU ? `(SKU: ${s.matchedSKU})` : ""}
                   </div>
-                ))
-              )}
-            </div>
-          )}
+                  <div className="text-xs text-gray-500">
+                    {s.company} — {s.Subcategory || s.Maincategory || ""}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* 🧾 Product Table */}
-      <div className="overflow-x-auto bg-white rounded-lg">
+      <div className="bg-white border border-zinc-500 shadow-lg shadow-zinc-300">
         <table className="min-w-full table-auto">
-          <thead className="bg-gray-200">
+          <thead className="bg-zinc-700 text-white">
             <tr>
               <th className="px-4 py-2">Product</th>
               <th className="px-4 py-2">Options</th>
@@ -700,17 +717,18 @@ const Billing = () => {
             </tr>
           </thead>
           <tbody>
-            {products.map((p) => (
-              <tr key={p._id} className="text-center border-t">
+            {products.map((p, i) => (
+              <tr
+                key={p._id}
+                className={`text-center border-t ${
+                  i % 2 === 0 ? "bg-zinc-100/80" : "bg-zinc-200/80"
+                }`}>
                 <td className="px-4 py-2">{p.name}</td>
                 <td className="px-4 py-2">
                   <select
                     value={p.selectedColorVariantId}
-                    onChange={(e) =>
-                      updateColorVariant(p._id, e.target.value)
-                    }
-                    className="px-2 py-1 border rounded"
-                  >
+                    onChange={(e) => updateColorVariant(p._id, e.target.value)}
+                    className="px-2 py-1 border rounded">
                     {p.colorVariants.map((c) => (
                       <option key={c._id} value={c._id}>
                         {c.Colorname} (Stock: {c.stock})
@@ -734,33 +752,24 @@ const Billing = () => {
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-2">
-                  {Number(p.off || 0).toFixed(1)}%
-                </td>
-                <td className="px-4 py-2">
-                  ₹{Number(p.price).toFixed(2)}
-                </td>
+                <td className="px-4 py-2">{Number(p.off || 0).toFixed(1)}%</td>
+                <td className="px-4 py-2">₹{Number(p.price).toFixed(2)}</td>
                 <td>
                   <input
                     type="number"
                     min="1"
                     value={p.quantity}
-                    onChange={(e) =>
-                      updateQuantity(p._id, e.target.value)
-                    }
+                    onChange={(e) => updateQuantity(p._id, e.target.value)}
                     className="w-16 px-2 py-1 text-center border rounded"
                   />
                 </td>
                 <td>
-                  {(
-                    Number(p.price) * Number(p.quantity || 0)
-                  ).toFixed(2)}
+                  {(Number(p.price) * Number(p.quantity || 0)).toFixed(2)}
                 </td>
                 <td>
                   <button
                     onClick={() => deleteProduct(p._id)}
-                    className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
-                  >
+                    className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
                     Delete
                   </button>
                 </td>
@@ -778,17 +787,14 @@ const Billing = () => {
             <select
               value={paymentMode}
               onChange={(e) => setPaymentMode(e.target.value)}
-              className="ml-2 px-2 py-1 border rounded"
-            >
+              className="ml-2 px-2 py-1 border rounded">
               <option>Cash</option>
               <option>UPI</option>
             </select>
           </div>
 
           <div>
-            <label className="font-semibold">
-              Custom Discount (₹):
-            </label>
+            <label className="font-semibold">Custom Discount (₹):</label>
             <input
               type="number"
               min="0"
@@ -807,9 +813,7 @@ const Billing = () => {
               max="100"
               step="0.1"
               value={discountPercent}
-              onChange={(e) =>
-                setDiscountPercent(e.target.value)
-              }
+              onChange={(e) => setDiscountPercent(e.target.value)}
               className="ml-2 w-20 px-2 py-1 border rounded"
             />
           </div>
@@ -818,9 +822,7 @@ const Billing = () => {
         {/* 💵 Cash Drawer Section */}
         {paymentMode === "Cash" && (
           <div className="flex items-center gap-4 mt-3">
-            <label className="font-semibold text-lg">
-              Cash Given (₹):
-            </label>
+            <label className="font-semibold text-lg">Cash Given (₹):</label>
             <input
               type="number"
               value={cashGiven}
@@ -828,7 +830,7 @@ const Billing = () => {
               className="w-32 px-2 py-1 border rounded text-lg"
               placeholder="Enter amount"
             />
-            <span className="font-semibold text-lg text-green-700">
+            <span className="font-semibold text-lg text-emerald-700">
               Change: ₹{changeToGive.toFixed(2)}
             </span>
           </div>
@@ -845,9 +847,9 @@ const Billing = () => {
             Total After Discount: ₹{totalAmount.toFixed(2)}
           </div>
           <button
-            onClick={createOrder}
-            className="bg-green-600 px-8 py-2 rounded text-white text-xl font-semibold hover:bg-green-700"
-          >
+            disabled={isProcessing}
+            onClick={() => setShowCustomerModal(true)}
+            className="bg-emerald-600 px-8 py-2 rounded text-white text-xl font-semibold hover:bg-emerald-700">
             Pay
           </button>
         </div>
@@ -861,19 +863,14 @@ const Billing = () => {
               <h3 className="text-lg font-semibold">UPI Payment</h3>
               <button
                 onClick={() => setShowQrModal(false)}
-                className="text-gray-600 px-2 py-1 rounded hover:bg-gray-100"
-              >
+                className="text-gray-600 px-2 py-1 rounded hover:bg-gray-100">
                 Close
               </button>
             </div>
 
             {qrUrl ? (
               <div className="flex flex-col items-center">
-                <img
-                  src={qrUrl}
-                  alt="UPI QR"
-                  className="max-w-full h-auto"
-                />
+                <img src={qrUrl} alt="UPI QR" className="max-w-full h-auto" />
                 <p className="mt-2 text-sm text-gray-600">
                   Scan this QR with your UPI app to pay.
                 </p>
@@ -881,8 +878,8 @@ const Billing = () => {
             ) : (
               <div className="p-4 text-center text-sm text-gray-700">
                 <div className="break-all text-xs text-gray-800">
-                  No QR was returned by the server. If a UPI URI was
-                  returned, copy it from the server response.
+                  No QR was returned by the server. If a UPI URI was returned,
+                  copy it from the server response.
                 </div>
               </div>
             )}
@@ -891,22 +888,16 @@ const Billing = () => {
               <button
                 onClick={async () => {
                   if (!createdOrderId)
-                    return Swal.fire(
-                      "Error",
-                      "Order ID missing",
-                      "error"
-                    );
+                    return Swal.fire("Error", "Order ID missing", "error");
                   try {
                     setIsProcessing(true);
-                    const resp = await axios.post(
-                      "/api/payment/mark-paid",
-                      { orderId: createdOrderId, method: "UPI" }
-                    );
+                    const resp = await axios.post("/api/payment/mark-paid", {
+                      orderId: createdOrderId,
+                      method: "UPI",
+                    });
                     if (resp.data?.success) {
-                      const saleData =
-                        resp.data.saleDataForReceipt;
-                      if (saleData)
-                        await printReceiptQZTray(saleData);
+                      const saleData = resp.data.saleDataForReceipt;
+                      if (saleData) await printReceiptQZTray(saleData);
                       Swal.fire(
                         "Success",
                         "Payment confirmed and receipt printed",
@@ -917,8 +908,7 @@ const Billing = () => {
                     } else {
                       Swal.fire(
                         "Error",
-                        resp.data?.message ||
-                          "Failed to mark paid",
+                        resp.data?.message || "Failed to mark paid",
                         "error"
                       );
                     }
@@ -935,11 +925,73 @@ const Billing = () => {
                   }
                 }}
                 disabled={isProcessing}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              >
-                {isProcessing
-                  ? "Processing..."
-                  : "Confirm Paid & Print"}
+                className="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700">
+                {isProcessing ? "Processing..." : "Confirm Paid & Print"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showCustomerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg p-4 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-3">
+              Customer Information (Optional)
+            </h3>
+            <label htmlFor="customer-name">Customer Name</label>
+            <input
+              type="text"
+              id="customer-name"
+              placeholder="Customer Name"
+              value={customerInfo.name}
+              onChange={(e) =>
+                setCustomerInfo((p) => ({ ...p, name: e.target.value }))
+              }
+              className="w-full mb-3 px-3 py-2 border rounded"
+            />
+
+            <label htmlFor="customer-phone">Phone Number</label>
+            <input
+              type="tel"
+              id="customer-phone"
+              placeholder="Phone Number"
+              value={customerInfo.phone}
+              onChange={(e) =>
+                setCustomerInfo((p) => ({ ...p, phone: e.target.value }))
+              }
+              className="w-full px-3 py-2 border rounded"
+            />
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                className="px-4 py-2 border rounded hover:bg-gray-100 flex items-center gap-2"
+                onClick={() => setShowCustomerModal(false)}>
+                <FaArrowRight className="rotate-180" />
+                Back
+              </button>
+              <button
+                onClick={() => {
+                  setShowCustomerModal(false);
+                  createOrder(); // walk-in
+                }}
+                className="px-4 py-2 border rounded hover:bg-gray-100 flex items-center gap-2">
+                Skip
+                <FaArrowRight />
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowCustomerModal(false);
+                  createOrder({
+                    customer: {
+                      name: customerInfo.name || null,
+                      phone: customerInfo.phone || null,
+                    },
+                  });
+                }}
+                className="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700 flex items-center gap-2">
+                Save & Continue
+                <VscDebugContinue />
               </button>
             </div>
           </div>

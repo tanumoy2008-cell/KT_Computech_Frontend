@@ -3,104 +3,116 @@ import { motion } from "framer-motion";
 import {
   MdQrCodeScanner,
   MdReceiptLong,
-  MdLocalShipping,
-  MdDone,
-  MdReplay,
   MdCameraAlt,
   MdClose,
 } from "react-icons/md";
 import { BrowserMultiFormatReader } from "@zxing/browser";
+import { toast } from "react-toastify";
+import axios from "../config/axios";
 
 const DeliveryOrders = () => {
-  const orders = [];
-  const [filter, setFilter] = useState("all");
-
-  /* ================= BARCODE STATES ================= */
+  /* ================= STATES ================= */
   const [scannerOpen, setScannerOpen] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState("");
 
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [scannedOrder, setScannedOrder] = useState(null);
+
   const videoRef = useRef(null);
-  const controlsRef = useRef(null); // ✅ store controls, NOT reader
+  const controlsRef = useRef(null);
+  const scanLockRef = useRef(false); // 🔐 prevent double scan
 
   /* ================= START SCANNER ================= */
   const startScanning = () => {
+    scanLockRef.current = false;
     setScannerOpen(true);
   };
 
-  /* ================= INIT ZXING AFTER VIDEO RENDER ================= */
+  /* ================= STOP SCANNER ================= */
+  const stopScanning = () => {
+    if (controlsRef.current) {
+      controlsRef.current.stop();
+      controlsRef.current = null;
+    }
+    setScannerOpen(false);
+  };
+
+  /* ================= INIT SCANNER ================= */
   useEffect(() => {
     if (!scannerOpen || !videoRef.current) return;
 
     const codeReader = new BrowserMultiFormatReader();
 
     codeReader
-      .decodeFromVideoDevice(
-        null, // auto-select camera (back camera on mobile)
-        videoRef.current,
-        (result, err) => {
-          if (result) {
-            const scanned = result.getText();
-            setInvoiceNumber(scanned);
-            stopScanning();
-          }
+      .decodeFromVideoDevice(null, videoRef.current, (result) => {
+        if (result && !scanLockRef.current) {
+          scanLockRef.current = true; // 🔒 lock
+
+          const scanned = result.getText();
+          setInvoiceNumber(scanned);
+          stopScanning();
+
+          setTimeout(() => {
+            findOrder(scanned);
+          }, 300);
         }
-      )
-      .then((controls) => {
-        controlsRef.current = controls; // ✅ correct
       })
-      .catch((err) => {
-        console.error(err);
-        alert("Camera access failed");
+      .then((controls) => {
+        controlsRef.current = controls;
+      })
+      .catch(() => {
+        toast.error("Camera access failed");
       });
 
     return () => stopScanning();
   }, [scannerOpen]);
 
-  /* ================= STOP SCANNER ================= */
-  const stopScanning = () => {
-    if (controlsRef.current) {
-      controlsRef.current.stop(); // ✅ THIS IS THE FIX
-      controlsRef.current = null;
+  /* ================= FIND ORDER ================= */
+  const findOrder = async (orderId) => {
+    if (!orderId) {
+      return toast.error("Invoice number required");
     }
-    setScannerOpen(false);
+
+    try {
+      const res = await axios.post("/api/delivery/find-order", { orderId });
+
+      // 🔑 normalize backend response
+      const order = res.data?.data || res.data?.order || null;
+
+      if (res.data.success && order) {
+        setScannedOrder(order);
+        setConfirmModalOpen(true);
+      } else {
+        toast.error("Order not found");
+      }
+    } catch (error) {
+      console.error("Failed to find order:", error);
+      toast.error("Failed to find order");
+    }
   };
 
-  /* ================= FILTER ================= */
-  const statusConfig = {
-    shipped: {
-      label: "Shipped",
-      color: "bg-amber-400/20 text-amber-400 border-amber-400/30",
-      icon: <MdLocalShipping />,
-    },
-    completed: {
-      label: "Completed",
-      color: "bg-emerald-400/20 text-emerald-400 border-emerald-400/30",
-      icon: <MdDone />,
-    },
-    returned: {
-      label: "Returned",
-      color: "bg-red-400/20 text-red-400 border-red-400/30",
-      icon: <MdReplay />,
-    },
-  };
+  /* ================= CONFIRM ORDER ================= */
+  const confirmOrder = () => {
+    toast.success("Order accepted");
+    setConfirmModalOpen(false);
+    setScannedOrder(null);
+    setInvoiceNumber("");
 
-  const filteredOrders =
-    filter === "all"
-      ? orders
-      : orders.filter((o) => o.status === filter);
+    // 👉 call accept-order API here later
+  };
 
   return (
     <div className="h-fit text-white">
       {/* HEADER */}
       <h1 className="text-4xl font-extrabold mb-2">📦 Orders</h1>
       <p className="text-white/60 mb-10">
-        Take new orders & track your delivery history
+        Scan barcode or enter invoice to accept order
       </p>
 
-      {/* TAKE ORDER */}
+      {/* INPUT + SCAN */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-14">
-        {/* INVOICE */}
-        <div className="p-8 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/10">
+        {/* INVOICE INPUT */}
+        <div className="p-8 rounded-2xl bg-white/10 border border-white/10">
           <div className="flex items-center gap-4 mb-4">
             <div className="p-4 bg-emerald-500 text-black rounded-xl text-3xl">
               <MdReceiptLong />
@@ -116,14 +128,16 @@ const DeliveryOrders = () => {
                        focus:ring-2 focus:ring-emerald-500 outline-none text-lg"
           />
 
-          <button className="mt-6 w-full py-4 rounded-xl bg-emerald-500 text-black font-bold">
-            Accept Order
+          <button
+            onClick={() => findOrder(invoiceNumber)}
+            className="mt-6 w-full py-4 rounded-xl bg-emerald-500 text-black font-bold"
+          >
+            Find Order
           </button>
         </div>
 
         {/* SCAN */}
-        <div className="p-8 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-900/20
-                        border border-emerald-500/30">
+        <div className="p-8 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
           <div className="flex items-center gap-4 mb-4">
             <div className="p-4 bg-emerald-500 text-black rounded-xl text-3xl">
               <MdQrCodeScanner />
@@ -131,7 +145,6 @@ const DeliveryOrders = () => {
             <h2 className="text-2xl font-bold">Scan Bill Barcode</h2>
           </div>
 
-          {/* CAMERA PREVIEW */}
           <div className="relative h-48 rounded-xl overflow-hidden border border-emerald-400 mb-6">
             {scannerOpen ? (
               <>
@@ -142,9 +155,6 @@ const DeliveryOrders = () => {
                   playsInline
                   className="w-full h-full object-cover"
                 />
-
-                <div className="absolute inset-0 border-2 border-dashed border-emerald-400 m-6 rounded-lg pointer-events-none" />
-
                 <button
                   onClick={stopScanning}
                   className="absolute top-2 right-2 bg-black/60 p-2 rounded-full"
@@ -169,10 +179,70 @@ const DeliveryOrders = () => {
         </div>
       </div>
 
-      {filteredOrders.length === 0 && (
-        <p className="text-center text-white/40 mt-10">
-          No orders found for this status
-        </p>
+      {/* ================= CONFIRM MODAL ================= */}
+      {confirmModalOpen && scannedOrder && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center px-4">
+          <motion.div
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-zinc-900 w-full max-w-lg rounded-2xl p-6 border border-white/10"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">📦 Confirm Order</h2>
+              <button onClick={() => setConfirmModalOpen(false)}>
+                <MdClose />
+              </button>
+            </div>
+
+            <div className="text-sm text-white/80 space-y-1">
+              <p><b>Order:</b> {scannedOrder.orderNumber}</p>
+              <p><b>Customer:</b> {scannedOrder.customer?.name}</p>
+              <p><b>Payment:</b> {scannedOrder.paymentMode}</p>
+            </div>
+
+            <div className="mt-4 space-y-3 max-h-52 overflow-y-auto">
+              {scannedOrder.items.map((item) => (
+                <div
+                  key={item._id}
+                  className="flex items-center gap-3 bg-white/5 p-3 rounded-xl"
+                >
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-12 h-12 rounded-lg object-cover"
+                  />
+                  <div className="flex-1">
+                    <p className="font-semibold">{item.name}</p>
+                    <p className="text-xs text-white/60">
+                      Qty {item.qty} • ₹{item.total}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex justify-between text-lg font-bold">
+              <span>Total</span>
+              <span>₹{scannedOrder.total}</span>
+            </div>
+
+            <div className="mt-6 flex gap-4">
+              <button
+                onClick={() => setConfirmModalOpen(false)}
+                className="flex-1 py-3 rounded-xl bg-white/10"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={confirmOrder}
+                className="flex-1 py-3 rounded-xl bg-emerald-500 text-black font-bold"
+              >
+                Confirm Order
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
     </div>
   );

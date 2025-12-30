@@ -11,6 +11,7 @@ import {
   FaSpinner
 } from 'react-icons/fa';
 import axios from '../config/axios';
+import {env} from "../config/key"
 
 const Customer = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,6 +35,7 @@ const Customer = () => {
   });
 
   // Fetch customers from API
+  
   const fetchCustomers = useCallback(async () => {
     try {
       setLoading(prev => ({ ...prev, customers: true }));
@@ -44,7 +46,7 @@ const Customer = () => {
           search: searchTerm.trim()
         },
         headers: {
-          'x-admin-token': localStorage.getItem('adminToken')
+          [env.VITE_ADMIN_TOKEN_NAME] : localStorage.getItem('adminToken'),
         }
       });
       
@@ -134,7 +136,7 @@ const Customer = () => {
         {
           headers: {
             'Content-Type': 'application/json',
-            'x-admin-token': localStorage.getItem('adminToken')
+            [env.VITE_ADMIN_TOKEN_NAME] : localStorage.getItem('adminToken')
           }
         }
       );
@@ -189,7 +191,7 @@ const Customer = () => {
       
       const { data } = await axios.delete(`/api/customer/${customerId}`, {
         headers: {
-          'x-admin-token': localStorage.getItem('adminToken')
+          [env.VITE_ADMIN_TOKEN_NAME]: localStorage.getItem('adminToken')
         }
       });
       

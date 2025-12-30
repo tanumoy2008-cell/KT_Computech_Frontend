@@ -4,6 +4,7 @@ import axios from "../config/axios";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 import { FaSearch, FaFilter, FaTimes, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
+import { env } from "../config/key";
 
 const ITEMS_PER_PAGE = 10;
 const STATUS_FILTERS = [
@@ -55,7 +56,7 @@ const Order = () => {
         params,
         headers: {
           Authorization: authToken ? `Bearer ${authToken}` : undefined,
-          'x-admin-token': localStorage.getItem('adminToken')
+          [env.VITE_ADMIN_TOKEN_NAME]: localStorage.getItem('adminToken')
         }
       });
       
@@ -86,7 +87,7 @@ const Order = () => {
         { 
           headers: { 
             Authorization: `Bearer ${localStorage.getItem('token')}`,
-            'x-admin-token': localStorage.getItem('adminToken')
+            [env.VITE_ADMIN_TOKEN_NAME]: localStorage.getItem('adminToken')
           } 
         }
       );
@@ -209,7 +210,6 @@ const Order = () => {
           return '💰';
       }
     };
-
   const renderOrderCard = (order) => (
     <motion.div 
       key={order._id} 
@@ -485,7 +485,12 @@ const Order = () => {
         </div>
       ) : (
         <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Cards for small screens */}
+          <div className="sm:hidden grid gap-4 p-4">
+            {orders.map(renderOrderCard)}
+          </div>
+          {/* Table for larger screens */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>

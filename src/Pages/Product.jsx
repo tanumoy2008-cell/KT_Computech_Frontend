@@ -31,6 +31,7 @@ const Product = () => {
   const [firstLoad, setFirstLoad] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
   const limit = 12;
+  const searchTimerRef = useRef(null);
   // layoutMode: 'comfortable' | 'compact'
   const [layoutMode, setLayoutMode] = useState('comfortable');
   const scrollDivRef = useRef(null);
@@ -94,25 +95,56 @@ const Product = () => {
 
   // ======================= SMART SEARCH =======================
   useEffect(() => {
+    // If query cleared, show main items and ensure list is loaded
     if (!query || query.trim() === "") {
       setFilteredItems(items);
+      if (items.length === 0 && !isFetching) fetchData(true);
       return;
     }
 
+    const q = query.toLowerCase();
     const localResults = items.filter(
       (p) =>
-        p.name?.toLowerCase().includes(query.toLowerCase()) ||
-        p.company?.toLowerCase().includes(query.toLowerCase()) ||
-        p.Subcategory?.toLowerCase().includes(query.toLowerCase())
+        p.name?.toLowerCase().includes(q) ||
+        p.company?.toLowerCase().includes(q) ||
+        p.Subcategory?.toLowerCase().includes(q)
     );
 
-    if (localResults.length > 0) {
-      setFilteredItems(localResults);
-    } else if (!isFetching && items.length === 0) {
-      const delay = setTimeout(() => fetchData(true), 500);
-      return () => clearTimeout(delay);
-    }
-  }, [query, items]);
+    // Show local results immediately for snappy UI
+    setFilteredItems(localResults);
+
+    // Debounce backend search and merge results with local ones
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        setIsFetching(true);
+        const res = await axios.get(
+          `/api/product/productSend`,
+          {
+            params: { start: 0, limit: 15, query: q, Maincategory, Subcategory },
+          }
+        );
+
+        const backend = res.data.product || [];
+        const map = new Map();
+        // add local first (to keep order), then backend (if not present)
+        localResults.forEach((p) => map.set(p._id, p));
+        backend.forEach((p) => {
+          if (!map.has(p._id)) map.set(p._id, p);
+        });
+
+        setFilteredItems(Array.from(map.values()));
+      } catch (err) {
+        console.error("Search backend failed:", err);
+      } finally {
+        setIsFetching(false);
+      }
+    }, 350);
+
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [query, items, Maincategory, Subcategory]);
 
   // ======================= RESTORE SCROLL =======================
   useEffect(() => {

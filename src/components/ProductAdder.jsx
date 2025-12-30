@@ -4,8 +4,13 @@ import Cropper from "react-cropper";
 import "react-cropper/node_modules/cropperjs/dist/cropper.css";
 import axios from "../config/axios";
 import { toast } from "react-toastify";
-import { FiPlus, FiTrash2, FiX, FiDollarSign, FiTag, FiLayers, FiInfo, FiPackage, FiCode } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiX, FiLayers, FiInfo, FiPackage } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
+import { ImBarcode } from "react-icons/im";
+import { AiFillProduct } from "react-icons/ai";
+import { TbListDetails } from "react-icons/tb";
+import { LiaAudioDescriptionSolid } from "react-icons/lia";
+import {env} from "../config/key";
 
 // Animation variants
 const fadeIn = {
@@ -51,7 +56,7 @@ const ProductAdder = () => {
       try {
         const token = localStorage.getItem('adminToken');
         const res = await axios.get("/api/product/product-count", {
-          headers: { 'x-admin-token': token }
+          headers: { [env.VITE_ADMIN_TOKEN_NAME]: token }
         });
         setTotalProduct(res.data);
       } catch (error) {
@@ -109,7 +114,7 @@ const ProductAdder = () => {
   const addColorVariant = () => {
     setColorVariants((prev) => [
       ...prev,
-      { name: "", colorCode: "#ffffff", stock: 0, images: [] },
+      { name: "", colorCode: "#009966", stock: 0, images: [] },
     ]);
   };
 
@@ -169,7 +174,7 @@ const ProductAdder = () => {
       const res = await axios.post("/api/product/add", formData, {
         headers: { 
           'Content-Type': 'multipart/form-data',
-          'x-admin-token': token
+          [env.VITE_ADMIN_TOKEN_NAME]: token
         },
       });
 
@@ -186,14 +191,18 @@ const ProductAdder = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen w-full bg-gray-200 p-4 md:p-6 lg:p-8">
       {/* Header with Stats */}
       <div className="max-w-7xl mx-auto">
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-lg mb-8">
+        <div className="bg-gradient-to-tl from-emerald-600 to-green-600 rounded-2xl p-6 text-white shadow-lg mb-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">Product Management</h1>
-              <p className="text-blue-100">Add and manage your products with ease</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                Product Management
+              </h1>
+              <p className="text-blue-100">
+                Add and manage your products with ease
+              </p>
             </div>
             <div className="mt-4 md:mt-0 bg-white/20 backdrop-blur-sm rounded-xl p-4 text-center">
               <p className="text-sm text-blue-100">Total Products</p>
@@ -204,166 +213,228 @@ const ProductAdder = () => {
 
         {/* Main Form */}
         <AnimatePresence mode="wait">
-          <motion.div 
+          <motion.div
             initial="hidden"
             animate="visible"
             exit="exit"
             variants={fadeIn}
-            className="bg-white rounded-2xl shadow-xl overflow-hidden"
-          >
-            <div className="p-6 border-b border-gray-200">
+            className="bg-white rounded-2xl border border-black/20 shadow-md overflow-hidden">
+            <div className="p-6 border-b border-gray-300">
               <h2 className="text-2xl font-bold text-gray-800 flex items-center">
                 <FiPackage className="mr-2" />
                 Add New Product
               </h2>
-              <p className="text-gray-500 mt-1">Fill in the details below to add a new product</p>
+              <p className="text-gray-500 mt-1">
+                Fill in the details below to add a new product
+              </p>
             </div>
 
-            <form onSubmit={handleSubmit(formSubmit)} className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <form onSubmit={handleSubmit(formSubmit)} className="p-4">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
                 {/* Left Column - Product Details */}
                 <div className="lg:col-span-2 space-y-6">
                   {/* Basic Information */}
-                  <div className="bg-gray-50 p-6 rounded-xl">
+                  <div className="border p-6 rounded-xl">
                     <h3 className="text-lg font-semibold mb-4 flex items-center text-gray-700">
-                      <FiInfo className="mr-2" />
+                      <TbListDetails className="mr-2 mt-1" />
                       Basic Information
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Product Name
+                        </label>
                         <input
                           type="text"
-                          {...register("name", { required: "Product name is required" })}
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                            errors.name ? 'border-red-500' : 'border-gray-300'
+                          {...register("name", {
+                            required: "Product name is required",
+                          })}
+                          className={`w-full px-4 py-2 border rounded-lg transition-all outline-none duration-200 ${
+                            errors.name
+                              ? "border-rose-400"
+                              : "border-emerald-300"
                           }`}
-                          placeholder="e.g., Premium T-Shirt"
+                          placeholder="e.g., KT Product"
                         />
                         {errors.name && (
-                          <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+                          <p className="mt-1 text-sm text-rose-500">
+                            {errors.name.message}
+                          </p>
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Brand/Company</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Brand/Company
+                        </label>
                         <input
                           type="text"
-                          {...register("company", { required: "Company is required" })}
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                            errors.company ? 'border-red-500' : 'border-gray-300'
+                          {...register("company", {
+                            required: "Company is required",
+                          })}
+                          className={`w-full px-4 py-2 border rounded-lg outline-none transition-all duration-200 ${
+                            errors.company
+                              ? "border-rose-500"
+                              : "border-emerald-300"
                           }`}
-                          placeholder="e.g., Nike"
+                          placeholder="e.g., KT"
                         />
                         {errors.company && (
-                          <p className="mt-1 text-sm text-red-600">{errors.company.message}</p>
+                          <p className="mt-1 text-sm text-rose-500">
+                            {errors.company.message}
+                          </p>
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Price
+                        </label>
                         <input
                           type="number"
                           step="0.01"
-                          {...register("price", { required: "Price is required" })}
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                            errors.price ? 'border-red-500' : 'border-gray-300'
+                          {...register("price", {
+                            required: "Price is required",
+                          })}
+                          className={`w-full px-4 py-2 border rounded-lg outline-none transition-all duration-200 ${
+                            errors.price
+                              ? "border-rose-400"
+                              : "border-emerald-300"
                           }`}
                           placeholder="0.00"
                         />
                         {errors.price && (
-                          <p className="mt-1 text-sm text-red-600">{errors.price.message}</p>
+                          <p className="mt-1 text-sm text-rose-500">
+                            {errors.price.message}
+                          </p>
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Discount (%)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Discount (%)
+                        </label>
                         <input
                           type="number"
                           min="0"
                           max="100"
-                          {...register("off")}
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                            errors.off ? 'border-red-500' : 'border-gray-300'
+                          {...register("off", {
+                            valueAsNumber: true,
+                            min: {
+                              value: 0,
+                              message: "Discount cannot be negative",
+                            },
+                            max: {
+                              value: 90,
+                              message: "Discount cannot exceed 90%",
+                            },
+                          })}
+                          className={`w-full px-4 py-2 border rounded-lg outline-none transition-all duration-200 ${
+                            errors.off
+                              ? "border-rose-400"
+                              : "border-emerald-300"
                           }`}
                           placeholder="0"
                         />
                         {errors.off && (
-                          <p className="mt-1 text-sm text-red-600">{errors.off.message}</p>
+                          <p className="mt-1 text-sm text-red-600">
+                            {errors.off.message}
+                          </p>
                         )}
                       </div>
                     </div>
                   </div>
 
                   {/* Category Information */}
-                  <div className="bg-gray-50 p-6 rounded-xl">
+                  <div className="border p-6 rounded-xl">
                     <h3 className="text-lg font-semibold mb-4 flex items-center text-gray-700">
-                      <FiLayers className="mr-2" />
+                      <FiLayers className="mr-2 mt-1" />
                       Category
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Main Category</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Main Category
+                        </label>
                         <input
                           type="text"
-                          {...register("Maincategory", { required: "Main category is required" })}
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                            errors.Maincategory ? 'border-red-500' : 'border-gray-300'
+                          {...register("Maincategory", {
+                            required: "Main category is required",
+                          })}
+                          className={`w-full px-4 py-2 border rounded-lg outline-none transition-all duration-200 ${
+                            errors.Maincategory
+                              ? "border-rose-400"
+                              : "border-emerald-300"
                           }`}
-                          placeholder="e.g., Clothing"
+                          placeholder="e.g., Study"
                         />
                         {errors.Maincategory && (
-                          <p className="mt-1 text-sm text-red-600">{errors.Maincategory.message}</p>
+                          <p className="mt-1 text-sm text-rose-500">
+                            {errors.Maincategory.message}
+                          </p>
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Subcategory</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Subcategory
+                        </label>
                         <input
                           type="text"
-                          {...register("Subcategory", { required: "Subcategory is required" })}
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                            errors.Subcategory ? 'border-red-500' : 'border-gray-300'
+                          {...register("Subcategory", {
+                            required: "Subcategory is required",
+                          })}
+                          className={`w-full px-4 py-2 border rounded-lg outline-none transition-all duration-200 ${
+                            errors.Subcategory
+                              ? "border-rose-400"
+                              : "border-emerald-300"
                           }`}
-                          placeholder="e.g., T-Shirts"
+                          placeholder="e.g., Pencil"
                         />
                         {errors.Subcategory && (
-                          <p className="mt-1 text-sm text-red-600">{errors.Subcategory.message}</p>
+                          <p className="mt-1 text-sm text-rose-500">
+                            {errors.Subcategory.message}
+                          </p>
                         )}
                       </div>
                     </div>
                   </div>
 
                   {/* Description */}
-                  <div className="bg-gray-50 p-6 rounded-xl">
+                  <div className="border p-6 rounded-xl">
                     <h3 className="text-lg font-semibold mb-4 flex items-center text-gray-700">
-                      <FiInfo className="mr-2" />
+                      <LiaAudioDescriptionSolid className="mr-2 mt-1 h-6 w-6" />
                       Description
                     </h3>
                     <textarea
-                      {...register("productDescription", { required: "Product description is required" })}
-                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 min-h-[120px] ${
-                        errors.productDescription ? 'border-red-500' : 'border-gray-300'
+                      {...register("productDescription", {
+                        required: "Product description is required",
+                      })}
+                      className={`w-full px-4 py-2 border rounded-lg resize-none outline-none transition-all duration-200 min-h-[120px] ${
+                        errors.productDescription
+                          ? "border-rose-500"
+                          : "border-emerald-300"
                       }`}
                       placeholder="Enter detailed product description..."
                     />
                     {errors.productDescription && (
-                      <p className="mt-1 text-sm text-red-600">{errors.productDescription.message}</p>
+                      <p className="mt-1 text-sm text-rose-500">
+                        {errors.productDescription.message}
+                      </p>
                     )}
                   </div>
                 </div>
 
                 {/* Right Column - Variants and Images */}
-                <div className="space-y-6">
+                <div className="space-y-6 lg:col-span-2">
                   {/* Color Variants */}
-                  <div className="bg-gray-50 p-6 rounded-xl">
+                  <div className="p-6 border rounded-xl">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-semibold flex items-center text-gray-700">
-                        <FiLayers className="mr-2" />
+                        <AiFillProduct className="mr-2" />
                         Color Variants
                       </h3>
                       <button
                         type="button"
                         onClick={addColorVariant}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                      >
-                        <FiPlus className="h-3 w-3 mr-1" /> Add Variant
+                        className="inline-flex items-center p-3 text-xs font-medium rounded-xl shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 outline-none transition-colors">
+                        <FiPlus className="h-4 w-4 mr-1" /> Add Variant
                       </button>
                     </div>
 
@@ -372,23 +443,25 @@ const ProductAdder = () => {
                         <div className="text-center py-6 text-gray-500">
                           <FiLayers className="mx-auto h-8 w-8 text-gray-300 mb-2" />
                           <p>No variants added yet</p>
-                          <p className="text-sm mt-1">Click 'Add Variant' to get started</p>
+                          <p className="text-sm mt-1">
+                            Click 'Add Variant' to get started
+                          </p>
                         </div>
                       ) : (
                         colorVariants.map((cv, idx) => (
-                          <motion.div 
+                          <motion.div
                             key={idx}
                             variants={fadeIn}
-                            className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm"
-                          >
+                            className="bg-white p-4 rounded-lg border shadow-sm">
                             <div className="flex justify-between items-center mb-3">
-                              <h4 className="font-medium text-gray-700">Variant {idx + 1}</h4>
+                              <h4 className="font-medium text-gray-700">
+                                Variant {idx + 1}
+                              </h4>
                               <button
                                 type="button"
                                 onClick={() => removeColorVariant(idx)}
                                 className="text-red-500 hover:text-red-700 transition-colors"
-                                title="Remove variant"
-                              >
+                                title="Remove variant">
                                 <FiTrash2 className="h-4 w-4" />
                               </button>
                             </div>
@@ -396,7 +469,9 @@ const ProductAdder = () => {
                             <div className="space-y-3">
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Color Name</label>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Color Name
+                                  </label>
                                   <input
                                     type="text"
                                     value={cv.name}
@@ -405,49 +480,56 @@ const ProductAdder = () => {
                                       newVariants[idx].name = e.target.value;
                                       setColorVariants(newVariants);
                                     }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full px-3 py-2 border rounded-md outline-none shadow-sm border-emerald-500"
                                     placeholder="e.g., Red"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Color Code</label>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Color Code
+                                  </label>
                                   <div className="flex items-center">
                                     <input
                                       type="color"
                                       value={cv.colorCode}
                                       onChange={(e) => {
                                         const newVariants = [...colorVariants];
-                                        newVariants[idx].colorCode = e.target.value;
+                                        newVariants[idx].colorCode =
+                                          e.target.value;
                                         setColorVariants(newVariants);
                                       }}
-                                      className="h-10 w-10 rounded border border-gray-300 mr-2"
+                                      className="h-10 w-10 rounded border border-emerald-300 mr-2"
                                     />
                                     <input
                                       type="text"
                                       value={cv.colorCode}
                                       onChange={(e) => {
                                         const newVariants = [...colorVariants];
-                                        newVariants[idx].colorCode = e.target.value;
+                                        newVariants[idx].colorCode =
+                                          e.target.value;
                                         setColorVariants(newVariants);
                                       }}
-                                      className="flex-1 min-w-0 block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                      className="flex-1 min-w-0 block w-full px-3 py-2 rounded-md border border-emerald-300 shadow-sm outline-none"
                                     />
                                   </div>
                                 </div>
                               </div>
 
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Stock
+                                </label>
                                 <input
                                   type="number"
                                   min="0"
                                   value={cv.stock}
                                   onChange={(e) => {
                                     const newVariants = [...colorVariants];
-                                    newVariants[idx].stock = parseInt(e.target.value) || 0;
+                                    newVariants[idx].stock =
+                                      parseInt(e.target.value) || 0;
                                     setColorVariants(newVariants);
                                   }}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                  className="w-full px-3 py-2 border border-emerald-300 rounded-md shadow-sm outline-none"
                                   placeholder="Quantity in stock"
                                 />
                               </div>
@@ -459,18 +541,23 @@ const ProductAdder = () => {
                                 </label>
                                 <div className="flex flex-wrap gap-3">
                                   {cv.images?.map((img, imgIdx) => (
-                                    <div key={imgIdx} className="relative group">
+                                    <div
+                                      key={imgIdx}
+                                      className="relative group">
                                       <img
                                         src={img.preview}
-                                        alt={`Variant ${idx + 1} - ${imgIdx + 1}`}
-                                        className="w-20 h-20 object-cover rounded-md border border-gray-200"
+                                        alt={`Variant ${idx + 1} - ${
+                                          imgIdx + 1
+                                        }`}
+                                        className="w-20 h-20 object-cover rounded-md border border-emerald-200"
                                       />
                                       <button
                                         type="button"
-                                        onClick={() => removeVariantImage(idx, imgIdx)}
+                                        onClick={() =>
+                                          removeVariantImage(idx, imgIdx)
+                                        }
                                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title="Remove image"
-                                      >
+                                        title="Remove image">
                                         <FiX className="h-3 w-3" />
                                       </button>
                                     </div>
@@ -478,8 +565,7 @@ const ProductAdder = () => {
                                   <button
                                     type="button"
                                     onClick={() => handleAddVariantImage(idx)}
-                                    className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-md text-gray-400 hover:text-blue-500 hover:border-blue-400 transition-colors"
-                                  >
+                                    className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-emerald-300 rounded-md text-emerald-400 hover:text-emerald-500 hover:border-emerald-400 transition-colors">
                                     <FiPlus className="h-6 w-6 mb-1" />
                                     <span className="text-xs">Add Image</span>
                                   </button>
@@ -493,40 +579,44 @@ const ProductAdder = () => {
                   </div>
 
                   {/* Barcodes */}
-                  <div className="bg-gray-50 p-6 rounded-xl">
+                  <div className="p-6 rounded-xl border">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-semibold flex items-center text-gray-700">
-                        <FiCode className="mr-2" />
-                        Barcodes / SKUs
+                        <ImBarcode className="mr-2 mt-1" />
+                        Barcodes
                       </h3>
                       <button
                         type="button"
                         onClick={addBarcode}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                      >
-                        <FiPlus className="h-3 w-3 mr-1" /> Add Barcode
+                        className="inline-flex items-center p-3 text-xs font-medium rounded-xl shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 outline-none transition-colors">
+                        <FiPlus className="h-4 w-4 mr-1" /> Add Barcode
                       </button>
                     </div>
 
                     <div className="space-y-2">
                       {barcodes.length === 0 ? (
-                        <p className="text-sm text-gray-500 text-center py-2">No barcodes added yet</p>
+                        <p className="text-sm text-gray-500 text-center py-2">
+                          No barcodes added yet
+                        </p>
                       ) : (
                         barcodes.map((barcode, barcodeIdx) => (
                           <div key={barcodeIdx} className="flex items-center">
                             <input
                               type="text"
                               value={barcode}
-                              onChange={(e) => updateBarcode(barcodeIdx, e.target.value)}
-                              className="flex-1 min-w-0 block w-full px-3 py-2 rounded-l-md border border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="Enter barcode or SKU"
+                              onChange={(e) =>
+                                updateBarcode(barcodeIdx, e.target.value)
+                              }
+                              className="flex-1 min-w-0 block w-full px-3 py-2 rounded-l-md border-2 border-emerald-300 outline-none shadow-sm focus:border-emerald-500"
+                              placeholder={`Enter Barcode No. ${
+                                barcodeIdx + 1
+                              }`}
                             />
                             <button
                               type="button"
                               onClick={() => removeBarcode(barcodeIdx)}
-                              className="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 rounded-r-md"
-                            >
-                              <FiX className="h-4 w-4" />
+                              className="inline-flex items-center px-3 py-2 border-2 border-l-0 border-emerald-300 bg-white text-gray-700 hover:text-white hover:bg-rose-400 hover:border-rose-400 transition-colors outline-none rounded-r-md">
+                              <FiX className="h-6 w-4" />
                             </button>
                           </div>
                         ))
@@ -538,20 +628,32 @@ const ProductAdder = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className={`w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                      isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
-                    }`}
-                  >
+                    className={`w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 outline-none ${
+                      isSubmitting ? "opacity-70 cursor-not-allowed" : ""
+                    }`}>
                     {isSubmitting ? (
                       <span className="flex items-center justify-center">
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        <svg
+                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24">
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                         Adding Product...
                       </span>
                     ) : (
-                      'Add Product'
+                      "Add Product"
                     )}
                   </button>
                 </div>
@@ -582,8 +684,7 @@ const ProductAdder = () => {
                   setShowCropper(false);
                   setRawImage(null);
                 }}
-                className="text-gray-400 hover:text-gray-500"
-              >
+                className="text-gray-400 hover:text-gray-500">
                 <FiX className="h-6 w-6" />
               </button>
             </div>
@@ -592,7 +693,7 @@ const ProductAdder = () => {
                 <Cropper
                   ref={cropperRef}
                   src={rawImage}
-                  style={{ height: '100%', width: '100%' }}
+                  style={{ height: "100%", width: "100%" }}
                   aspectRatio={NaN}
                   viewMode={1}
                   guides={true}
@@ -612,15 +713,13 @@ const ProductAdder = () => {
                   setShowCropper(false);
                   setRawImage(null);
                 }}
-                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mr-3"
-              >
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mr-3">
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleCropDone}
-                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                 Crop & Apply
               </button>
             </div>

@@ -13,6 +13,7 @@ import {
   selectToken
 } from '../Store/reducers/AdminReducer';
 import axios from '../config/axios';
+import { env } from "../config/key";
 
 const AdminAuth = ({ requiredRoles = [] }) => {
   const dispatch = useDispatch();
@@ -85,7 +86,7 @@ const AdminAuth = ({ requiredRoles = [] }) => {
       console.error('Authentication check failed:', err);
       localStorage.removeItem('adminToken');
       // Clear axios header as well (safe-guard)
-      try { delete axios.defaults.headers.common['x-admin-token']; } catch (e) {}
+      try { delete axios.defaults.headers.common[env.VITE_ADMIN_TOKEN_NAME]; } catch (e) {}
       navigate('/admin/login', { 
         state: { 
           from: location.pathname,

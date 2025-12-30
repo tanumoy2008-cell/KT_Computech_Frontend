@@ -4,6 +4,7 @@ import { toast } from 'react-toastify'
 import axios from '../config/axios'
 import { motion } from 'framer-motion'
 import { FiShoppingBag, FiArrowLeft, FiLoader, FiCheckCircle, FiCreditCard } from 'react-icons/fi'
+import { env } from "../config/key";
 
 const OrderPayment = () => {
   const location = useLocation();
@@ -110,7 +111,7 @@ const OrderPayment = () => {
       const payTotal = (serverOrder && typeof serverOrder.total === 'number') ? serverOrder.total : totals.total
       const amountINR = Math.round(Number(payTotal || 0) * 100)
 
-      const key = import.meta.env.VITE_RAZORPAY_KEY || 'rzp_test_placeholder';
+      const key = env.VITE_RAZORPAY_KEY || 'rzp_test_placeholder';
       if (!key || key === 'rzp_test_placeholder') {
         toast.error('Razorpay key not configured. Set VITE_RAZORPAY_KEY env variable or window.__RAZORPAY_KEY__')
         setIsProcessing(false)

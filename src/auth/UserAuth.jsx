@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import axios from "../config/axios";
 import { useDispatch, useSelector } from "react-redux";
 import { authData } from "../Store/reducers/UserReducer";
+import { env } from '../config/key'
 
 const UserAuth = () => {
     const dispatch = useDispatch()
@@ -14,9 +15,9 @@ const UserAuth = () => {
   try {
     const userToken = localStorage.getItem('userToken');
     if (userToken) {
-      axios.defaults.headers.common['x-user-token'] = userToken;
+      axios.defaults.headers.common[env.VITE_USER_TOKEN_NAME] = userToken;
     } else {
-      delete axios.defaults.headers.common['x-user-token'];
+      delete axios.defaults.headers.common[env.VITE_USER_TOKEN_NAME];
     }
   } catch (e) {
     /* ignore */
@@ -33,12 +34,12 @@ const UserAuth = () => {
           currentUser = res.data.metaData;
           // if server returned a token in response body or header, persist it
           const tokenFromBody = res.data?.token;
-          const tokenFromHeader = res.headers?.['x-user-token'];
+          const tokenFromHeader = res.headers?.[env.VITE_USER_TOKEN_NAME];
           const tokenToUse = tokenFromBody || tokenFromHeader;
           if (tokenToUse) {
             try {
               localStorage.setItem('userToken', tokenToUse);
-              axios.defaults.headers.common['x-user-token'] = tokenToUse;
+              axios.defaults.headers.common[env.VITE_USER_TOKEN_NAME] = tokenToUse;
             } catch (e) {
               /* ignore */
             }

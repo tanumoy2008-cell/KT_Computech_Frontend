@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { FaPaperPlane, FaPhone, FaEnvelope, FaMapMarkerAlt, FaFacebook, FaTwitter, FaInstagram, FaLinkedin } from "react-icons/fa";
 import { motion } from "framer-motion";
+import Footer from "../components/Footer";
 
 const Contact = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -290,19 +291,7 @@ const Contact = () => {
       </div>
 
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8">
-        <div className="container mx-auto px-4 text-center">
-          <p> {new Date().getFullYear()} Your Company Name. All rights reserved.</p>
-          <div className="mt-2 text-sm text-gray-400">
-            <a href="#" className="hover:text-white transition-colors duration-200 mx-2">Privacy Policy</a>
-            <span>•</span>
-            <a href="#" className="hover:text-white transition-colors duration-200 mx-2">Terms of Service</a>
-            <span>•</span>
-            <a href="#" className="hover:text-white transition-colors duration-200 mx-2">Contact Us</a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

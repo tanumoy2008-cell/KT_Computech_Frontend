@@ -1,5 +1,7 @@
 import React from "react";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+import sc from "../assets/WhatsApp Image 2025-12-15 at 8.04.50 PM.webp";
 const team = [
   {
     name: "Tanumoy Ghosh",
@@ -17,7 +19,7 @@ const team = [
     name: "Suvam Chakraborti",
     role: "Head of Development",
     bio: "Builds and maintains the technical backbone for our online shop and integrations.",
-    img: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=880"
+    img: sc
   }
 ];
 
@@ -168,12 +170,7 @@ const About = () => {
         </div>
       </section>
 
-      <footer className="bg-white border-t py-6">
-        <div className="max-w-6xl mx-auto px-6 lg:px-8 text-sm text-gray-600 flex flex-col sm:flex-row justify-between">
-          <div>© {new Date().getFullYear()} KT Computech Stationery — All rights reserved.</div>
-          <div className="mt-2 sm:mt-0">Support: ktcomputechs@gmail.com</div>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 };

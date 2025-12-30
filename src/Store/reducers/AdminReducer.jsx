@@ -1,12 +1,13 @@
 import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import axios from '../../config/axios';
+import {env} from "../../config/key"
 
 // Helper function to set auth token in axios defaults
 const setAuthToken = (token) => {
   if (token) {
-    axios.defaults.headers.common['x-admin-token'] = token;
+    axios.defaults.headers.common[env.VITE_ADMIN_TOKEN_NAME] = token;
   } else {
-    delete axios.defaults.headers.common['x-admin-token'];
+    delete axios.defaults.headers.common[env.VITE_ADMIN_TOKEN_NAME];
   }
 };
 
@@ -94,7 +95,7 @@ export const fetchAdminProfile = createAsyncThunk(
     } catch (error) {
       if (error.response?.status === 401) {
         localStorage.removeItem('adminToken');
-        delete axios.defaults.headers.common['x-admin-token'];
+        delete axios.defaults.headers.common[env.VITE_ADMIN_TOKEN_NAME];
       }
       return rejectWithValue(
         error.response?.data?.message || 
@@ -115,7 +116,7 @@ export const logout = createAsyncThunk(
       console.error('Logout error:', error);
     } finally {
       localStorage.removeItem('adminToken');
-      delete axios.defaults.headers.common['x-admin-token'];
+      delete axios.defaults.headers.common[env.VITE_ADMIN_TOKEN_NAME];
       return {};
     }
   }
@@ -206,7 +207,7 @@ const adminSlice = createSlice({
       state.token = null;
       state.error = action.payload;
       localStorage.removeItem('adminToken');
-      delete axios.defaults.headers.common['x-admin-token'];
+      delete axios.defaults.headers.common[env.VITE_ADMIN_TOKEN_NAME];
     });
 
     // Logout

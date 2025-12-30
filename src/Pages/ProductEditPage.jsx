@@ -5,17 +5,26 @@ import "react-cropper/node_modules/cropperjs/dist/cropper.css";
 import axios from "../config/axios";
 import { useNavigate, useParams } from "react-router-dom";
 import Swal from "sweetalert2";
+import { useDispatch } from "react-redux";
+import { upsertProduct as upsertPublic } from "../Store/reducers/ProductReducer";
+import { upsertProduct as upsertAdmin } from "../Store/reducers/AdminProductReducer";
+import { BiData } from "react-icons/bi";
+import { MdBarcodeReader } from "react-icons/md";
+import { LiaAudioDescriptionSolid } from "react-icons/lia";
+import { AiFillProduct } from "react-icons/ai";
 
 const ProductEditPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const fileRef = useRef(null);
+  const fileRefs = useRef([]);
   const cropperRef = useRef(null);
 
   const [product, setProduct] = useState({});
   const [rawImage, setRawImage] = useState(null);
   const [showCropper, setShowCropper] = useState(false);
   const [currentVariantIndex, setCurrentVariantIndex] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { register, handleSubmit, setValue, control, reset, watch } = useForm({
     defaultValues: {
@@ -34,6 +43,7 @@ const ProductEditPage = () => {
 
   const colorVariants = watch("colorVariants") || [];
   const barcodes = watch("barcodes") || [];
+  const dispatch = useDispatch();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -71,9 +81,11 @@ const ProductEditPage = () => {
         });
 
         setProduct(p);
+        setIsLoading(false);
       } catch (err) {
         console.error(err);
         Swal.fire("Error", "Failed to fetch product details", "error");
+        setIsLoading(false);
       }
     };
 
@@ -107,20 +119,19 @@ const ProductEditPage = () => {
   };
 
   const removeVariantImage = (variantIndex, imgIndex) => {
-  const updatedVariants = [...colorVariants];
-  const removedImage = updatedVariants[variantIndex].images[imgIndex];
-  updatedVariants[variantIndex].images.splice(imgIndex, 1);
-  
-  // Add to removed images array
-  if (removedImage.public_id) {
-    updatedVariants.removedImages = [
-      ...(updatedVariants.removedImages || []),
-      removedImage.public_id
-    ];
-  }
-  
-  setValue("colorVariants", updatedVariants);
-};
+    const updatedVariants = [...colorVariants];
+    const removedImage = updatedVariants[variantIndex].images[imgIndex];
+    updatedVariants[variantIndex].images.splice(imgIndex, 1);
+
+    // Add removed image id to a shared removedImages array on the colorVariants payload
+    if (removedImage?.public_id) {
+      const arr = [...(updatedVariants.removedImages || [])];
+      arr.push(removedImage.public_id);
+      updatedVariants.removedImages = arr;
+    }
+
+    setValue("colorVariants", updatedVariants);
+  };
 
   const addColorVariant = () => {
     setValue("colorVariants", [
@@ -149,6 +160,7 @@ const ProductEditPage = () => {
 
   const formSubmit = async (data) => {
     try {
+      setIsSubmitting(true);
       // Validate color variants
       for (let i = 0; i < data.colorVariants.length; i++) {
         if (!data.colorVariants[i].Colorname) {
@@ -219,33 +231,117 @@ const ProductEditPage = () => {
 
       if (res.status === 200) {
         Swal.fire("Success", "Product updated successfully", "success");
+        // Try to extract updated product from common response shapes
+        const updated = res.data?.newProduct || res.data?.updatedProduct || res.data?.product || res.data;
+        if (updated && updated._id) {
+          try {
+            dispatch(upsertPublic(updated));
+            dispatch(upsertAdmin(updated));
+          } catch (e) {
+            console.warn("Failed to upsert product into store", e);
+          }
+        }
         navigate("/admin/products");
       }
     } catch (err) {
       console.error("Update error:", err);
       Swal.fire("Error", err.response?.data?.message || "Failed to update product", "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="min-h-screen w-full bg-gray-400 py-10 px-6 md:px-20">
-      <form onSubmit={handleSubmit(formSubmit)} className="space-y-6">
-        {/* Product Info */}
-        <div className="bg-white p-6 rounded-xl shadow-md space-y-4">
-          <h2 className="text-2xl font-semibold text-gray-700">Product Info</h2>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 to-slate-100 py-12 px-6 md:px-20 text-slate-800">
+        <div className="max-w-5xl mx-auto space-y-6">
+          <div className="h-6 w-1/3 bg-slate-200 rounded animate-pulse" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input {...register("name")} placeholder="Product Name" className="border rounded px-3 py-2 w-full" />
-            <input {...register("company")} placeholder="Company" className="border rounded px-3 py-2 w-full" />
-            <input {...register("Subcategory")} placeholder="Subcategory" className="border rounded px-3 py-2 w-full" />
-            <input {...register("Maincategory")} placeholder="Maincategory" className="border rounded px-3 py-2 w-full" />
-            <input {...register("off")} type="number" placeholder="Discount %" className="border rounded px-3 py-2 w-full" />
-            <input {...register("price")} type="number" placeholder="Price" className="border rounded px-3 py-2 w-full" />
+            <div className="h-40 bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 animate-pulse" />
+            <div className="h-40 bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 animate-pulse" />
+          </div>
+          <div className="h-32 bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen w-full bg-white py-4 px-6 md:px-10 text-slate-800">
+      <form
+        onSubmit={handleSubmit(formSubmit)}
+        className="space-y-6"
+        aria-live="polite">
+        {/* Product Info */}
+        <div className="bg-white p-6 rounded-2xl shadow-xl space-y-4 border border-slate-300">
+          <h2 className="text-2xl flex gap-x-1 font-semibold pb-2 text-slate-800 uppercase italic border-b-4 border-zinc-400 border-double w-fit px-4">
+            <BiData className="mt-1 h-7 w-7" />
+            {product.name} Basic info
+          </h2>
+          <p className="text-sm text-slate-500">Basic details and pricing</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+            <label className="flex flex-col text-sm text-gray-700">
+              <span className="mb-1">Product Name</span>
+              <input
+                {...register("name")}
+                placeholder="Product Name"
+                className="border border-slate-400 rounded-lg px-3 py-2 w-full bg-zinc-200 outline-none focus:bg-white transition duration-300"
+              />
+            </label>
+            <label className="flex flex-col text-sm text-gray-700">
+              <span className="mb-1">Company</span>
+              <input
+                {...register("company")}
+                placeholder="Company"
+                className="border border-slate-400 rounded-lg px-3 py-2 w-full bg-zinc-200 outline-none focus:bg-white transition duration-300"
+              />
+            </label>
+            <label className="flex flex-col text-sm text-gray-700">
+              <span className="mb-1">Subcategory</span>
+              <input
+                {...register("Subcategory")}
+                placeholder="Subcategory"
+                className="border border-slate-400 rounded-lg px-3 py-2 w-full bg-zinc-200 outline-none focus:bg-white transition duration-300"
+              />
+            </label>
+            <label className="flex flex-col text-sm text-gray-700">
+              <span className="mb-1">Maincategory</span>
+              <input
+                {...register("Maincategory")}
+                placeholder="Maincategory"
+                className="border border-slate-400 rounded-lg px-3 py-2 w-full bg-zinc-200 outline-none focus:bg-white transition duration-300"
+              />
+            </label>
+            <label className="flex flex-col text-sm text-gray-700">
+              <span className="mb-1">Discount %</span>
+              <input
+                {...register("off")}
+                type="number"
+                placeholder="Discount %"
+                className="border border-slate-400 rounded-lg px-3 py-2 w-full bg-zinc-200 outline-none focus:bg-white transition duration-300"
+              />
+            </label>
+            <label className="flex flex-col text-sm text-gray-700">
+              <span className="mb-1">Price</span>
+              <input
+                {...register("price")}
+                type="number"
+                placeholder="Price"
+                className="border border-slate-400 rounded-lg px-3 py-2 w-full bg-zinc-200 outline-none focus:bg-white transition duration-300"
+              />
+            </label>
           </div>
         </div>
 
         {/* Barcodes */}
-        <div className="bg-white p-6 rounded-xl shadow-md space-y-3">
-          <h2 className="text-xl font-semibold text-gray-700">Barcodes</h2>
+        <div className="bg-white p-6 rounded-2xl shadow-xl space-y-3 border border-slate-300">
+          <h2 className="text-xl font-semibold border-b-4 uppercase italic px-4 pb-2 border-double w-fit border-zinc-400 text-slate-800 flex gap-x-1">
+            <MdBarcodeReader className="mt-1 h-6 w-6" />
+            Barcode's
+          </h2>
+          <p className="text-sm text-slate-500">
+            Add or remove barcodes for this product
+          </p>
           {barcodes.map((b, i) => (
             <div key={i} className="flex gap-2 items-center">
               <input
@@ -253,77 +349,207 @@ const ProductEditPage = () => {
                 value={b}
                 onChange={(e) => updateBarcode(i, e.target.value)}
                 placeholder="Barcode"
-                className="flex-1 border rounded px-3 py-2"
+                className="flex-1 border border-slate-400 rounded-lg px-3 py-2 bg-zinc-200 outline-none focus:bg-white transition duration-300"
               />
-              <button type="button" onClick={() => removeBarcode(i)} className="bg-red-500 px-3 py-1 rounded text-white">Remove</button>
+              <button
+                type="button"
+                onClick={() => removeBarcode(i)}
+                className="bg-rose-500 px-3 py-1 rounded text-white hover:bg-rose-600 transition">
+                Remove
+              </button>
             </div>
           ))}
-          <button type="button" onClick={addBarcode} className="bg-green-500 px-4 py-2 rounded text-white mt-2">Add Barcode</button>
+          <button
+            type="button"
+            onClick={addBarcode}
+            className="bg-emerald-500 px-4 py-2 rounded-lg text-white mt-2 hover:bg-emerald-600 transition">
+            Add Barcode
+          </button>
         </div>
 
         {/* Description */}
-        <div className="bg-white p-6 rounded-xl shadow-md">
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">Description</h2>
-          <textarea {...register("productDescription")} placeholder="Description #..." className="w-full border rounded px-3 py-2 h-32" />
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-300">
+          <h2 className="text-xl font-semibold text-slate-700 border-b-4 border-double border-zinc-400 px-4 pb-2 flex gap-x-1 w-fit italic uppercase mb-2">
+            <LiaAudioDescriptionSolid className="mt-1 w-7 h-7" />
+            Description
+          </h2>
+          <textarea
+            {...register("productDescription")}
+            placeholder="Description #..."
+            className="w-full border border-slate-400 rounded-lg px-3 py-2 h-32 bg-zinc-200 resize-none outline-none focus:bg-white transition duration-300"
+          />
         </div>
 
         {/* Color Variants */}
-        <div className="bg-white p-6 rounded-xl shadow-md space-y-4">
-          <h2 className="text-xl font-semibold text-gray-700">Color Variants</h2>
-          {colorVariants.map((cv, idx) => (
-            <div key={idx} className="bg-gray-50 p-4 rounded-lg shadow-sm space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Variant {idx + 1}</span>
-                <button type="button" onClick={() => removeColorVariant(idx)} className="bg-red-500 px-3 py-1 rounded text-white">Remove</button>
-              </div>
+        <div className="bg-white p-6 rounded-2xl shadow-xl space-y-4 border border-slate-300">
+          <h2 className="text-xl font-semibold flex gap-x-1 border-b-4 border-double border-zinc-400 uppercase italic w-fit px-4 pb-2 text-slate-700">
+            <AiFillProduct className="mt-1 w-7 h-7" />
+            Color Variants
+          </h2>
+          <div className="grid grid-cols-3 gap-4">
+            {colorVariants.map((cv, idx) => (
+              <div
+                key={idx}
+                className="bg-white border border-black/30 shadow-xl w-full p-4 rounded-xl space-y-3 ring-1 ring-slate-100 transition-transform duration-500 hover:-translate-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-slate-700">
+                    Variant {idx + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeColorVariant(idx)}
+                    className="bg-rose-500 px-3 py-1 rounded text-white hover:bg-rose-600 transition">
+                    Remove
+                  </button>
+                </div>
 
-              <input type="text" value={cv.Colorname} onChange={(e) => {
-                const updated = [...colorVariants];
-                updated[idx].Colorname = e.target.value;
-                setValue("colorVariants", updated);
-              }} placeholder="Color Name" className="border rounded px-3 py-2 w-full mb-2" />
+                <input
+                  type="text"
+                  value={cv.Colorname}
+                  onChange={(e) => {
+                    const updated = [...colorVariants];
+                    updated[idx].Colorname = e.target.value;
+                    setValue("colorVariants", updated);
+                  }}
+                  placeholder="Color Name"
+                  className="rounded-lg border border-slate-400 px-3 py-2 w-full mb-2 bg-zinc-200 outline-none focus:bg-white transition duration-300"
+                />
 
-              <div className="flex items-center gap-4">
-                <input type="color" value={cv.colorCode} onChange={(e) => {
-                  const updated = [...colorVariants];
-                  updated[idx].colorCode = e.target.value;
-                  setValue("colorVariants", updated);
-                }} className="w-12 h-12 rounded-full border" />
-                <input type="number" placeholder="Stock" value={cv.stock} onChange={(e) => {
-                  const updated = [...colorVariants];
-                  updated[idx].stock = Number(e.target.value);
-                  setValue("colorVariants", updated);
-                }} className="border rounded px-3 py-2 w-24" />
-              </div>
-
-              <div className="flex gap-2 flex-wrap mt-2">
-                {cv.images.map((img, i) => (
-                  <div key={i} className="relative w-20 h-20 rounded overflow-hidden border">
-                    <img src={img.preview || img.url} className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => removeVariantImage(idx, i)} className="absolute top-0 right-0 bg-red-500 px-1 rounded text-white">X</button>
+                <div className="flex items-center gap-4">
+                  <div className="w-full h-12 overflow-hidden border-2 px-1 py-1 border-zinc-300">
+                    <input
+                      type="color"
+                      value={cv.colorCode}
+                      onChange={(e) => {
+                        const updated = [...colorVariants];
+                        updated[idx].colorCode = e.target.value;
+                        setValue("colorVariants", updated);
+                      }}
+                      className="w-full h-full"
+                    />
                   </div>
-                ))}
-                <div onClick={() => fileRef.current.click()} className="w-20 h-20 bg-gray-200 flex items-center justify-center cursor-pointer rounded text-gray-700">+ Add</div>
-                <Controller name="file" control={control} render={({ field }) => (
-                  <input ref={fileRef} type="file" accept="image/*" onChange={(e) => handleImageChange(e, idx)} className="hidden" />
-                )} />
+                  <input
+                    type="number"
+                    placeholder="Stock"
+                    value={cv.stock}
+                    onChange={(e) => {
+                      const updated = [...colorVariants];
+                      updated[idx].stock = Number(e.target.value);
+                      setValue("colorVariants", updated);
+                    }}
+                    className="rounded-lg border border-slate-400 px-3 py-2 w-full bg-zinc-200 outline-none focus:bg-white transition duration-300"
+                  />
+                </div>
+
+                <div className="flex gap-2 flex-wrap mt-2 items-center">
+                  {cv.images.map((img, i) => (
+                    <div
+                      key={i}
+                      className="relative w-20 h-20 rounded overflow-hidden border">
+                      <img
+                        src={img.preview || img.url}
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeVariantImage(idx, i)}
+                        className="absolute top-1 right-1 bg-rose-500 px-2 rounded text-white">
+                        X
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    aria-label={`Add image for variant ${idx + 1}`}
+                    onClick={() => fileRefs.current[idx]?.click()}
+                    className="w-20 h-20 bg-white border-2 border-dashed border-slate-400 flex items-center justify-center cursor-pointer rounded text-slate-600 hover:bg-slate-200 transition">
+                    + Add
+                  </button>
+                  <Controller
+                    name={`file-${idx}`}
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        ref={(el) => (fileRefs.current[idx] = el)}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleImageChange(e, idx)}
+                        className="hidden"
+                      />
+                    )}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
-          <button type="button" onClick={addColorVariant} className="bg-green-500 px-4 py-2 rounded text-white mt-2">Add Color Variant</button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={addColorVariant}
+            className="bg-emerald-500 px-4 py-2 rounded-lg text-white mt-2 hover:bg-emerald-600 transition">
+            Add Color Variant
+          </button>
         </div>
 
-        <button type="submit" className="bg-blue-500 px-6 py-3 text-white rounded-xl text-lg shadow-md hover:bg-blue-600">Update Product</button>
-        <button type="button" onClick={() => navigate(-1)} className="bg-zinc-500 px-8 py-3 ml-5 text-white rounded-xl text-lg shadow-md hover:bg-zinc-700">Cancel</button>
+        <div className="flex items-center gap-4">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            aria-disabled={isSubmitting}
+            className={`flex items-center gap-3 ${
+              isSubmitting
+                ? "bg-emerald-400 cursor-wait"
+                : "bg-emerald-600 hover:bg-teal-700"
+            } px-6 py-3 text-white rounded-xl text-lg shadow transition`}>
+            {isSubmitting && (
+              <svg
+                className="animate-spin h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24">
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+              </svg>
+            )}
+            <span>{isSubmitting ? "Updating..." : "Update Product"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="bg-slate-500 px-6 py-3 text-white rounded-xl text-lg shadow hover:bg-slate-600 transition">
+            Cancel
+          </button>
+        </div>
       </form>
 
       {showCropper && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-          <div className="relative w-[90vw] max-w-2xl bg-white rounded-lg p-4">
-            <h2 className="text-gray-700 font-semibold mb-2">Crop Image</h2>
-            <Cropper ref={cropperRef} src={rawImage} style={{ height: 400, width: "100%" }} aspectRatio={NaN} guides viewMode={1} background={false} autoCropArea={1} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+          <div className="relative w-[90vw] max-w-2xl bg-white rounded-2xl p-4 ring-1 ring-slate-200 shadow-lg">
+            <h2 className="text-slate-700 font-semibold mb-2">Crop Image</h2>
+            <Cropper
+              ref={cropperRef}
+              src={rawImage}
+              style={{ height: 400, width: "100%" }}
+              aspectRatio={NaN}
+              guides
+              viewMode={1}
+              background={false}
+              autoCropArea={1}
+            />
             <div className="flex justify-end mt-2">
-              <button onClick={handleCropDone} className="px-4 py-2 bg-blue-500 rounded text-white hover:bg-blue-600">Done</button>
+              <button
+                onClick={handleCropDone}
+                className="px-4 py-2 bg-teal-600 rounded text-white hover:bg-teal-700 transition">
+                Done
+              </button>
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import axios from "../../config/axios";
 // 🔍 Async thunk to fetch products from API only if needed
 export const fetchProducts = createAsyncThunk(
   "products/fetchProducts",
-  async ({ start = 0, limit = 20, query = "", Maincategory = "", Subcategory = "" }, { getState }) => {
+  async ({ start = 0, limit = 15, query = "", Maincategory = "", Subcategory = "" }, { getState }) => {
     const { ProductReducer } = getState();
 
     // ✅ 1. If searching and already found locally, skip API
@@ -17,12 +17,12 @@ export const fetchProducts = createAsyncThunk(
       }
     }
 
-    // ✅ 2. Otherwise, fetch from backend
-    const res = await axios.get("/product", {
+    // ✅ 2. Otherwise, fetch from backend (use productSend admin/public endpoint)
+    const res = await axios.get("/api/product/productSend", {
       params: { start, limit, Maincategory, Subcategory, query },
     });
 
-    return { products: res.data.products || [], fromCache: false };
+    return { products: res.data.product || [], fromCache: false };
   }
 );
 
@@ -86,6 +86,17 @@ const productSlice = createSlice({
       state.scrollY = 0;
       state.query = "";
     },
+    // Upsert a single product into the items list (replace or insert)
+    upsertProduct: (state, action) => {
+      const prod = action.payload;
+      if (!prod || !prod._id) return;
+      const idx = state.items.findIndex((p) => p._id === prod._id);
+      if (idx === -1) {
+        state.items = [prod, ...state.items];
+      } else {
+        state.items[idx] = { ...state.items[idx], ...prod };
+      }
+    },
   },
 
   // Handle async thunk lifecycle
@@ -123,6 +134,7 @@ export const {
   setScrollY,
   clearScrollY,
   resetProducts,
+  upsertProduct,
 } = productSlice.actions;
 
 export const ProductReducer = productSlice.reducer;

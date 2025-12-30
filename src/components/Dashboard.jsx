@@ -29,8 +29,6 @@ const Dashboard = () => {
     },
   });
 
-  const formData = watch();
-
   const onSubmit = async (data) => {
     try {
       const updatedFields = {};
@@ -91,7 +89,7 @@ const Dashboard = () => {
         <div className="flex flex-col items-center gap-y-1">
           <button
             onClick={() => setEditMode(true)}
-            className="flex gap-x-2 items-center bg-emerald-600 hover:bg-emerald-700 transition px-4 py-2 rounded-lg text-white shadow-2xl shadow-black"
+            className="flex gap-x-2 items-center bg-emerald-600 hover:bg-emerald-700 transition px-4 py-2 rounded-lg text-white shadow-lg shadow-zinc-400"
           >
             <GoPencil className="text-lg" />
             <span>Edit Profile</span>

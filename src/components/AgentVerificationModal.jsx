@@ -2,7 +2,6 @@ import { motion } from "framer-motion";
 import {
   MdVerifiedUser,
   MdUploadFile,
-  MdHourglassTop,
   MdCancel,
   MdCameraAlt,
   MdReplay,
@@ -10,7 +9,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import axios from "../config/axios";
 import { toast } from "react-toastify";
-import Processing from '../assets/Processing.json'
+import Processing from "../assets/Processing.json";
 import Lottie from "lottie-react";
 
 const AgentVerificationModal = ({
@@ -31,18 +30,36 @@ const AgentVerificationModal = ({
   const canUpload = status === "pending" || status === "reupload";
 
   /* ======================================================
-     OPEN CAMERA (ONLY GET STREAM)
+     OPEN CAMERA (FORCE FRONT CAMERA)
   ====================================================== */
   const openCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
+        video: {
+          facingMode: { exact: "user" }, // 🔥 FORCE FRONT CAMERA
+          width: { ideal: 720 },
+          height: { ideal: 1280 },
+        },
+        audio: false,
       });
+
       streamRef.current = stream;
       setCameraOpen(true);
     } catch (err) {
-      console.error(err);
-      toast.error(err.name || "Camera permission denied");
+      console.warn("Exact front camera failed, falling back...", err);
+
+      // Fallback (important for some browsers)
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+        streamRef.current = fallbackStream;
+        setCameraOpen(true);
+      } catch (fallbackErr) {
+        console.error(fallbackErr);
+        toast.error("Camera permission denied");
+      }
     }
   };
 
@@ -72,13 +89,18 @@ const AgentVerificationModal = ({
     canvas.height = video.videoHeight;
 
     const ctx = canvas.getContext("2d");
+
+    // Un-mirror image while saving
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0);
 
     canvas.toBlob((blob) => {
+      if (!blob) return;
       const file = new File([blob], "face.jpg", { type: "image/jpeg" });
       setFaceImage(file);
       closeCamera();
-    }, "image/jpeg");
+    }, "image/jpeg", 0.9);
   };
 
   /* ======================================================
@@ -86,7 +108,7 @@ const AgentVerificationModal = ({
   ====================================================== */
   const closeCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
     setCameraOpen(false);
@@ -152,7 +174,7 @@ const AgentVerificationModal = ({
 
           {/* RIGHT */}
           <div className="p-8 md:col-span-2">
-            {/* REUPLOAD REASON */}
+            {/* REUPLOAD */}
             {status === "reupload" && (
               <div className="mb-5 p-4 rounded-xl bg-amber-500/10 border border-amber-400">
                 <p className="font-semibold text-amber-300">
@@ -167,28 +189,13 @@ const AgentVerificationModal = ({
             {/* UPLOAD */}
             {canUpload && (
               <>
-                <div className="flex items-center gap-4 mb-6">
-                  <MdUploadFile className="text-4xl text-emerald-400" />
-                  <div>
-                    <h3 className="text-xl font-bold">
-                      {status === "reupload"
-                        ? "Re-upload Documents"
-                        : "Upload Documents"}
-                    </h3>
-                    <p className="text-white/60 text-sm">
-                      Live face photo + Aadhaar PDF
-                    </p>
-                  </div>
-                </div>
-
-                {/* FACE */}
                 <div className="mb-5">
                   {!faceImage ? (
                     <button
                       onClick={openCamera}
                       className="w-full py-3 rounded-xl bg-emerald-500 text-black font-semibold flex items-center justify-center gap-2"
                     >
-                      <MdCameraAlt /> Open Camera
+                      <MdCameraAlt /> Open Front Camera
                     </button>
                   ) : (
                     <div className="flex items-center gap-4">
@@ -207,7 +214,6 @@ const AgentVerificationModal = ({
                   )}
                 </div>
 
-                {/* AADHAAR */}
                 <input
                   type="file"
                   accept="application/pdf"
@@ -224,25 +230,23 @@ const AgentVerificationModal = ({
                       : "bg-emerald-500 hover:bg-emerald-400 text-black"
                   }`}
                 >
-                  {loading
-                    ? "Uploading..."
-                    : status === "reupload"
-                    ? "Re-submit Documents"
-                    : "Submit Documents"}
+                  {loading ? "Uploading..." : "Submit Documents"}
                 </button>
               </>
             )}
 
             {/* PROCESSING */}
             {status === "processing" && (
-                <div className="flex flex-col items-center justify-center text-emerald-400">
-                  <h1 className="text-2xl font-bold">Your Data is on Processing...</h1>
-                  <Lottie
+              <div className="flex flex-col items-center text-emerald-400">
+                <h1 className="text-2xl font-bold">
+                  Your Data is Processing...
+                </h1>
+                <Lottie
                   animationData={Processing}
-                  loop={true}
+                  loop
                   className="w-48 h-48"
                 />
-                </div>
+              </div>
             )}
 
             {/* REJECTED */}

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import axios from "../config/axios";
 import JsBarcode from "jsbarcode";
 import { toast } from "react-toastify";
+import {env} from "../config/key"
 
 const STORAGE_KEY = "tspl_safe_scales_v3";
 
@@ -111,7 +112,7 @@ export default function BarcodePrint() {
 
         if (window.qz?.security) {
           window.qz.security.setCertificatePromise((resolve) =>
-            resolve(process.env.REACT_APP_QZ_CERTIFICATE || "")
+            resolve(env.REACT_APP_QZ_CERTIFICATE || "")
           );
         }
         if (!window.qz.websocket?.isActive?.()) {

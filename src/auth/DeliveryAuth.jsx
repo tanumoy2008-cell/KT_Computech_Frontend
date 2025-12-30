@@ -13,6 +13,7 @@ import {
   initializeAuth,
   setLoading,
 } from '../Store/reducers/DeliveryReducer';
+import { env } from "../config/key"
 
 const DeliveryAuth = () => {
   const dispatch = useDispatch();
@@ -44,7 +45,7 @@ const DeliveryAuth = () => {
       setDeliveryAuthToken(token);
       // debug: ensure token is set on axios defaults
       console.debug('DeliveryAuth: token', token);
-      console.debug('DeliveryAuth: axios header', axios.defaults.headers.common['x-delivery-token']);
+      console.debug('DeliveryAuth: axios header', axios.defaults.headers.common[env.VITE_DELIVERY_TOKEN_NAME]);
     } catch (e) {
       /* ignore */
     }
