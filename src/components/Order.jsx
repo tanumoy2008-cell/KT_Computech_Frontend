@@ -61,7 +61,7 @@ const Order = () => {
       });
       
       setOrders(response.data.orders || []);
-      setTotalOrders(response.data.total || 0);
+      setTotalOrders(response.data.orders.length);
     } catch (error) {
       console.error("Error fetching orders:", error);
       const errorMessage = error.response?.data?.message || "Failed to load orders. Please try again.";

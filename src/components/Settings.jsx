@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import Cropper from 'react-cropper';
+import 'react-cropper/node_modules/cropperjs/dist/cropper.css';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { FiEye, FiEyeOff, FiUser, FiMail, FiLock, FiGlobe } from 'react-icons/fi';
 import { toast } from 'react-toastify';
@@ -19,12 +21,33 @@ const Settings = () => {
   const newPassword = watchPassword('newPassword');
   // Separate form instance for shop settings to avoid field name collisions
   const { register: registerShop, handleSubmit: handleSubmitShop, formState: { errors: shopErrors }, reset: resetShop, control, watch: watchShop } = useForm({
-    defaultValues: { phoneNumber: [{ number: '' }] }
-  });
+  defaultValues: { 
+    phoneNumber: [{ number: '' }],
+    state: '',
+    city: ''
+  }
+});
   const { fields: phoneFields, append: appendPhone, remove: removePhone } = useFieldArray({
     control,
     name: 'phoneNumber'
   });
+  const { fields: teamFields, append: appendTeam, remove: removeTeam } = useFieldArray({
+    control,
+    name: 'team'
+  });
+  const { fields: serviceFields, append: appendService, remove: removeService } = useFieldArray({
+    control,
+    name: 'services'
+  });
+
+  // Team image cropper state
+  const [teamRawImage, setTeamRawImage] = useState(null);
+  const [teamShowCropper, setTeamShowCropper] = useState(false);
+  const teamCropperRef = useRef(null);
+  const [currentTeamIndex, setCurrentTeamIndex] = useState(null);
+  const teamFileInputRef = useRef(null);
+  const [teamImageFiles, setTeamImageFiles] = useState([]);
+  const [teamImagePreviews, setTeamImagePreviews] = useState([]);
 
   useEffect(() => {
     // Load admin data
@@ -46,7 +69,7 @@ const Settings = () => {
 
     const fetchShopSettings = async () => {
       try {
-        const res = await axios.get('/api/admin/shop-settings');
+        const res = await axios.get('/api/shop/shop-settings');
         if (res.data && res.data.data) {
           setShopData(res.data.data);
           resetShop({
@@ -57,11 +80,27 @@ const Settings = () => {
             phoneNumber: Array.isArray(res.data.data.phoneNumber) && res.data.data.phoneNumber.length
               ? res.data.data.phoneNumber.map(p => ({ number: String(p) }))
               : [{ number: '' }],
+            team: Array.isArray(res.data.data.team) && res.data.data.team.length
+              ? res.data.data.team.map(t => ({ name: t.name || '', role: t.role || '', bio: t.bio || '', img: t.img || '' }))
+              : [],
+            services: Array.isArray(res.data.data.services) && res.data.data.services.length
+              ? res.data.data.services.map(s => ({ title: s.title || '', desc: s.desc || '' }))
+              : [],
             email: res.data.data.email || '',
-            pincode: res.data.data.pincode || ''
+            pincode: res.data.data.pincode || '',
+            state: res.data.data.state || '',
+            city: res.data.data.city || '',
           });
           if (res.data.data.logo) {
             setLogoPreview(res.data.data.logo);
+          }
+          // initialize team image previews/files
+          if (Array.isArray(res.data.data.team)) {
+            setTeamImagePreviews(res.data.data.team.map(t => t.img || null));
+            setTeamImageFiles(res.data.data.team.map(() => null));
+          } else {
+            setTeamImagePreviews([]);
+            setTeamImageFiles([]);
           }
         }
       } catch (err) {
@@ -151,6 +190,44 @@ const Settings = () => {
     if (logoInputRef.current) logoInputRef.current.value = '';
   };
 
+  const handleTeamFileSelected = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setTeamRawImage(URL.createObjectURL(file));
+    setTeamShowCropper(true);
+  };
+
+  const handleTeamCropDone = () => {
+    const cropper = teamCropperRef.current?.cropper;
+    if (!cropper || currentTeamIndex === null) return;
+
+    cropper.getCroppedCanvas({ width: 500, height: 500 }).toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], `team_${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+      setTeamImageFiles(prev => {
+        const next = [...(prev || [])];
+        next[currentTeamIndex] = file;
+        return next;
+      });
+
+      setTeamImagePreviews(prev => {
+        const next = [...(prev || [])];
+        next[currentTeamIndex] = URL.createObjectURL(blob);
+        return next;
+      });
+
+      setTeamRawImage(null);
+      setTeamShowCropper(false);
+      if (teamFileInputRef.current) teamFileInputRef.current.value = '';
+    }, 'image/jpeg', 0.9);
+  };
+
+  const openTeamFileDialog = (idx) => {
+    setCurrentTeamIndex(idx);
+    teamFileInputRef.current?.click();
+  };
+
   const onSubmitShopSettings = async (data) => {
     try {
       setIsLoading(true);
@@ -165,6 +242,17 @@ const Settings = () => {
       // backend expects phoneNumber as an array — extract numbers from objects
       const phones = (data.phoneNumber || []).map(item => String(item.number || '').trim()).filter(p => p !== '');
       formData.append('phoneNumber', JSON.stringify(phones));
+      // team and services (send as JSON strings)
+      const teamToSend = (data.team || []).map((t, idx) => ({
+        name: t.name || '',
+        role: t.role || '',
+        bio: t.bio || '',
+        // if a new file is provided, send empty img so backend will use uploaded file
+        img: teamImageFiles[idx] ? '' : (t.img || teamImagePreviews[idx] || '')
+      }));
+      const servicesToSend = (data.services || []).map(s => ({ title: s.title || '', desc: s.desc || '' }));
+      formData.append('team', JSON.stringify(teamToSend));
+      formData.append('services', JSON.stringify(servicesToSend));
       formData.append('email', data.email || '');
       // pincode stored as number in backend schema — send numeric value when possible
       if (data.pincode !== undefined && data.pincode !== '') {
@@ -172,8 +260,15 @@ const Settings = () => {
       } else {
         formData.append('pincode', '');
       }
+      formData.append('state', data.state || '');
+      formData.append('city', data.city || '');
 
-      const res = await axios.put('/api/admin/shop-settings', formData, {
+      // append team image files (if any)
+      (teamImageFiles || []).forEach((f) => {
+        if (f) formData.append('teamImages', f);
+      });
+
+      const res = await axios.put('/api/shop/shop-settings', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -188,7 +283,7 @@ const Settings = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div className="w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col md:flex-row gap-8">
         {/* Sidebar */}
         <div className="w-full md:w-64 flex-shrink-0">
@@ -256,8 +351,7 @@ const Settings = () => {
                   "Update your account profile information."}
                 {currentTab === "password" &&
                   "Ensure your account is using a long, random password to stay secure."}
-                {currentTab === "shop" &&
-                  "Manage your Shop settings."}
+                {currentTab === "shop" && "Manage your Shop settings."}
               </p>
             </div>
 
@@ -379,22 +473,26 @@ const Settings = () => {
                     </div>
 
                     <div>
-                      <label
-                        className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Phone Number(s)
                       </label>
                       <div className="flex flex-col gap-2">
                         {phoneFields.map((field, index) => (
-                          <div key={field.id} className="flex items-center gap-2">
+                          <div
+                            key={field.id}
+                            className="flex items-center gap-2">
                             <input
                               id={`phoneNumberShop-${index}`}
                               type="tel"
                               {...registerShop(`phoneNumber.${index}.number`, {
                                 pattern: {
                                   value: /^[0-9]{10}$/,
-                                  message: 'Enter 10 digit phone',
+                                  message: "Enter 10 digit phone",
                                 },
-                                required: index === 0 ? 'Phone number is required' : false,
+                                required:
+                                  index === 0
+                                    ? "Phone number is required"
+                                    : false,
                               })}
                               defaultValue={field.number}
                               className="p-2 flex-1 rounded-md border-2 outline-none border-black shadow-sm focus:border-emerald-700"
@@ -412,7 +510,7 @@ const Settings = () => {
                               {index === phoneFields.length - 1 && (
                                 <button
                                   type="button"
-                                  onClick={() => appendPhone({ number: '' })}
+                                  onClick={() => appendPhone({ number: "" })}
                                   className="px-3 py-2 bg-emerald-600 text-white rounded">
                                   Add
                                 </button>
@@ -421,11 +519,15 @@ const Settings = () => {
                           </div>
                         ))}
                       </div>
-                      {shopErrors.phoneNumber && Array.isArray(shopErrors.phoneNumber) && shopErrors.phoneNumber.map((err, i) => (
-                        err?.number ? (
-                          <p key={i} className="mt-2 text-sm text-red-600">{err.number.message}</p>
-                        ) : null
-                      ))}
+                      {shopErrors.phoneNumber &&
+                        Array.isArray(shopErrors.phoneNumber) &&
+                        shopErrors.phoneNumber.map((err, i) =>
+                          err?.number ? (
+                            <p key={i} className="mt-2 text-sm text-red-600">
+                              {err.number.message}
+                            </p>
+                          ) : null
+                        )}
                     </div>
                   </div>
 
@@ -433,7 +535,8 @@ const Settings = () => {
                     <label
                       htmlFor="description"
                       className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
+                      Description (# for heading, {"<br>"} for breaking line, {">>"} for highlight heading, -
+                      for buletpoint)
                     </label>
                     <textarea
                       id="description"
@@ -469,48 +572,222 @@ const Settings = () => {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-                    <div>
-                      <label
-                        htmlFor="emailShop"
-                        className="block text-sm font-medium text-gray-700 mb-1">
-                        Email
-                      </label>
-                      <input
-                        id="emailShop"
-                        type="email"
-                        {...registerShop("email")}
-                        className="p-2  block w-full rounded-md border-2 outline-none border-black shadow-sm focus:border-emerald-700"
-                      />
-                      {shopErrors.email && (
-                        <p className="mt-2 text-sm text-red-600">
-                          {shopErrors.email.message}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* backend doesn't include alternatePhoneNumber in current schema */}
-
-                    <div>
-                      <label
-                        htmlFor="pincode"
-                        className="block text-sm font-medium text-gray-700 mb-1">
-                        Pincode
-                      </label>
-                      <input
-                        id="pincode"
-                        type="number"
-                        {...registerShop("pincode")}
-                        className="p-2  block w-full rounded-md border-2 outline-none border-black shadow-sm focus:border-emerald-700"
-                      />
-                      {shopErrors.pincode && (
-                        <p className="mt-2 text-sm text-red-600">
-                          {shopErrors.pincode.message}
-                        </p>
+                  {/* Services editable list */}
+                  <div className="mt-4">
+                    <h4 className="text-md font-medium mb-2">Services</h4>
+                    <div className="flex flex-col gap-3">
+                      {serviceFields.map((field, index) => (
+                        <div key={field.id} className="p-3 border rounded">
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                            <input
+                              type="text"
+                              placeholder="Title"
+                              {...registerShop(`services.${index}.title`)}
+                              defaultValue={field.title}
+                              className="p-2 rounded border-2 outline-none"
+                            />
+                            <textarea
+                              placeholder="Description"
+                              {...registerShop(`services.${index}.desc`)}
+                              defaultValue={field.desc}
+                              className="p-2 rounded border-2 outline-none col-span-2"
+                            />
+                          </div>
+                          <div className="mt-2 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => removeService(index)}
+                              className="px-3 py-1 bg-red-600 text-white rounded">
+                              Remove
+                            </button>
+                            {index === serviceFields.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  appendService({ title: "", desc: "" })
+                                }
+                                className="px-3 py-1 bg-emerald-600 text-white rounded">
+                                Add
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {serviceFields.length === 0 && (
+                        <button
+                          type="button"
+                          onClick={() => appendService({ title: "", desc: "" })}
+                          className="px-3 py-2 bg-emerald-600 text-white rounded">
+                          Add first service
+                        </button>
                       )}
                     </div>
                   </div>
 
+                  {/* Team editable list */}
+                  <div className="mt-4">
+                    <h4 className="text-md font-medium mb-2">Team</h4>
+                    <div className="flex flex-col gap-3">
+                      {teamFields.map((field, index) => (
+                        <div key={field.id} className="p-3 border rounded">
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                            <input
+                              type="text"
+                              placeholder="Name"
+                              {...registerShop(`team.${index}.name`)}
+                              defaultValue={field.name}
+                              className="p-2 rounded border-2 outline-none"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Role"
+                              {...registerShop(`team.${index}.role`)}
+                              defaultValue={field.role}
+                              className="p-2 rounded border-2 outline-none"
+                            />
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 h-20 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+                                {teamImagePreviews[index] ? (
+                                  <img
+                                    src={teamImagePreviews[index]}
+                                    alt={`team-${index}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <span className="text-xs text-gray-400">
+                                    No image
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-col">
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => openTeamFileDialog(index)}
+                                    className="px-3 py-1 bg-emerald-600 text-white rounded">
+                                    Upload
+                                  </button>
+                                  {teamImagePreviews[index] && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        // remove preview and staged file
+                                        setTeamImagePreviews((prev) => {
+                                          const next = [...(prev || [])];
+                                          next[index] = null;
+                                          return next;
+                                        });
+                                        setTeamImageFiles((prev) => {
+                                          const next = [...(prev || [])];
+                                          next[index] = null;
+                                          return next;
+                                        });
+                                        // also clear the form value for img
+                                        // registerShop keeps value in form state; we update it to empty
+                                      }}
+                                      className="px-3 py-1 bg-red-600 text-white rounded">
+                                      Remove
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-2">
+                            <textarea
+                              placeholder="Bio"
+                              {...registerShop(`team.${index}.bio`)}
+                              defaultValue={field.bio}
+                              className="p-2 rounded border-2 outline-none w-full"
+                            />
+                          </div>
+                          <div className="mt-2 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => removeTeam(index)}
+                              className="px-3 py-1 bg-red-600 text-white rounded">
+                              Remove
+                            </button>
+                            {index === teamFields.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  appendTeam({
+                                    name: "",
+                                    role: "",
+                                    bio: "",
+                                    img: "",
+                                  })
+                                }
+                                className="px-3 py-1 bg-emerald-600 text-white rounded">
+                                Add
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {teamFields.length === 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            appendTeam({ name: "", role: "", bio: "", img: "" })
+                          }
+                          className="px-3 py-2 bg-emerald-600 text-white rounded">
+                          Add first team member
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
+  
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        {...registerShop("email")}
+                        className="p-2 block w-full rounded-md border-2 outline-none border-black shadow-sm focus:border-emerald-700"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Pincode
+                      </label>
+                      <input
+                        type="number"
+                        {...registerShop("pincode")}
+                        className="p-2 block w-full rounded-md border-2 outline-none border-black shadow-sm focus:border-emerald-700"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        State
+                      </label>
+                      <input
+                        type="text"
+                        {...registerShop("state")}
+                        className="p-2 block w-full rounded-md border-2 outline-none border-black shadow-sm focus:border-emerald-700"
+                        placeholder="West Bengal"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        City
+                      </label>
+                      <input
+                        type="text"
+                        {...registerShop("city")}
+                        className="p-2 block w-full rounded-md border-2 outline-none border-black shadow-sm focus:border-emerald-700"
+                        placeholder="Durgapur"
+                      />
+                    </div>
+
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Logo
@@ -554,6 +831,14 @@ const Settings = () => {
                         </div>
                       </div>
                     </div>
+                    {/* hidden team file input (single input used for all entries) */}
+                    <input
+                      type="file"
+                      ref={teamFileInputRef}
+                      onChange={handleTeamFileSelected}
+                      accept="image/*"
+                      className="hidden"
+                    />
                   </div>
 
                   <div className="flex justify-end">
@@ -589,7 +874,7 @@ const Settings = () => {
                           required: "Current password is required",
                         })}
                         className={`p-2 pl-8 block w-full rounded-md border-2 outline-none border-black shadow-sm ${
-                          errors.currentPassword
+                          passwordErrors.currentPassword
                             ? "text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500"
                             : "focus:ring-emerald-500 focus:border-emerald-500"
                         }`}
@@ -643,7 +928,7 @@ const Settings = () => {
                             },
                           })}
                           className={`p-2 pl-8 block w-full rounded-md border-2 outline-none border-black shadow-sm ${
-                            errors.newPassword
+                            passwordErrors.newPassword
                               ? "text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500"
                               : "focus:ring-emerald-500 focus:border-emerald-500"
                           }`}
@@ -686,7 +971,7 @@ const Settings = () => {
                               value === newPassword || "Passwords do not match",
                           })}
                           className={`p-2 pl-8 block w-full rounded-md border-2 outline-none border-black shadow-sm ${
-                            errors.confirmPassword
+                            passwordErrors.confirmPassword
                               ? "text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500"
                               : "focus:ring-emerald-500 focus:border-emerald-500"
                           }`}
@@ -729,6 +1014,61 @@ const Settings = () => {
           </div>
         </div>
       </div>
+      {teamShowCropper && teamRawImage && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-auto">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">
+                Crop Team Image
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setTeamShowCropper(false);
+                  setTeamRawImage(null);
+                }}
+                className="text-gray-400 hover:text-gray-500">
+                Close
+              </button>
+            </div>
+            <div className="p-4">
+              <div className="w-full h-96">
+                <Cropper
+                  ref={teamCropperRef}
+                  src={teamRawImage}
+                  style={{ height: "100%", width: "100%" }}
+                  aspectRatio={1}
+                  viewMode={1}
+                  guides={true}
+                  minCropBoxHeight={100}
+                  minCropBoxWidth={100}
+                  background={false}
+                  responsive={true}
+                  autoCropArea={0.8}
+                  checkOrientation={false}
+                />
+              </div>
+            </div>
+            <div className="px-4 py-3 bg-gray-50 text-right sm:px-6 rounded-b-lg">
+              <button
+                type="button"
+                onClick={() => {
+                  setTeamShowCropper(false);
+                  setTeamRawImage(null);
+                }}
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 mr-3">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleTeamCropDone}
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700">
+                Crop & Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -229,7 +229,7 @@ const Customer = () => {
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
+    <div className="bg-white p-6 border-1 border-zinc-200/70 rounded-lg shadow-lg shadow-zinc-300 m-6">
       {/* Edit Customer Modal */}
       {editingCustomer && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -353,10 +353,10 @@ const Customer = () => {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto p-4">
         <table className="min-w-full bg-white">
           <thead>
-            <tr className="bg-gray-50">
+            <tr className="bg-gray-200">
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>

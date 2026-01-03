@@ -15,6 +15,7 @@ import {
   setFilters,
   setScrollY,
   clearScrollY,
+  resetQuery,
 } from "../Store/reducers/ProductReducer";
 
 const Product = () => {
@@ -250,7 +251,10 @@ const Product = () => {
             {categories.map((cat) => (
               <button
                 key={cat.key}
-                onClick={() => dispatch(setFilters({ Subcategory: cat.key }))}
+                onClick={() => {
+                  dispatch(setFilters({ Subcategory: cat.key }))
+                  dispatch(resetQuery())
+                }}
                 className={`flex-shrink-0 px-4 py-2 rounded-full text-sm transition-all duration-200 ${
                   Subcategory === cat.key
                     ? "bg-white text-[#013220] font-bold shadow"

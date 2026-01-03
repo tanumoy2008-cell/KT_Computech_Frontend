@@ -890,7 +890,7 @@ export default function BarcodePrint() {
     calib.headerLayout === "column" ? pos.priceTopCss : pos.headerTopCss;
 
   return (
-    <div className="container mx-auto p-4 max-w-6xl">
+    <div className="container mx-auto p-4 w-full">
       <h1 className="text-2xl font-bold mb-4">
         TSPL Barcode Printing — Label Designer
       </h1>

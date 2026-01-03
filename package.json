@@ -21,6 +21,7 @@
     "jsbarcode": "^3.12.1",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.548.0",
+    "markdown-to-jsx": "^9.5.0",
     "qz-tray": "^2.2.5",
     "react": "^19.1.1",
     "react-chartjs-2": "^5.3.1",

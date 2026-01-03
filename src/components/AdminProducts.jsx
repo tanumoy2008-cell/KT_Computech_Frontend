@@ -204,7 +204,7 @@ const AdminProducts = () => {
   // ======================= UI =======================
   return (
     <div className="min-h-screen w-full bg-gray-200 p-4 flex flex-col gap-y-6 text-gray-800">
-      <div className="max-w-[1200px] w-full mx-auto">
+      <div className="w-full mx-auto">
         <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm mb-4 flex items-center gap-4">
           <div className="w-1 h-12 bg-indigo-100 rounded" />
           <div>

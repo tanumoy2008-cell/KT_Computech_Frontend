@@ -193,7 +193,7 @@ const ProductAdder = () => {
   return (
     <div className="min-h-screen w-full bg-gray-200 p-4 md:p-6 lg:p-8">
       {/* Header with Stats */}
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full mx-auto">
         <div className="bg-gradient-to-tl from-emerald-600 to-green-600 rounded-2xl p-6 text-white shadow-lg mb-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div>

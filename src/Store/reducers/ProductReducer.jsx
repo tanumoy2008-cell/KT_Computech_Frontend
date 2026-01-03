@@ -86,6 +86,9 @@ const productSlice = createSlice({
       state.scrollY = 0;
       state.query = "";
     },
+    resetQuery: (state) => {
+      state.query = "";
+    },
     // Upsert a single product into the items list (replace or insert)
     upsertProduct: (state, action) => {
       const prod = action.payload;
@@ -134,6 +137,7 @@ export const {
   setScrollY,
   clearScrollY,
   resetProducts,
+  resetQuery,
   upsertProduct,
 } = productSlice.actions;
 

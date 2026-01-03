@@ -9,8 +9,9 @@ import { addProductToCart } from "../Store/reducers/CartReducer";
 import calculateDiscountedPrice from "../utils/PercentageCalculate";
 import ProductCard from "../components/ProductCard";
 import Footer from "../components/Footer";
-import { env } from "../config/key";
-
+import Navbar from "../components/Navbar";
+import Lottie from "lottie-react";
+import SandLoading from "../assets/Sandy Loading.json";
 
 const ProductDets = () => {
   const { id } = useParams();
@@ -29,7 +30,9 @@ const ProductDets = () => {
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
   const [containerRect, setContainerRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
+  const [isScrollingDown, setIsScrollingDown] = useState(false);
   const imageRef = useRef(null);
+  const lastScrollY = useRef(0);
   const containerRef = useRef(null);
   const zoomRef = useRef(null);
   // Reviews & related products
@@ -37,11 +40,7 @@ const ProductDets = () => {
   const [avgRating, setAvgRating] = useState(0);
   const [relatedProducts, setRelatedProducts] = useState([]);
   // Configurable zoom multiplier (1 = no zoom). Lower = gentler zoom.
-  const ZOOM_SCALE = 1.25; // try 1.1 - 1.5
-
-  useEffect(()=> {
-    window.scrollTo(0,0)
-  })
+  const ZOOM_SCALE = 0.5; // try 1.1 - 1.5
 
   // Handle mouse enter/leave for zoom effect
   const handleMouseEnter = () => {
@@ -250,6 +249,25 @@ const ProductDets = () => {
     return () => clearTimeout(checkTimeout.current);
   }, [pin]);
 
+    useEffect(() => {
+      const handleScroll = () => {
+        const currentScroll = window.scrollY;
+
+        if (currentScroll > lastScrollY.current && currentScroll > 50) {
+          // user scrolling down
+          setIsScrollingDown(true);
+        } else {
+          // user scrolling up
+          setIsScrollingDown(false);
+        }
+
+        lastScrollY.current = currentScroll;
+      };
+
+      window.addEventListener("scroll", handleScroll);
+      return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
+
   const colors = ["red", "blue", "green", "purple", "yellow", "pink", "indigo"];
   // Reusable action buttons (stack on small, side-by-side on md+)
   const ActionButtons = () => (
@@ -273,8 +291,12 @@ const ProductDets = () => {
 
   if (!product) {
     return (
-      <div className="flex justify-center items-center h-screen text-gray-500">
-        Loading...
+      <div className="flex justify-center items-center h-screen bg-emerald-100">
+        <Lottie
+          animationData={SandLoading}
+          loop={true}
+          className="w-96 h-96 mx-auto"
+        />
       </div>
     );
   }
@@ -282,8 +304,10 @@ const ProductDets = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br shadow-2xl from-gray-200 to-gray-400">
       {/* Sticky Header */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <Navbar />
+      <header
+        className={`sticky transition-all duration-300 ${isScrollingDown ? "top-0" : "top-18"} z-40 bg-white/50 backdrop-blur-xs border-b border-gray-200`}>
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-16 justify-between gap-4">
             <div className="flex items-center">
               <button
@@ -322,7 +346,7 @@ const ProductDets = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-0 py-6">
+      <main className="w-full mx-auto px-4 sm:px-6 lg:px-10 py-20">
         <motion.div
           className="bg-white rounded-2xl shadow-lg shadow-zinc-500 border border-black/30 overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
@@ -359,7 +383,7 @@ const ProductDets = () => {
                     style={{
                       left: cursorPosition.x,
                       top: cursorPosition.y,
-                      transform: "translate(-50%, -50%)",
+                      transform: "translate(-20%, -20%)",
                       backgroundImage: `url(${selectedImage})`,
                       // backgroundPosition uses percentage from zoomPosition
                       backgroundPosition: `${Math.min(
@@ -676,7 +700,7 @@ const ProductDets = () => {
 
           {/* Reviews Section */}
           <div className="border-t border-gray-100 bg-white p-6">
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full mx-auto">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="w-full md:w-auto">
                   <h3 className="text-lg font-semibold text-gray-900">
@@ -714,7 +738,7 @@ const ProductDets = () => {
               </div>
 
               {/* Reviews list */}
-              <div className="mt-6 grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-6 grid gap-4 lg:gap-2 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {reviews.length === 0 ? (
                   <div className="text-sm text-gray-500">No reviews yet.</div>
                 ) : (
@@ -733,14 +757,14 @@ const ProductDets = () => {
                     return (
                       <div
                         key={idx}
-                        className="flex gap-4 p-4 bg-gray-300/40 shadow-md border-2 border-gray-300/50 w-fit rounded-lg transition-transform cursor-help duration-300 hover:-translate-y-1">
+                        className="flex gap-4 p-4 bg-gray-400/40 shadow-md border-2 border-gray-300/50 w-fit rounded-lg transition-transform cursor-help duration-300 hover:-translate-y-1">
                         <div
                           className={`flex-shrink-0 h-12 w-12 rounded-full border bg-${color}-100 flex items-center justify-center  font-semibold`}>
                           {initial}
                         </div>
                         <div>
                           <div className="flex items-center gap-3">
-                            <div className="font-medium text-xs whitespace-nowrap text-gray-900">
+                            <div className="font-medium text-xs xl:text-sm whitespace-nowrap text-gray-900">
                               {reviewerName}
                             </div>
                             <div className="flex text-emerald-400">
@@ -758,7 +782,7 @@ const ProductDets = () => {
                                 </svg>
                               ))}
                             </div>
-                            <div className="text-xs text-gray-400">
+                            <div className="text-xs text-gray-500">
                               {new Date(
                                 r.createdAt || Date.now()
                               ).toLocaleDateString()}
@@ -778,7 +802,7 @@ const ProductDets = () => {
 
           {/* Related Products Section */}
           <div className="border-t border-gray-100 bg-white p-6">
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full mx-auto">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg lg:text-2xl uppercase border-b-4 border-double border-zinc-400 w-fit px-4 italic font-semibold text-gray-900 font-PublicSans">
                   More similar products
@@ -798,6 +822,7 @@ const ProductDets = () => {
                       <motion.div
                         key={p._id}
                         whileHover={{ scale: 1.02 }}
+                        onClick={() => window.scrollTo(0, 0)}
                         className="w-full bg-white rounded-xl">
                         <ProductCard data={p} />
                       </motion.div>

@@ -133,7 +133,7 @@ const DeliveryIdConfirm = () => {
 
   return (
     <div className="min-h-screen bg-gray-200 p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full mx-auto">
 
         {/* HEADER */}
         <div className="mb-6 bg-white p-2 rounded-lg border border-zinc-300 shadow-md">
@@ -194,7 +194,7 @@ const DeliveryIdConfirm = () => {
             </p>
           }
         >
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {agents.map((agent) => (
               <div
                 key={agent._id}

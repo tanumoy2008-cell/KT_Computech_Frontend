@@ -16,6 +16,7 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+  const { shopData } = useSelector((state) => state.ShopReducer);
   
   // Get user and cart state from Redux
   const user = useSelector((state) => state.UserReducer);
@@ -201,10 +202,10 @@ const Navbar = () => {
       <div className="flex items-center justify-between px-4 py-2 lg:hidden">
         {/* Logo */}
         <div onClick={() => navigate("/")} className="flex items-center gap-2 cursor-pointer">
-          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-amber-400">
-            <img src="/Logo.webp" className="w-full h-full object-cover" />
+          <div className="w-12 h-12 rounded-full overflow-hidden">
+            <img src={shopData?.logo || "./Logo.webp"} className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-xl font-bold uppercase">KT Computech</h1>
+          <h1 className="text-2xl font-bold uppercase">{shopData?.name || 'KT Computech'}</h1>
         </div>
 
         <div className="flex items-center gap-4">
@@ -335,11 +336,11 @@ const Navbar = () => {
       </AnimatePresence>
 
       {/* ---------------- DESKTOP HEADER ---------------- */}
-      <div className="hidden lg:flex items-center justify-between px-6 py-2 max-w-7xl mx-auto">
+      <div className="hidden lg:flex items-center justify-between px-10 py-2 w-full mx-auto">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 cursor-pointer group">
-          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white">
-            <img src="/Logo.webp" className="w-full h-full object-cover" />
+          <div className="w-12 h-12 rounded-full overflow-hidden">
+            <img src={shopData?.logo || "./Logo.webp"} className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-semibold uppercase">KT Computech</h1>
         </Link>
