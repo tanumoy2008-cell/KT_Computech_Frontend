@@ -127,24 +127,50 @@ const Billing = () => {
         (Array.isArray(product.barcodes) ? product.barcodes[0] : "") ||
         "";
 
-      setProducts((prev) => [
-        ...prev,
-        {
-          _id: product._id,
-          name: product.name,
-          basePrice,
-          price: displayPrice, // price after discount for quick display
-          off: offVal,
-          barcode: primaryBarcode,
-          quantity: 1,
-          colorVariants: product.colorVariants || [],
-          // if backend gives matchedVariantId (SKU search), use that first
-          selectedColorVariantId:
-            product.matchedVariantId ||
-            product.colorVariants?.[0]?._id ||
-            null,
-        },
-      ]);
+      const newItem = {
+        _id: product._id,
+        name: product.name,
+        basePrice,
+        price: displayPrice, // price after discount for quick display
+        off: offVal,
+        barcode: primaryBarcode,
+        quantity: 1,
+        colorVariants: product.colorVariants || [],
+        // if backend gives matchedVariantId (SKU search), use that first
+        selectedColorVariantId:
+          product.matchedVariantId ||
+          product.colorVariants?.[0]?._id ||
+          null,
+        cogs: null, // total COGS for current qty
+        unitCogs: null, // per-unit cost computed from FIFO
+      };
+
+      setProducts((prev) => [...prev, newItem]);
+
+      // fetch COGS preview asynchronously
+      (async () => {
+        try {
+          const variant = newItem.colorVariants.find((cv) => String(cv._id) === String(newItem.selectedColorVariantId));
+          const sku = variant?.sku ?? null;
+          const res = await axios.get("/api/purchase-products/preview-consume", {
+            params: { productId: newItem._id, sku, qty: newItem.quantity },
+          });
+          const data = res.data?.data || res.data;
+          const totalCost = Number(data.totalCost || 0);
+          const consumed = data.consumed || [];
+          const totalSellingPrice = consumed.reduce((sum, c) => sum + c.qty * c.sellingPrice, 0);
+          const averageSellingPrice = totalSellingPrice / newItem.quantity;
+          setProducts((prev) => prev.map((p) => p._id === newItem._id ? { 
+            ...p, 
+            cogs: totalCost, 
+            unitCogs: totalCost / (p.quantity || 1),
+            basePrice: averageSellingPrice,
+            price: Math.round(averageSellingPrice * (1 - p.off / 100) * 100) / 100
+          } : p));
+        } catch (err) {
+          console.error("Failed to fetch COGS preview:", err?.response?.data || err.message);
+        }
+      })();
     }
   };
 
@@ -262,6 +288,34 @@ const Billing = () => {
         p._id === productId ? { ...p, quantity: Number(quantity) } : p
       )
     );
+
+    // fetch updated COGS preview for this product
+    const prod = products.find((x) => x._id === productId);
+    if (!prod) return;
+    (async () => {
+      try {
+        const updatedQty = Number(quantity) || 0;
+        const variant = prod.colorVariants.find((cv) => String(cv._id) === String(prod.selectedColorVariantId));
+        const sku = variant?.sku ?? null;
+        const res = await axios.get("/api/purchase-products/preview-consume", {
+          params: { productId: prod._id, sku, qty: updatedQty },
+        });
+        const data = res.data?.data || res.data;
+        const totalCost = Number(data.totalCost || 0);
+        const consumed = data.consumed || [];
+        const totalSellingPrice = consumed.reduce((sum, c) => sum + c.qty * c.sellingPrice, 0);
+        const averageSellingPrice = totalSellingPrice / updatedQty;
+        setProducts((prev) => prev.map((p) => p._id === prod._id ? { 
+          ...p, 
+          cogs: totalCost, 
+          unitCogs: updatedQty ? totalCost / updatedQty : null,
+          basePrice: averageSellingPrice,
+          price: Math.round(averageSellingPrice * (1 - p.off / 100) * 100) / 100
+        } : p));
+      } catch (err) {
+        console.error("Failed to update COGS preview:", err?.response?.data || err.message);
+      }
+    })();
   };
 
   const updateColorVariant = (productId, colorVariantId) => {
@@ -272,6 +326,34 @@ const Billing = () => {
           : p
       )
     );
+
+    // fetch updated COGS for changed variant
+    const prod = products.find((x) => x._id === productId);
+    if (!prod) return;
+    (async () => {
+      try {
+        const updatedQty = Number(prod.quantity) || 0;
+        const variant = prod.colorVariants.find((cv) => String(cv._id) === String(colorVariantId));
+        const sku = variant?.sku ?? null;
+        const res = await axios.get("/api/purchase-products/preview-consume", {
+          params: { productId: prod._id, sku, qty: updatedQty },
+        });
+        const data = res.data?.data || res.data;
+        const totalCost = Number(data.totalCost || 0);
+        const consumed = data.consumed || [];
+        const totalSellingPrice = consumed.reduce((sum, c) => sum + c.qty * c.sellingPrice, 0);
+        const averageSellingPrice = totalSellingPrice / updatedQty;
+        setProducts((prev) => prev.map((p) => p._id === prod._id ? { 
+          ...p, 
+          cogs: totalCost, 
+          unitCogs: updatedQty ? totalCost / updatedQty : null,
+          basePrice: averageSellingPrice,
+          price: Math.round(averageSellingPrice * (1 - p.off / 100) * 100) / 100
+        } : p));
+      } catch (err) {
+        console.error("Failed to update COGS preview on variant change:", err?.response?.data || err.message);
+      }
+    })();
   };
 
   const deleteProduct = (productId) => {
@@ -709,6 +791,7 @@ const createOrder = async (extra = {}) => {
               <th className="px-4 py-2">Product</th>
               <th className="px-4 py-2">Options</th>
               <th className="px-4 py-2">Price</th>
+                <th className="px-4 py-2">Cost (COGS)</th>
               <th className="px-4 py-2">Discount (%)</th>
               <th className="px-4 py-2">After Discount</th>
               <th className="px-4 py-2">Qty</th>
@@ -750,6 +833,13 @@ const createOrder = async (extra = {}) => {
                     <div className="font-semibold">
                       ₹{Number(p.price).toFixed(2)}
                     </div>
+                  )}
+                </td>
+                <td className="px-4 py-2">
+                  {p.unitCogs != null ? (
+                    <div className="text-sm">₹{Number(p.unitCogs).toFixed(2)} / unit<br/><span className="text-xs text-gray-500">Total: ₹{Number(p.cogs || 0).toFixed(2)}</span></div>
+                  ) : (
+                    <div className="text-sm text-gray-500">—</div>
                   )}
                 </td>
                 <td className="px-4 py-2">{Number(p.off || 0).toFixed(1)}%</td>

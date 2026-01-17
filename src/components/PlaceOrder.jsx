@@ -82,7 +82,7 @@ const PlaceOrder = () => {
         const uniqueProductIds = [...new Set(needsLookup.map(it => it.productId && (it.productId._id || it.productId)).filter(Boolean))];
         await Promise.all(uniqueProductIds.map(async pid => {
           try {
-            const res = await axios.get(`/api/products/productDetail/${pid}`);
+            const res = await axios.get(`/api/product/productDetail/${pid}`);
             productFetchMap[pid] = res.data; // full product
           } catch (err) {
             // ignore lookup failure for this product

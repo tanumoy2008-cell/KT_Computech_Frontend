@@ -324,13 +324,12 @@ const AdminProducts = () => {
 
         {/* Product Table */}
         <div className="w-full h-[85vh] py-4 px-4 rounded-xl border-2 border-gray-100 bg-white flex flex-col mt-3">
-          <div className="grid grid-cols-11 uppercase w-full p-3 rounded-md bg-indigo-50 text-sm text-gray-700 font-semibold mb-3 border-b-2 border border-gray-400">
+          <div className="grid grid-cols-10 uppercase items-center w-full p-3 rounded-md bg-indigo-50 text-sm text-gray-700 font-semibold mb-3 border-b-2 border border-gray-400">
             <h1 className="text-center">Pic</h1>
             <h1 className="text-center">Name</h1>
             <h1 className="text-center">Company</h1>
-            <h1 className="text-center">Main</h1>
-            <h1 className="text-center">Sub</h1>
-            <h1 className="text-center">Price</h1>
+            <h1 className="text-center">Main Categories</h1>
+            <h1 className="text-center">Sub Categories</h1>
             <h1 className="text-center">Stock</h1>
             <h1 className="text-center">Visible</h1>
             <h1 className="text-center">Barcodes</h1>
@@ -359,7 +358,7 @@ const AdminProducts = () => {
               {items.map((p) => (
                 <div
                   key={p._id}
-                  className="grid grid-cols-11 w-full items-center gap-x-3 border-2 border-gray-400 py-3 px-3 rounded-lg transition-all duration-300 hover:shadow-lg hover:bg-white border-l-6 hover:border-emerald-400 hover:-translate-y-1">
+                  className="grid grid-cols-10 w-full items-center gap-x-3 border-2 border-gray-400 py-3 px-3 rounded-lg transition-all duration-300 hover:shadow-lg hover:bg-white border-l-6 hover:border-emerald-400 hover:-translate-y-1">
                   <div className=" flex items-center justify-center">
                     <img
                       src={
@@ -373,7 +372,6 @@ const AdminProducts = () => {
                   <h1 className="text-center text-sm">{p.company}</h1>
                   <h1 className="text-center text-sm">{p.Maincategory}</h1>
                   <h1 className="text-center text-sm">{p.Subcategory}</h1>
-                  <h1 className="text-center text-sm">{p.price}</h1>
                   <h1 className="text-center text-sm">{p.stock}</h1>
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-2">

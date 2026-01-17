@@ -738,7 +738,7 @@ const ProductDets = () => {
               </div>
 
               {/* Reviews list */}
-              <div className="mt-6 grid gap-4 lg:gap-2 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="mt-6 grid gap-4 lg:gap-2 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {reviews.length === 0 ? (
                   <div className="text-sm text-gray-500">No reviews yet.</div>
                 ) : (

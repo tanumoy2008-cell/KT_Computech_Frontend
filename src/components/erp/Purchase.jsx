@@ -1,538 +1,520 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import axiosInstance from '../../config/axios';
-import { Barcode } from 'lucide-react';
-
-const API_BASE_URL = '/api/purchase-products';
+import { useEffect, useState } from "react";
+import axios from "../../config/axios";
+import SearchProduct from "./SearchProduct";
+import VendorModal from "./VendorModel";
+import { toast } from "react-toastify";
+import { TiArrowUp } from "react-icons/ti";
 
 const Purchase = () => {
-  const [purchases, setPurchases] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingPurchase, setEditingPurchase] = useState(null);
-  const [formData, setFormData] = useState({
-    productId: '',
-    barcode: '',
-    productName: '',
-    productCategory: '',
-    unit: '',
-    productSubcategory: '',
-    qty: 1,
-    extraDiscount: 0,
-    purchasePrice: 0,
-    purchaseDiscount: 0,
-    vender: '',
-    purchaseMethod: 'cash',
-    purchaseInvoice: '',
-    checkNumber: ''
-  });
-  
-  const barcodeInputRef = useRef(null);
+  const [vendors, setVendors] = useState([]);
+  const [showVendor, setShowVendor] = useState(false);
+  const [vendorToEdit, setVendorToEdit] = useState(null);
 
-  // Fetch purchases on component mount
+  const [items, setItems] = useState([]);
+  const [productVariants, setProductVariants] = useState([]);
+  const [searchClearSignal, setSearchClearSignal] = useState(0);
+  const [searchInitial, setSearchInitial] = useState("");
+
+  const [invoice, setInvoice] = useState({
+    purchaseInvoice: "",
+    vendorId: "",
+    purchaseMethod: "cash",
+    chequeNumber: "", // ✅ NEW
+    date: "",
+  });
+
+  const [item, setItem] = useState({
+    productId: "",
+    productName: "",
+    mrp: 0, // ✅ MRP
+    purchasePrice: 0, // COST
+    qty: 1,
+    unit: "pic's",
+    purchaseDiscount: 0,
+    extraDiscount: 0,
+    variantSku: null,
+    variantName: "",
+    sellType: "percentage",
+    sellValue: 20,
+    sellingPrice: 0,
+    reorderLevel: 0,
+  });
+
+  // ======================
+  // FETCH VENDORS
+  // ======================
   useEffect(() => {
-    fetchPurchases();
+    axios.get("/api/vendor/get").then((res) => {
+      setVendors(res.data.data || []);
+    });
   }, []);
 
-  const fetchPurchases = async () => {
-    try {
-      setLoading(true);
-      const response = await axiosInstance.get(`${API_BASE_URL}/get`);
-      setPurchases(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching purchases:', error);
-      toast.error('Failed to load purchase orders');
-    } finally {
-      setLoading(false);
-    }
+  // ======================
+  // CALCULATIONS
+  // ======================
+  const calculateSellingFromMRP = (mrp, type, value) => {
+    const m = Number(mrp || 0);
+    const v = Number(value || 0);
+    if (!m) return 0;
+
+    return type === "percentage"
+      ? +(m * (1 - v / 100)).toFixed(2)
+      : +(m - v).toFixed(2);
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-    [name]: name === 'purchasePrice' || name === 'purchaseDiscount' || name === 'qty' || name === 'extraDiscount'
-      ? (name === 'qty' ? parseInt(value) || 1 : parseFloat(value) || 0)
-        : value
-    }));
+
+   const calculateEffectiveCost = (mrp, d1, d2) => {
+     let p = Number(mrp || 0);
+     p *= 1 - Number(d1 || 0) / 100;
+     p *= 1 - Number(d2 || 0) / 100;
+     return +p.toFixed(2);
+   };
+
+  const calculateProfit = (i) => {
+    const cost = calculateEffectiveCost(
+      i.purchasePrice,
+      i.purchaseDiscount,
+      i.extraDiscount
+    );
+    const sell = Number(i.sellingPrice || 0);
+    const profitPerUnit = +(sell - cost).toFixed(2);
+    const profitPercent =
+      sell > 0 ? +((profitPerUnit / sell) * 100).toFixed(2) : 0;
+
+    return { cost, profitPerUnit, profitPercent };
   };
 
-  // Focus barcode input when modal opens
-  useEffect(() => {
-    if (showModal) {
-      setTimeout(() => barcodeInputRef.current?.focus(), 50);
-    }
-  }, [showModal]);
+  // ======================
+  // ACTIONS
+  // ======================
+  const addItem = () => {
+    if (!item.productId) return toast.error("Select product");
+    if (!item.mrp) return toast.error("Enter MRP");
+    if (!invoice.vendorId) return toast.error("Select vendor");
 
-  const handleBarcodeSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.barcode) return;
-    
-    try {
-      const response = await axiosInstance.get(`${API_BASE_URL}/barcode/${formData.barcode}`);
-      if (response.data.success) {
-        const { productId, name, price, category, subcategory, unit, barcode } = response.data.data;
-        setFormData(prev => ({
-          ...prev,
-          productId,
-          productName: name,
-          purchasePrice: price,
-          productCategory: category || '',
-          unit: unit || '',
-          barcode: formData.barcode // Keep the barcode in form data
-        }));
-        toast.success('Product found!');
-      }
-    } catch (error) {
-      console.error('Error looking up barcode:', error);
-      toast.error(error.response?.data?.message || 'Product not found');
-    }
-  };
-  
-  const resetForm = () => {
-    setFormData({
-      productId: '',
-      barcode: '',
-      productName: '',
-      productCategory: '',
-      unit: '',
-      date: '',
-      qty: 1,
-      extraDiscount: 0,
+    setItems((prev) => [...prev, item]);
+
+    setItem({
+      productId: "",
+      productName: "",
+      mrp: "",
       purchasePrice: 0,
+      qty: 1,
+      unit: "pic's",
       purchaseDiscount: 0,
-      vender: '',
-      purchaseMethod: 'cash',
-      purchaseInvoice: '',
-      checkNumber: ''
+      extraDiscount: 0,
+      variantSku: null,
+      variantName: "",
+      sellType: "percentage",
+      sellValue: 20,
+      sellingPrice: 0,
+      reorderLevel: 0,
     });
-    setEditingPurchase(null);
+
+    setProductVariants([]);
+    setSearchClearSignal((s) => s + 1);
+    setSearchInitial("");
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!formData.productId && !formData.barcode) {
-      toast.error('Please scan a barcode or select a product');
-      return;
+  const handleEditItem = (index) => {
+    const it = items[index];
+    setItems((prev) => prev.filter((_, i) => i !== index));
+    setItem(it);
+    setSearchInitial(it.productName);
+  };
+
+  const handleDeleteItem = (index) => {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const saveInvoice = async () => {
+    if (!invoice.vendorId) return toast.error("Select vendor");
+    if (!items.length) return toast.error("Add items");
+
+    if (invoice.purchaseMethod === "cheque" && !invoice.chequeNumber) {
+      return toast.error("Enter cheque number");
     }
-    
+
+    const invoiceNumber =
+      invoice.purchaseInvoice ||
+      `INV-${Date.now()}-${Math.floor(Math.random() * 9000) + 1000}`;
+
     try {
-      const payload = { ...formData };
-      // map `date` (frontend) -> `Date` (backend schema) so backend stores in `Date` field
-      if (payload.date && !payload.Date) {
-        payload.Date = payload.date;
-        delete payload.date;
+      for (const i of items) {
+        await axios.post("/api/purchase-products/create", {
+          ...invoice,
+          purchaseInvoice: invoiceNumber,
+          productId: i.productId,
+          mrp: Number(i.mrp),
+          purchasePrice: Number(i.purchasePrice),
+          qty: i.qty,
+          unit: i.unit,
+          purchaseDiscount: i.purchaseDiscount,
+          extraDiscount: i.extraDiscount,
+          variantSku: i.variantSku,
+          variantName: i.variantName,
+          sellType: i.sellType,
+          sellValue: i.sellValue,
+          sellingPrice: i.sellingPrice,
+          reorderLevel: i.reorderLevel,
+        });
       }
-      // Backend expects either productId OR barcode. If we already resolved productId, don't send raw barcode.
-      if (payload.productId) delete payload.barcode;
-      // productName is only UI; don't send to backend
-      if (payload.productName) delete payload.productName;
-  // unit and productCategory are valid fields we want to send if present
 
-      if (editingPurchase) {
-        await axiosInstance.put(`${API_BASE_URL}/update/${editingPurchase._id}`, payload);
-        toast.success('Purchase order updated successfully');
-      } else {
-        await axiosInstance.post(`${API_BASE_URL}/create`, payload);
-        toast.success('Purchase order created successfully');
-      }
-      
-      setShowModal(false);
-      resetForm();
-      fetchPurchases();
-    } catch (error) {
-      console.error('Error saving purchase:', error);
-      toast.error(error.response?.data?.message || 'Error saving purchase order');
+      toast.success("Invoice saved");
+      setItems([]);
+    } catch (err) {
+      toast.error("Failed to save invoice");
     }
   };
 
-  const handleEdit = (purchase) => {
-    setEditingPurchase(purchase);
-    setFormData({
-      productId: purchase.productId?._id || '',
-      barcode: '', // Clear barcode in edit mode to force rescan
-      productName: purchase.productId?.name || '',
-      productCategory: purchase.productCategory || purchase.productId?.category || '',
-      qty: purchase.qty || 1,
-      extraDiscount: purchase.extraDiscount || 0,
-      unit: purchase.unit || purchase.productId?.unit || '',
-      date: purchase.Date ? new Date(purchase.Date).toISOString().slice(0,10) : (purchase.date ? new Date(purchase.date).toISOString().slice(0,10) : ''),
-      purchasePrice: purchase.purchasePrice,
-      purchaseDiscount: purchase.purchaseDiscount,
-      vender: purchase.vender,
-      purchaseMethod: purchase.purchaseMethod,
-      purchaseInvoice: purchase.purchaseInvoice || '',
-      checkNumber: purchase.checkNumber || ''
-    });
-    setShowModal(true);
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this purchase order?')) {
-      try {
-        await axiosInstance.delete(`${API_BASE_URL}/delete/${id}`);
-        toast.success('Purchase order deleted successfully');
-        fetchPurchases();
-      } catch (error) {
-        console.error('Error deleting purchase:', error);
-        toast.error('Failed to delete purchase order');
-      }
-    }
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  // Calculate price after primary discount and extra discount (sequential)
-  // Returns numeric value (not formatted)
-  const calculateTotal = (price = 0, discount = 0, extraDiscount = 0) => {
-    const afterPrimary = price - (price * (discount / 100));
-    const afterExtra = afterPrimary - (afterPrimary * (extraDiscount / 100));
-    return afterExtra;
-  };
-
+  // ======================
+  // UI
+  // ======================
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-5">
-        <h1 className="text-2xl font-bold">Purchase Orders</h1>
-        <button 
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-colors"
+    <div className="p-3">
+      <h1 className="text-2xl font-bold mb-4">Purchase Entry</h1>
+
+      {/* HEADER */}
+      <div className="grid grid-cols-6 gap-3 mb-4">
+        <input
+          className="border p-2 outline-none"
+          placeholder="Invoice #"
+          value={invoice.purchaseInvoice}
+          onChange={(e) =>
+            setInvoice({ ...invoice, purchaseInvoice: e.target.value })
+          }
+        />
+
+        <select
+          className="border p-2 outline-none"
+          value={invoice.vendorId}
+          onChange={(e) =>
+            setInvoice({ ...invoice, vendorId: e.target.value })
+          }>
+          <option value="">Select Vendor</option>
+          {vendors.map((v) => (
+            <option key={v._id} value={v._id}>
+              {v.name}
+            </option>
+          ))}
+        </select>
+
+        {/* ✅ ADD / EDIT VENDOR */}
+        <button
+          className={`${
+            invoice.vendorId ? "bg-amber-600" : "bg-emerald-600"
+          } text-white rounded px-2 outline-none`}
           onClick={() => {
-            resetForm();
-            setShowModal(true);
+            const v = vendors.find((x) => x._id === invoice.vendorId);
+            setVendorToEdit(v || null);
+            setShowVendor(true);
+          }}>
+          {invoice.vendorId ? "Edit Vendor" : "+ Vendor"}
+        </button>
+
+        <select
+          className="border p-2 outline-none"
+          value={invoice.purchaseMethod}
+          onChange={(e) =>
+            setInvoice({
+              ...invoice,
+              purchaseMethod: e.target.value,
+              chequeNumber: "",
+            })
+          }>
+          <option value="cash">Cash</option>
+          <option value="upi">UPI</option>
+          <option value="credit">Credit</option>
+          <option value="cheque">Cheque</option>
+        </select>
+
+        {/* ✅ CHEQUE NUMBER */}
+        {invoice.purchaseMethod === "cheque" && (
+          <input
+            className="border p-2 outline-none"
+            placeholder="Cheque Number"
+            value={invoice.chequeNumber}
+            onChange={(e) =>
+              setInvoice({
+                ...invoice,
+                chequeNumber: e.target.value,
+              })
+            }
+          />
+        )}
+
+        <input
+          type="date"
+          className="border p-2 outline-none"
+          onChange={(e) => setInvoice({ ...invoice, date: e.target.value })}
+        />
+      </div>
+
+      {/* ITEM ENTRY HEADER */}
+      <div className="grid grid-cols-14 gap-2 bg-gray-100 p-2 text-xs font-semibold">
+        <div>Product</div>
+        <div>Variant</div>
+        <div>Qty</div>
+        <div>Unit</div>
+        <div>MRP</div>
+        <div>Purchase Price</div>
+        <div>Sell Type</div>
+        <div>Sell %</div>
+        <div>Selling</div>
+        <div>Comp %</div>
+        <div>Vend %</div>
+        <div>Profit</div>
+        <div>Reorder Level</div>
+      </div>
+
+      {/* ITEM ENTRY */}
+      <div className="grid grid-cols-14 gap-2 bg-gray-50 p-2">
+        <SearchProduct
+          onSelect={(p) => {
+            setItem({
+              ...item,
+              productId: p._id,
+              productName: p.name,
+              mrp: p.price,
+              purchasePrice: p.lastPurchasePrice || 0,
+              sellingPrice: calculateSellingFromMRP(
+                p.price,
+                item.sellType,
+                item.sellValue
+              ),
+              reorderLevel: p.reorderLevel || 0,
+            });
+            setProductVariants(p.colorVariants || []);
           }}
-        >
-          <span>+</span> New Purchase Order
+          clearSignal={searchClearSignal}
+          initialValue={searchInitial}
+        />
+
+        {/* VARIANT */}
+        <select
+          className="border p-2 outline-none"
+          value={item.variantSku || ""}
+          onChange={(e) => {
+            const sku = e.target.value || null;
+            const v = productVariants.find(
+              (x) => String(x.sku) === String(sku)
+            );
+            setItem({
+              ...item,
+              variantSku: sku,
+              variantName: v?.Colorname || "",
+            });
+          }}>
+          <option value="">Variant</option>
+          {productVariants.map((v) => (
+            <option key={v.sku} value={v.sku}>
+              {v.Colorname}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="number"
+          className="border p-2 outline-none"
+          value={item.qty}
+          onChange={(e) => setItem({ ...item, qty: +e.target.value })}
+        />
+
+        <input
+          className="border p-2 outline-none"
+          value={item.unit}
+          onChange={(e) => setItem({ ...item, unit: e.target.value })}
+        />
+
+        {/* ✅ MRP DISPLAY */}
+        <input
+          type="number"
+          className="border p-2 outline-none"
+          placeholder="MRP"
+          value={item.mrp}
+          onChange={(e) => {
+            const mrp = e.target.value;
+            setItem({
+              ...item,
+              mrp,
+              sellingPrice: calculateSellingFromMRP(
+                mrp,
+                item.sellType,
+                item.sellValue
+              ),
+            });
+          }}
+        />
+
+        <input
+          type="number"
+          className="border p-2 outline-none"
+          placeholder="Purchase Price"
+          value={item.purchasePrice}
+          onChange={(e) => setItem({ ...item, purchasePrice: +e.target.value })}
+        />
+
+        <select
+          className="border p-2 outline-none"
+          value={item.sellType}
+          onChange={(e) => {
+            const type = e.target.value;
+            setItem({
+              ...item,
+              sellType: type,
+              sellingPrice: calculateSellingFromMRP(
+                item.mrp,
+                type,
+                item.sellValue
+              ),
+            });
+          }}>
+          <option value="percentage">%</option>
+          <option value="flat">₹</option>
+        </select>
+
+        <input
+          type="number"
+          className="border p-2 outline-none"
+          placeholder={item.sellType === "percentage" ? "Sell %" : "Sell ₹"}
+          value={item.sellValue}
+          onChange={(e) => {
+            const v = e.target.value;
+            setItem({
+              ...item,
+              sellValue: v,
+              sellingPrice: calculateSellingFromMRP(item.mrp, item.sellType, v),
+            });
+          }}
+        />
+
+        <input
+          className="border p-2 bg-gray-100 outline-none"
+          value={item.sellingPrice.toFixed(2)}
+          readOnly
+        />
+
+        <input
+          type="number"
+          className="border p-2 outline-none"
+          value={item.purchaseDiscount}
+          onChange={(e) =>
+            setItem({
+              ...item,
+              purchaseDiscount: +e.target.value,
+            })
+          }
+        />
+
+        <input
+          type="number"
+          className="border p-2 outline-none"
+          value={item.extraDiscount}
+          onChange={(e) =>
+            setItem({
+              ...item,
+              extraDiscount: +e.target.value,
+            })
+          }
+        />
+
+        <div className="text-xs font-semibold outline-none font-PublicSans">
+          ₹{calculateProfit(item).profitPerUnit} (
+          {calculateProfit(item).profitPercent}%)
+        </div>
+
+        <input
+          type="number"
+          className="border p-2 outline-none"
+          placeholder="Reorder Level"
+          value={item.reorderLevel}
+          onChange={(e) => setItem({ ...item, reorderLevel: +e.target.value })}
+        />
+
+        <button
+          onClick={addItem}
+          className="bg-green-600 outline-none text-white rounded">
+          Add
         </button>
       </div>
-      
-      <div className="bg-white rounded-lg shadow p-5">
-        {loading ? (
-          <div className="text-center py-5">Loading...</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO #</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Extra Discount</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+
+      {/* TABLE */}
+      {items.length > 0 && (
+        <table className="w-full mt-6 border">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Product</th>
+              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Variant</th>
+              <th className="border-r-1 p-2 font-Inter uppercase text-sm">MRP</th>
+              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Purchase Price</th>
+              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Cost</th>
+              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Selling</th>
+              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Profit</th>
+              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Reorder Level</th>
+              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Qty</th>
+              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Total</th>
+              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((i, idx) => {
+              const { cost, profitPerUnit, profitPercent } = calculateProfit(i);
+
+              return (
+                <tr key={idx} className="text-center border-t">
+                  <td className="border-r-1 text-sm">{i.productName}</td>
+                  <td className="border-r-1 text-sm">{i.variantName || "-"}</td>
+                  <td className="border-r-1 text-sm">₹{i.mrp}</td>
+                  <td className="border-r-1 text-sm">₹{i.purchasePrice}</td>
+                  <td className="border-r-1 text-sm">₹{cost}</td>
+                  <td className="border-r-1 text-sm">₹{i.sellingPrice}</td>
+                  <td
+                    className={
+                      profitPerUnit >= 0
+                        ? "text-green-600 border-black border-r-1"
+                        : "text-red-600 border-black border-r-1"
+                    }>
+                    {profitPerUnit > 0 ? (
+                      <TiArrowUp className="inline mb-1 text-lg" />
+                    ) : (
+                      <TiArrowUp className="inline mb-1 text-lg rotate-180" />
+                    )}
+                    ₹{profitPerUnit} ({profitPercent}%)
+                  </td>                  <td className="border-r-1">{i.reorderLevel}</td>                  <td className="border-r-1">{i.qty}</td>
+                  <td className="font-semibold border-r-1 text-sm px-1">
+                    ₹{(i.sellingPrice * i.qty).toFixed(2)}
+                  </td>
+                  <td className="p-2 flex justify-center gap-x-2">
+                    <button
+                      onClick={() => handleEditItem(idx)}
+                      className="px-2 py-1 w-full bg-amber-500 cursor-pointer outline-none uppercase font-PublicSans text-white rounded transition-colors hover:bg-amber-700">
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteItem(idx)}
+                      className="px-2 py-1 w-full bg-rose-500 outline-none cursor-pointer uppercase font-PublicSans text-white rounded transition-colors hover:bg-rose-700">
+                      Delete
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {purchases.length > 0 ? (
-                  purchases.map((purchase) => (
-                    <tr key={purchase._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">PO-{purchase._id.slice(-6).toUpperCase()}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{purchase.productId?.name || 'N/A'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{purchase.qty || 1}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{purchase.productSubcategory || purchase.productId?.Subcategory || purchase.productId?.Maincategory || 'N/A'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{purchase.unit || purchase.productId?.unit || 'N/A'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{purchase.vender || 'N/A'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">₹{purchase.purchasePrice?.toFixed(2)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">{purchase.purchaseDiscount}%</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">{purchase.extraDiscount ? `${purchase.extraDiscount}%` : '0%'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        ₹{(calculateTotal(purchase.purchasePrice, purchase.purchaseDiscount, purchase.extraDiscount) * (purchase.qty || 1)).toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap capitalize">{purchase.purchaseMethod}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{purchase.Date ? formatDate(purchase.Date) : formatDate(purchase.createdAt)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="flex justify-end space-x-2">
-                          <button 
-                            onClick={() => handleEdit(purchase)}
-                            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
-                          >
-                            Edit
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(purchase._id)}
-                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="12" className="px-6 py-4 text-center text-gray-500">
-                      No purchase orders found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
 
-      {/* Add/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-4 border-b">
-              <h2 className="text-xl font-semibold">
-                {editingPurchase ? 'Edit' : 'Add New'} Purchase Order
-              </h2>
-              <button 
-                onClick={() => setShowModal(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
-              >
-                &times;
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="p-6">
-              {/* Barcode lookup: scanning or manual entry */}
-              <div className="mb-4">
-                <label className="text-sm font-medium flex gap-x-1 text-gray-700 mb-1">
-                  <Barcode color="gray" size={20} strokeWidth={3} />
-                  Barcode (scan or enter)
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    ref={barcodeInputRef}
-                    type="text"
-                    name="barcode"
-                    value={formData.barcode}
-                    onChange={handleInputChange}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleBarcodeSubmit(e); }}
-                    placeholder="Scan or type barcode and press Enter"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleBarcodeSubmit}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-md"
-                  >
-                    Lookup
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, barcode: '', productId: '', productName: '', purchasePrice: 0 }))}
-                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md"
-                  >
-                    Clear
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">You can either scan a barcode or enter a Product ID below.</p>
-              </div>
+      <button
+        onClick={saveInvoice}
+        className="mt-6 bg-black text-white px-4 py-2 rounded">
+        Save Invoice
+      </button>
 
-              <div className="mb-4 md:mb-0 md:ml-4 w-40">
-                <label className="text-sm font-medium text-gray-700 mb-1">Qty</label>
-                <input
-                  type="number"
-                  name="qty"
-                  min={1}
-                  value={formData.qty}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Product ID (optional)
-                </label>
-                <input
-                  type="text"
-                  name="productId"
-                  value={formData.productId}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Read-only product name to show what was found by barcode */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
-                <input
-                  type="text"
-                  name="productName"
-                  value={formData.productName}
-                  readOnly
-                  placeholder="Product name will appear after barcode lookup"
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md shadow-sm"
-                />
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <input
-                    type="text"
-                    name="productCategory"
-                    value={formData.productCategory}
-                    onChange={handleInputChange}
-                    placeholder="Product category"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
-                  <select
-                    name="unit"
-                    value={formData.unit || ''}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select unit</option>
-                    <option value="pic's">pic's</option>
-                    <option value="set's">set's</option>
-                    <option value="packet's">packet's</option>
-                    <option value="box's">box's</option>
-                    <option value="carton's">carton's</option>
-                    <option value="sheet's">sheet's</option>
-                    <option value="dozen's">dozen's</option>
-                    <option value="bottle's">bottle's</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Date</label>
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date || ''}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Vendor
-                  </label>
-                  <input
-                    type="text"
-                    name="vender"
-                    value={formData.vender}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Invoice #
-                  </label>
-                  <input
-                    type="text"
-                    name="purchaseInvoice"
-                    value={formData.purchaseInvoice}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Price</label>
-                  <input
-                    type="number"
-                    name="purchasePrice"
-                    value={formData.purchasePrice}
-                    onChange={handleInputChange}
-                    min="0"
-                    step="0.01"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Discount (%)</label>
-                  <input
-                    type="number"
-                    name="purchaseDiscount"
-                    value={formData.purchaseDiscount}
-                    onChange={handleInputChange}
-                    min="0"
-                    max="100"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Extra Discount (%)</label>
-                  <input
-                    type="number"
-                    name="extraDiscount"
-                    value={formData.extraDiscount}
-                    onChange={handleInputChange}
-                    min="0"
-                    max="100"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Payment Method
-                </label>
-                <select
-                  name="purchaseMethod"
-                  value={formData.purchaseMethod}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="cash">Cash</option>
-                  <option value="upi">UPI</option>
-                  <option value="credit">Credit</option>
-                  <option value="cheque">Cheque</option>
-                </select>
-              </div>
-
-              {formData.purchaseMethod === 'cheque' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Check #
-                  </label>
-                  <input
-                    type="text"
-                    name="checkNumber"
-                    value={formData.checkNumber}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              )}
-
-              <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                  {editingPurchase ? 'Update' : 'Create'} Order
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {showVendor && (
+        <VendorModal
+          vendor={vendorToEdit}
+          onClose={() => setShowVendor(false)}
+          onCreated={(v) => setVendors([v, ...vendors])}
+        />
       )}
     </div>
   );

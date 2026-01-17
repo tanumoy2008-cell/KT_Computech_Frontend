@@ -1,56 +1,39 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "../../config/axios";
+import { createSlice } from "@reduxjs/toolkit";
+import { fetchProducts } from "../actions/productActions";
 
-// 🔍 Async thunk to fetch products from API only if needed
-export const fetchProducts = createAsyncThunk(
-  "products/fetchProducts",
-  async ({ start = 0, limit = 15, query = "", Maincategory = "", Subcategory = "" }, { getState }) => {
-    const { ProductReducer } = getState();
-
-    // ✅ 1. If searching and already found locally, skip API
-    if (query.trim()) {
-      const localResults = ProductReducer.items.filter((item) =>
-        item.name.toLowerCase().includes(query.toLowerCase())
-      );
-      if (localResults.length > 0) {
-        return { products: localResults, fromCache: true };
-      }
-    }
-
-    // ✅ 2. Otherwise, fetch from backend (use productSend admin/public endpoint)
-    const res = await axios.get("/api/product/productSend", {
-      params: { start, limit, Maincategory, Subcategory, query },
-    });
-
-    return { products: res.data.product || [], fromCache: false };
-  }
-);
 
 const initialState = {
   items: [],
   categories: [],
   start: 0,
   hasMore: true,
+
   Maincategory: "",
   Subcategory: "",
   query: "",
+
   scrollY: 0,
+
   loading: false,
   error: null,
 };
 
+
 const productSlice = createSlice({
   name: "ProductReducer",
   initialState,
+
   reducers: {
+
     setProducts: (state, action) => {
       const { products, reset } = action.payload;
+
       if (reset) {
         state.items = products;
       } else {
-        const existingIds = new Set(state.items.map((p) => p._id));
-        const newItems = products.filter((p) => !existingIds.has(p._id));
-        state.items = [...state.items, ...newItems];
+        const existing = new Set(state.items.map(p => p._id));
+        const unique = products.filter(p => !existing.has(p._id));
+        state.items = [...state.items, ...unique];
       }
     },
 
@@ -86,14 +69,17 @@ const productSlice = createSlice({
       state.scrollY = 0;
       state.query = "";
     },
+
     resetQuery: (state) => {
       state.query = "";
     },
-    // Upsert a single product into the items list (replace or insert)
+
     upsertProduct: (state, action) => {
       const prod = action.payload;
       if (!prod || !prod._id) return;
-      const idx = state.items.findIndex((p) => p._id === prod._id);
+
+      const idx = state.items.findIndex(p => p._id === prod._id);
+
       if (idx === -1) {
         state.items = [prod, ...state.items];
       } else {
@@ -102,32 +88,47 @@ const productSlice = createSlice({
     },
   },
 
-  // Handle async thunk lifecycle
+
   extraReducers: (builder) => {
     builder
+
       .addCase(fetchProducts.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
+
+
       .addCase(fetchProducts.fulfilled, (state, action) => {
         state.loading = false;
 
-        // Skip appending if data came from cache
-        if (action.payload.fromCache) return;
-
         const newProducts = action.payload.products || [];
-        const existingIds = new Set(state.items.map((p) => p._id));
-        const uniqueProducts = newProducts.filter((p) => !existingIds.has(p._id));
 
-        state.items = [...state.items, ...uniqueProducts];
-        state.hasMore = newProducts.length > 0;
+        // 🔎 SEARCH MODE → replace list (ranked results)
+        if (action.payload.fromSearch) {
+          state.items = newProducts;
+          state.hasMore = false; // search results are not paginated
+          state.start = 0;
+          return;
+        }
+
+        // 📦 BROWSE MODE → append infinite scroll results
+        const existingIds = new Set(state.items.map(p => p._id));
+        const unique = newProducts.filter(p => !existingIds.has(p._id));
+
+        state.items = [...state.items, ...unique];
+        state.hasMore = action.payload.hasMore;
+        state.start = action.payload.nextStart;
       })
+
+
       .addCase(fetchProducts.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || "Failed to fetch products";
       });
   },
 });
+
+
 
 export const {
   setProducts,

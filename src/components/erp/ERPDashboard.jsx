@@ -1,158 +1,490 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bar, Pie } from 'react-chartjs-2';
+import axios from '../../config/axios';
+import { toast } from 'react-toastify';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
+import Lottie from 'lottie-react';
+import SandLoading from '../../assets/Sandy Loading.json';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
+
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+// Chart.js configuration
+const currencyChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  scales: {
+    y: {
+      beginAtZero: true,
+      ticks: {
+        color: "#000",
+        callback: (value) => formatCurrency(value)
+      }
+    }
+  },
+  plugins: {
+    legend: { position: 'top' },
+    tooltip: {
+      callbacks: {
+        label: (context) => {
+          const label = context.dataset.label || '';
+          return `${label}: ${formatCurrency(context.parsed.y)}`;
+        }
+      }
+    }
+  }
+};
+
+const numbercurrencyChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  scales: {
+    y: {
+      beginAtZero: true,
+      ticks: {
+        color: "#000",
+        callback: (value) => value.toLocaleString()
+      }
+    }
+  },
+  plugins: {
+    legend: { position: 'top' },
+    tooltip: {
+      callbacks: {
+        label: (context) => {
+          const label = context.dataset.label || '';
+          return `${label}: ${context.parsed.y.toLocaleString()}`;
+        }
+      }
+    }
+  }
+};
+
 
 const ERPDashboard = () => {
-  // Sample data for the dashboard
-  const salesData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalSales: 0,
+    totalProducts: 0,
+    totalOrders: 0,
+    lowStockProducts: 0
+  });
+  const [salesData, setSalesData] = useState({
+    labels: [],
+    monthlySales: [],
+    orderCounts: []
+  });
+  const [inventoryData, setInventoryData] = useState({
+    lowStockProducts: [],
+    categories: []
+  });
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        // Fetch dashboard stats
+        const statsRes = await axios.get('/api/erp/dashboard/stats');
+        setStats(statsRes.data.data);
+
+        // Fetch sales data
+        const salesRes = await axios.get('/api/erp/dashboard/sales');
+        setSalesData(salesRes.data.data);
+
+        // Fetch inventory data
+        const inventoryRes = await axios.get('/api/erp/dashboard/inventory');
+        setInventoryData(inventoryRes.data.data);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Prepare chart data
+const salesChartData = {
+  labels: salesData.labels || [],
+  datasets: [
+    {
+      label: "Monthly Sales",
+      data: salesData.monthlySales || [],
+
+      backgroundColor: (context) => {
+        const chart = context.chart;
+        const { ctx, chartArea } = chart;
+
+        if (!chartArea) return null;
+
+        const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+
+        gradient.addColorStop(0, "rgba(59, 130, 246, 0.1)");
+        gradient.addColorStop(1, "rgba(59, 130, 246, 0.9)");
+
+        return gradient;
+      },
+
+      borderColor: "rgba(59, 130, 246, 1)",
+      borderWidth: 2,
+    },
+  ],
+};
+
+
+  const ordersChartData = {
+    labels: salesData.labels || [],
     datasets: [
       {
-        label: 'Sales 2025',
-        data: [65, 59, 80, 81, 56, 55],
-        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+        label: 'Orders',
+        data: salesData.orderCounts || [],
+         backgroundColor: (context) => {
+        const chart = context.chart;
+        const { ctx, chartArea } = chart;
+
+        if (!chartArea) return null;
+
+        const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+
+        gradient.addColorStop(0, "rgba(16, 185, 129, 0.1)");
+        gradient.addColorStop(1, "rgba(16, 185, 129, 0.9)"); 
+
+        return gradient;
+      },
+        borderColor: 'rgba(16, 185, 129, 1)',
+        borderWidth: 1,
       },
     ],
   };
 
-  const expenseData = {
-    labels: ['Rent', 'Salaries', 'Utilities', 'Supplies', 'Marketing'],
-    datasets: [
-      {
-        data: [3000, 10000, 2000, 1500, 3000],
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.6)',
-          'rgba(54, 162, 235, 0.6)',
-          'rgba(255, 206, 86, 0.6)',
-          'rgba(75, 192, 192, 0.6)',
-          'rgba(153, 102, 255, 0.6)',
-        ],
+// Update the inventory chart data
+const inventoryChartData = {
+  labels: inventoryData.mainCategories?.map(cat => cat._id || 'Uncategorized') || [],
+  datasets: [
+    {
+      data: inventoryData.mainCategories?.map(cat => cat.totalStock) || [],
+      backgroundColor: [
+        'rgba(239, 68, 68, 0.9)',
+        'rgba(59, 130, 246, 0.9)',
+        'rgba(234, 179, 8, 0.9)',
+        'rgba(16, 185, 129, 0.9)',
+        'rgba(139, 92, 246, 0.9)',
+      ],
+      borderWidth: 1,
+      borderColor: 'rgba(0, 0, 0, 1)',
+    },
+  ],
+};
+
+
+const inventoryChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+
+  plugins: {
+    legend: {
+      position: "top",
+      labels: {
+        color: "#fff",
+        font: {
+          size: 18
+        }
+      }
+    },
+
+    tooltip: {
+      callbacks: {
+        label: (context) => {
+          const label = context.label || "";
+          const value = Number(context.raw || 0);
+
+          const total = context.dataset.data.reduce(
+            (sum, v) => sum + Number(v || 0),
+            0
+          );
+
+          const percentage = total ? Math.round((value / total) * 100) : 0;
+
+          return `${label}: ${value} units (${percentage}%)`;
+        },
       },
-    ],
-  };
+      titleColor: "#fff",  
+      bodyColor: "#dadada",  
+    },
+  },
+};
+
+
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[80vh]">
+        <Lottie
+          animationData={SandLoading}
+          loop={true}
+          className="w-100 h-100 mx-auto"
+        />
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>Dashboard</h1>
-      
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '20px',
-        marginBottom: '30px'
-      }}>
-        <div style={cardStyle}>
-          <h3>Total Revenue</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#2e7d32' }}>$24,780</p>
-          <p style={{ color: '#666', fontSize: '14px' }}>+12% from last month</p>
-        </div>
-        
-        <div style={cardStyle}>
-          <h3>Total Expenses</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#d32f2f' }}>$12,450</p>
-          <p style={{ color: '#666', fontSize: '14px' }}>+5% from last month</p>
-        </div>
-        
-        <div style={cardStyle}>
-          <h3>Net Profit</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#2e7d32' }}>$12,330</p>
-          <p style={{ color: '#666', fontSize: '14px' }}>+18% from last month</p>
-        </div>
-      </div>
-      
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '2fr 1fr', 
-        gap: '20px',
-        marginBottom: '30px' 
-      }}>
-        <div style={cardStyle}>
-          <h3>Sales Overview</h3>
-          <div style={{ height: '300px' }}>
-            <Bar 
-              data={salesData} 
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                  y: {
-                    beginAtZero: true
-                  }
-                }
-              }}
-            />
+    <div className="px-4 py-2">
+      <h1 className="text-2xl font-bold text-black mb-6">Dashboard Overview</h1>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Total Revenue */}
+        <div className="bg-white rounded-lg shadow p-4 2xl:p-6 border border-l-6 border-blue-600">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs 2xl:text-base uppercase font-bold text-black font-PublicSans">
+                Total Revenue
+              </p>
+              <p className="text-2xl font-semibold text-black font-mono">
+                {formatCurrency(stats.totalSales)}
+              </p>
+            </div>
+            <div className="p-3 rounded-full bg-blue-200">
+              <svg
+                className="w-6 h-6 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M7 5h10M7 9h10m0 0a5 5 0 01-5 5H9m3 0l4 5"
+                />
+              </svg>
+            </div>
           </div>
         </div>
-        
-        <div style={cardStyle}>
-          <h3>Expense Distribution</h3>
-          <div style={{ height: '300px' }}>
-            <Pie 
-              data={expenseData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false
-              }}
-            />
+
+        {/* Total Orders */}
+        <div className="bg-white rounded-lg shadow p-4 2xl:p-6 border border-l-6 border-green-600">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs 2xl:text-base uppercase font-bold text-black font-PublicSans">
+                Total Orders
+              </p>
+              <p className="text-2xl font-semibold text-black font-mono">
+                {stats.totalOrders}
+              </p>
+            </div>
+            <div className="p-3 rounded-full bg-green-200">
+              <svg
+                className="w-6 h-6 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Products */}
+        <div className="bg-white rounded-lg shadow p-4 2xl:p-6 border border-l-6 border-cyan-600">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs 2xl:text-base uppercase font-bold text-black font-PublicSans">
+                Total Products
+              </p>
+              <p className="text-2xl font-semibold text-black font-mono">
+                {stats.totalProducts}
+              </p>
+            </div>
+            <div className="p-3 rounded-full bg-cyan-200">
+              <svg
+                className="w-6 h-6 text-cyan-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Low Stock Items */}
+        <div className="bg-white rounded-lg shadow p-4 2xl:p-6 border border-l-6 border-rose-600">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs 2xl:text-base uppercase font-bold text-black font-PublicSans">
+                Low Stock Items
+              </p>
+              <p className="text-2xl font-semibold text-black font-mono">
+                {stats.lowStockProducts}
+              </p>
+            </div>
+            <div className="p-3 rounded-full bg-rose-200">
+              <svg
+                className="w-6 h-6 text-rose-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            </div>
           </div>
         </div>
       </div>
-      
-      <div style={cardStyle}>
-        <h3>Recent Transactions</h3>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid #eee' }}>
-              <th style={{ textAlign: 'left', padding: '12px' }}>Date</th>
-              <th style={{ textAlign: 'left', padding: '12px' }}>Description</th>
-              <th style={{ textAlign: 'right', padding: '12px' }}>Amount</th>
-              <th style={{ textAlign: 'left', padding: '12px' }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentTransactions.map((txn, index) => (
-              <tr key={index} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                <td style={{ padding: '12px' }}>{txn.date}</td>
-                <td style={{ padding: '12px' }}>{txn.description}</td>
-                <td style={{ 
-                  padding: '12px', 
-                  textAlign: 'right',
-                  color: txn.type === 'income' ? '#2e7d32' : '#d32f2f'
-                }}>
-                  {txn.type === 'income' ? '+' : '-'}${txn.amount}
-                </td>
-                <td style={{ padding: '12px' }}>
-                  <span style={{
-                    padding: '4px 8px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    backgroundColor: txn.status === 'completed' ? '#e8f5e9' : '#fff8e1',
-                    color: txn.status === 'completed' ? '#2e7d32' : '#ff8f00'
-                  }}>
-                    {txn.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        {/* Sales Chart */}
+        <div className="lg:col-span-2 bg-zinc-100 rounded-lg border border-zinc-500/50 shadow-lg shadow-zinc-500/60 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">
+              Sales Overview
+            </h2>
+          </div>
+          <div className="h-80">
+            <Bar data={salesChartData} options={currencyChartOptions} />
+          </div>
+        </div>
+
+        {/* Orders Chart */}
+        <div className="bg-white rounded-lg border border-zinc-500/50 shadow-lg shadow-zinc-500/60 lg:col-span-2 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">
+              Orders Overview
+            </h2>
+          </div>
+          <div className="h-80">
+            <Bar data={ordersChartData} options={numbercurrencyChartOptions} />
+          </div>
+        </div>
+      </div>
+
+      {/* Inventory Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Inventory by Category */}
+        <div className="bg-black border border-zinc-500/50 shadow-lg shadow-zinc-500/60 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-white">
+              Inventory by Category
+            </h2>
+          </div>
+          <div className="h-80">
+            <Pie data={inventoryChartData} options={inventoryChartOptions} />
+          </div>
+        </div>
+
+        {/* Low Stock Items */}
+        <div className="bg-white rounded-lg border border-zinc-500/50 shadow-lg shadow-zinc-500/60 overflow-hidden">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-800">
+                Low Stock Items
+              </h2>
+              <span className="px-3 py-1 text-sm text-amber-800 bg-amber-100 rounded-full">
+                {inventoryData.lowStockProducts.length} items
+              </span>
+            </div>
+            <div className="overflow-x-auto h-96">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Product
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Stock
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {inventoryData.lowStockProducts.length > 0 ? (
+                    inventoryData.lowStockProducts.map((product, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {product.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {product.Subcategory || "Uncategorized"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {product.stock}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              product.stock < 5
+                                ? "bg-red-100 text-red-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}>
+                            {product.stock < 5 ? "Very Low" : "Low"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="4"
+                        className="px-6 py-4 text-center text-sm text-gray-500">
+                        No low stock items
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
-
-const cardStyle = {
-  backgroundColor: 'white',
-  borderRadius: '8px',
-  padding: '20px',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-};
-
-const recentTransactions = [
-  { date: '2025-11-15', description: 'Product Sales', amount: '1,250.00', type: 'income', status: 'completed' },
-  { date: '2025-11-14', description: 'Office Supplies', amount: '350.00', type: 'expense', status: 'completed' },
-  { date: '2025-11-14', description: 'Client Payment', amount: '3,450.00', type: 'income', status: 'pending' },
-  { date: '2025-11-13', description: 'Monthly Rent', amount: '2,000.00', type: 'expense', status: 'completed' },
-  { date: '2025-11-12', description: 'Website Hosting', amount: '99.00', type: 'expense', status: 'completed' },
-];
 
 export default ERPDashboard;

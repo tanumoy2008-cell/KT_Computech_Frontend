@@ -25,6 +25,10 @@ const ProductEditPage = () => {
   const [currentVariantIndex, setCurrentVariantIndex] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [priceModalIndex, setPriceModalIndex] = useState(null);
+  const [priceBatches, setPriceBatches] = useState([]);
+  const [priceBatchesLoading, setPriceBatchesLoading] = useState(false);
 
   const { register, handleSubmit, setValue, control, reset, watch } = useForm({
     defaultValues: {
@@ -33,7 +37,6 @@ const ProductEditPage = () => {
       Subcategory: "",
       Maincategory: "",
       off: 0,
-      price: null,
       stock: null,
       barcodes: [],
       productDescription: "",
@@ -49,12 +52,16 @@ const ProductEditPage = () => {
     const fetchProduct = async () => {
       try {
         const res = await axios.get(`/api/product/product-info/${id}`);
-        const p = res.data;
+        // Support both response shapes: { data: product } and product
+        const p = res.data?.data || res.data;
 
         const formVariants = (p.colorVariants || []).map((cv) => ({
           Colorname: cv.Colorname || "", // required field
           colorCode: cv.colorCode || "#ffffff",
           stock: cv.stock || 0,
+          sku: cv.sku,
+          lastPurchasePrice: cv.lastPurchasePrice ?? null,
+          avgPurchasePrice: cv.avgPurchasePrice ?? null,
           images: (cv.images || []).map((img, idx) => ({
             url: img,
             public_id: cv.imagePublicIds?.[idx] || null,
@@ -70,7 +77,6 @@ const ProductEditPage = () => {
           Subcategory: p.Subcategory || "",
           Maincategory: p.Maincategory || "",
           off: p.off || 0,
-          price: p.price || null,
           stock: totalStock,
           barcodes: p.barcodes || [],
           productDescription:
@@ -116,6 +122,41 @@ const ProductEditPage = () => {
         setCurrentVariantIndex(null);
       }
     }, "image/avif", 0.9);
+  };
+
+  const formatPrice = (v) => {
+    if (v === null || v === undefined) return "-";
+    try {
+      return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(Number(v));
+    } catch (e) {
+      return `₹${Number(v).toFixed(2)}`;
+    }
+  };
+
+  const openPriceModal = (index) => {
+    setPriceModalIndex(index);
+    setPriceModalOpen(true);
+
+    // fetch batches for this variant
+    const v = colorVariants[index] || {};
+    const sku = v.sku;
+    setPriceBatches([]);
+    setPriceBatchesLoading(true);
+    axios
+      .get(`/api/purchase-products/batches/${id}${sku ? `?sku=${sku}` : ""}`)
+      .then((res) => {
+        setPriceBatches(res.data?.data || []);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch batches:", err);
+        setPriceBatches([]);
+      })
+      .finally(() => setPriceBatchesLoading(false));
+  };
+
+  const closePriceModal = () => {
+    setPriceModalIndex(null);
+    setPriceModalOpen(false);
   };
 
   const removeVariantImage = (variantIndex, imgIndex) => {
@@ -172,7 +213,7 @@ const ProductEditPage = () => {
       formData.append("id", id);
       
       // Add basic fields
-      ["name", "company", "Subcategory", "Maincategory", "off", "price"].forEach((key) => {
+      ["name", "company", "Subcategory", "Maincategory", "off"].forEach((key) => {
         if (data[key] !== product[key]) formData.append(key, data[key]);
       });
 
@@ -250,7 +291,6 @@ const ProductEditPage = () => {
       setIsSubmitting(false);
     }
   };
-
   if (isLoading) {
     return (
       <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 to-slate-100 py-12 px-6 md:px-20 text-slate-800">
@@ -279,6 +319,9 @@ const ProductEditPage = () => {
             {product.name} Basic info
           </h2>
           <p className="text-sm text-slate-500">Basic details and pricing</p>
+          <div className="flex gap-6 mt-2 items-center">
+            <div className="text-sm text-slate-600">Last purchase price: <span className="font-medium">{formatPrice(product?.lastPurchasePrice)}</span></div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
             <label className="flex flex-col text-sm text-gray-700">
               <span className="mb-1">Product Name</span>
@@ -318,15 +361,6 @@ const ProductEditPage = () => {
                 {...register("off")}
                 type="number"
                 placeholder="Discount %"
-                className="border border-slate-400 rounded-lg px-3 py-2 w-full bg-zinc-200 outline-none focus:bg-white transition duration-300"
-              />
-            </label>
-            <label className="flex flex-col text-sm text-gray-700">
-              <span className="mb-1">Price</span>
-              <input
-                {...register("price")}
-                type="number"
-                placeholder="Price"
                 className="border border-slate-400 rounded-lg px-3 py-2 w-full bg-zinc-200 outline-none focus:bg-white transition duration-300"
               />
             </label>
@@ -440,6 +474,23 @@ const ProductEditPage = () => {
                     className="rounded-lg border border-slate-400 px-3 py-2 w-full bg-zinc-200 outline-none focus:bg-white transition duration-300"
                   />
                 </div>
+                {cv.lastPurchasePrice !== null && (
+                  <div className="text-sm text-slate-600">
+                    <div>Last purchase price: {formatPrice(cv.lastPurchasePrice)}</div>
+                    {cv.avgPurchasePrice !== null && (
+                      <div>Avg purchase cost: {formatPrice(cv.avgPurchasePrice)}</div>
+                    )}
+                  </div>
+                )}
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => openPriceModal(idx)}
+                      className="text-sm text-indigo-600 hover:underline"
+                    >
+                      View price details
+                    </button>
+                  </div>
 
                 <div className="flex gap-2 flex-wrap mt-2 items-center">
                   {cv.images.map((img, i) => (
@@ -550,6 +601,87 @@ const ProductEditPage = () => {
                 className="px-4 py-2 bg-teal-600 rounded text-white hover:bg-teal-700 transition">
                 Done
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {priceModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+          <div className="w-[90vw] max-w-md bg-white rounded-2xl p-6 ring-1 ring-slate-200 shadow-lg">
+            <div className="flex justify-between items-start">
+              <h3 className="text-lg font-semibold">Price details</h3>
+              <button onClick={closePriceModal} className="text-slate-500 hover:text-slate-800">✕</button>
+            </div>
+            <div className="mt-4 text-sm text-slate-700 space-y-3">
+              {priceModalIndex === null ? (
+                <div>No variant selected</div>
+              ) : (
+                (() => {
+                  const v = colorVariants[priceModalIndex] || {};
+                  return (
+                    <div>
+                      <div className="font-medium text-slate-800">
+                        {v.Colorname || `Variant ${priceModalIndex + 1}`}
+                      </div>
+                      <div className="mt-2">SKU: {v.sku ?? "—"}</div>
+                      <div className="mt-2">
+                        Last purchase price: {formatPrice(v.lastPurchasePrice)}
+                      </div>
+                      <div>
+                        Average purchase cost: {formatPrice(v.avgPurchasePrice)}
+                      </div>
+                      {product?.lastPurchasePrice !== undefined && (
+                        <div className="mt-3 text-sm text-slate-600">
+                          Overall last purchase price:{" "}
+                          {formatPrice(product.lastPurchasePrice)}
+                        </div>
+                      )}
+
+                      <div className="mt-4">
+                        <h4 className="font-medium">Purchase batches</h4>
+                        {priceBatchesLoading ? (
+                          <div className="text-sm text-slate-500">
+                            Loading...
+                          </div>
+                        ) : priceBatches.length === 0 ? (
+                          <div className="text-sm text-slate-500">
+                            No batches found
+                          </div>
+                        ) : (
+                          <ul className="mt-2 max-h-48 overflow-auto divide-y">
+                            {priceBatches.map((b) => (
+                              <li key={b._id} className="py-2 text-sm">
+                                <div className="flex justify-between">
+                                  <div className="text-slate-800">
+                                    {b.purchaseInvoice || "—"}
+                                  </div>
+                                  <div className="text-slate-600">
+                                    {typeof b.date === "string"
+                                      ? b.date
+                                      : new Date(b.Date).toLocaleDateString()}
+                                  </div>
+                                </div>
+                                <div className="text-slate-600">
+                                  Price: {formatPrice(b.purchasePrice)} • Qty:{" "}
+                                  {b.qty} • Remaining: {b.remainingQty}
+                                </div>
+                                <div className="text-slate-500">
+                                  Vendor:{" "}
+                                  {b.vendorId?.name || b.vendorId || "—"}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
+            </div>
+            <div className="flex justify-end mt-4">
+              <button onClick={closePriceModal} className="px-4 py-2 bg-slate-200 rounded hover:bg-slate-300">Close</button>
             </div>
           </div>
         </div>

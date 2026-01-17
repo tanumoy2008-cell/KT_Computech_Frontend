@@ -53,3 +53,8 @@ input[type="number"]::-webkit-outer-spin-button
 {
 display: none;
 }
+
+::selection {
+    background-color: #049749a3;
+    color: white;
+}
