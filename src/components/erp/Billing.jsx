@@ -469,16 +469,16 @@ const Billing = () => {
       const name = pad(item.name || "", ITEM_W);
       const qty = pad(item.quantity || item.qty || 0, QTY_W, true);
       const rate = pad(
-        (item.rate || item.price || 0).toFixed(2),
+        (Math.ceil(item.rate || item.price || 0)).toFixed(2),
         RATE_W,
         true
       );
       const total = pad(
-        (
+        (Math.ceil(
           item.total ||
           (item.quantity || item.qty || 0) *
             (item.rate || item.price || 0)
-        ).toFixed(2),
+        )).toFixed(2),
         FINAL_W,
         true
       );
@@ -510,7 +510,7 @@ const Billing = () => {
     r +=
       pad("Total:", LINE_WIDTH - 10) +
       pad(
-        (saleData.totalAfterDiscount || saleData.total || 0).toFixed(2),
+        (Math.ceil(saleData.totalAfterDiscount || saleData.total || 0)).toFixed(2),
         10,
         true
       ) +
