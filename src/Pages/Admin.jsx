@@ -168,14 +168,6 @@ const Admin = () => {
                 collapsed={collapsed}
               />
             </abbr>
-            <abbr title="Billing's" className="no-underline">
-              <NavItem
-                to="/admin/billing"
-                text="Billing"
-                icon="💳"
-                collapsed={collapsed}
-              />
-            </abbr>
             <abbr title="Pincode's" className="no-underline">
               <NavItem
                 to="/admin/pincode"

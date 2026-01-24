@@ -10,6 +10,10 @@ const Purchase = () => {
   const [showVendor, setShowVendor] = useState(false);
   const [vendorToEdit, setVendorToEdit] = useState(null);
 
+  const [purchases, setPurchases] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [editingPurchase, setEditingPurchase] = useState(null);
+
   const [items, setItems] = useState([]);
   const [productVariants, setProductVariants] = useState([]);
   const [searchClearSignal, setSearchClearSignal] = useState(0);
@@ -41,12 +45,45 @@ const Purchase = () => {
   });
 
   // ======================
+  // CALCULATIONS
+  // ======================
+
+  const calculateProfit = (i) => {
+    const cost = calculateEffectiveCost(
+      i.purchasePrice,
+      i.purchaseDiscount,
+      i.extraDiscount
+    );
+    const sell = Number(i.sellingPrice || 0);
+    const profitPerUnit = +(sell - cost).toFixed(2);
+    const profitPercent =
+      sell > 0 ? +((profitPerUnit / sell) * 100).toFixed(2) : 0;
+
+    return { cost, profitPerUnit, profitPercent };
+  };
+
+  // ======================
   // FETCH VENDORS
   // ======================
   useEffect(() => {
     axios.get("/api/vendor/get").then((res) => {
       setVendors(res.data.data || []);
     });
+  }, []);
+
+  // ======================
+  // FETCH PURCHASES
+  // ======================
+  const fetchPurchases = () => {
+    axios.get("/api/purchase-products/get-all").then((res) => {
+      setPurchases(res.data.data || []);
+    }).catch((err) => {
+      toast.error("Failed to fetch purchases");
+    });
+  };
+
+  useEffect(() => {
+    fetchPurchases();
   }, []);
 
   // ======================
@@ -70,18 +107,97 @@ const Purchase = () => {
      return +p.toFixed(2);
    };
 
-  const calculateProfit = (i) => {
-    const cost = calculateEffectiveCost(
-      i.purchasePrice,
-      i.purchaseDiscount,
-      i.extraDiscount
-    );
-    const sell = Number(i.sellingPrice || 0);
-    const profitPerUnit = +(sell - cost).toFixed(2);
-    const profitPercent =
-      sell > 0 ? +((profitPerUnit / sell) * 100).toFixed(2) : 0;
+  const handleEditPurchase = (purchase) => {
+    setEditingPurchase(purchase);
+    // Populate the form with purchase data
+    setInvoice({
+      purchaseInvoice: purchase.purchaseInvoice,
+      vendorId: purchase.vendorId,
+      purchaseMethod: purchase.purchaseMethod,
+      chequeNumber: purchase.chequeNumber || "",
+      date: purchase.date,
+    });
+    setItem({
+      productId: purchase.productId,
+      productName: purchase.productName,
+      mrp: purchase.mrp,
+      purchasePrice: purchase.purchasePrice,
+      qty: purchase.qty,
+      unit: purchase.unit,
+      purchaseDiscount: purchase.purchaseDiscount,
+      extraDiscount: purchase.extraDiscount,
+      variantSku: purchase.variantSku,
+      variantName: purchase.variantName,
+      sellType: purchase.sellType,
+      sellValue: purchase.sellValue,
+      sellingPrice: purchase.sellingPrice,
+      reorderLevel: purchase.reorderLevel,
+    });
+    setItems([{
+      productId: purchase.productId,
+      productName: purchase.productName,
+      mrp: purchase.mrp,
+      purchasePrice: purchase.purchasePrice,
+      qty: purchase.qty,
+      unit: purchase.unit,
+      purchaseDiscount: purchase.purchaseDiscount,
+      extraDiscount: purchase.extraDiscount,
+      variantSku: purchase.variantSku,
+      variantName: purchase.variantName,
+      sellType: purchase.sellType,
+      sellValue: purchase.sellValue,
+      sellingPrice: purchase.sellingPrice,
+      reorderLevel: purchase.reorderLevel,
+    }]);
+    setSearchInitial(purchase.productName);
+    // Fetch product variants if needed
+    axios.get(`/api/product/get/${purchase.productId}`).then((res) => {
+      setProductVariants(res.data.colorVariants || []);
+    });
+    setShowModal(true);
+  };
 
-    return { cost, profitPerUnit, profitPercent };
+  const handleDeletePurchase = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this purchase?")) return;
+    try {
+      await axios.delete(`/api/purchase-products/delete/${id}`);
+      toast.success("Purchase deleted");
+      fetchPurchases();
+    } catch (err) {
+      toast.error("Failed to delete purchase");
+    }
+  };
+
+  const handleAddNew = () => {
+    setEditingPurchase(null);
+    setInvoice({
+      purchaseInvoice: "",
+      vendorId: "",
+      purchaseMethod: "cash",
+      chequeNumber: "",
+      date: "",
+    });
+    setItem({
+      productId: "",
+      productName: "",
+      mrp: 0,
+      purchasePrice: 0,
+      qty: 1,
+      unit: "pic's",
+      purchaseDiscount: 0,
+      extraDiscount: 0,
+      variantSku: null,
+      variantName: "",
+      sellType: "percentage",
+      sellValue: 20,
+      sellingPrice: 0,
+      reorderLevel: 0,
+    });
+    setSearchInitial("");
+    setProductVariants([]);
+    setSearchClearSignal((s) => s + 1);
+    setItems([]);
+    setShowModal(true);
   };
 
   // ======================
@@ -129,7 +245,7 @@ const Purchase = () => {
 
   const saveInvoice = async () => {
     if (!invoice.vendorId) return toast.error("Select vendor");
-    if (!items.length) return toast.error("Add items");
+    if (items.length === 0) return toast.error("Add at least one product");
 
     if (invoice.purchaseMethod === "cheque" && !invoice.chequeNumber) {
       return toast.error("Enter cheque number");
@@ -140,382 +256,635 @@ const Purchase = () => {
       `INV-${Date.now()}-${Math.floor(Math.random() * 9000) + 1000}`;
 
     try {
-      for (const i of items) {
-        await axios.post("/api/purchase-products/create", {
+      for (const it of items) {
+        const payload = {
           ...invoice,
           purchaseInvoice: invoiceNumber,
-          productId: i.productId,
-          mrp: Number(i.mrp),
-          purchasePrice: Number(i.purchasePrice),
-          qty: i.qty,
-          unit: i.unit,
-          purchaseDiscount: i.purchaseDiscount,
-          extraDiscount: i.extraDiscount,
-          variantSku: i.variantSku,
-          variantName: i.variantName,
-          sellType: i.sellType,
-          sellValue: i.sellValue,
-          sellingPrice: i.sellingPrice,
-          reorderLevel: i.reorderLevel,
-        });
-      }
+          productId: it.productId,
+          mrp: Number(it.mrp),
+          purchasePrice: Number(it.purchasePrice),
+          qty: it.qty,
+          unit: it.unit,
+          purchaseDiscount: it.purchaseDiscount,
+          extraDiscount: it.extraDiscount,
+          variantSku: it.variantSku,
+          variantName: it.variantName,
+          sellType: it.sellType,
+          sellValue: it.sellValue,
+          sellingPrice: it.sellingPrice,
+          reorderLevel: it.reorderLevel,
+        };
 
-      toast.success("Invoice saved");
-      setItems([]);
+        if (editingPurchase) {
+          await axios.put(`/api/purchase-products/update/${editingPurchase._id}`, payload);
+        } else {
+          await axios.post("/api/purchase-products/create", payload);
+        }
+      }
+      toast.success(editingPurchase ? "Purchase updated" : "Purchase created");
+      setShowModal(false);
+      fetchPurchases();
     } catch (err) {
-      toast.error("Failed to save invoice");
+      toast.error("Failed to save purchase");
     }
   };
 
+  const formatDate = (d) => {
+    if (!d) return "-";
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return String(d);
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const dd = String(dt.getDate()).padStart(2, "0");
+    return `${dd}-${mm}-${yyyy}`;
+  };
   // ======================
   // UI
   // ======================
   return (
-    <div className="p-3">
-      <h1 className="text-2xl font-bold mb-4">Purchase Entry</h1>
-
-      {/* HEADER */}
-      <div className="grid grid-cols-6 gap-3 mb-4">
-        <input
-          className="border p-2 outline-none"
-          placeholder="Invoice #"
-          value={invoice.purchaseInvoice}
-          onChange={(e) =>
-            setInvoice({ ...invoice, purchaseInvoice: e.target.value })
-          }
-        />
-
-        <select
-          className="border p-2 outline-none"
-          value={invoice.vendorId}
-          onChange={(e) =>
-            setInvoice({ ...invoice, vendorId: e.target.value })
-          }>
-          <option value="">Select Vendor</option>
-          {vendors.map((v) => (
-            <option key={v._id} value={v._id}>
-              {v.name}
-            </option>
-          ))}
-        </select>
-
-        {/* ✅ ADD / EDIT VENDOR */}
-        <button
-          className={`${
-            invoice.vendorId ? "bg-amber-600" : "bg-emerald-600"
-          } text-white rounded px-2 outline-none`}
-          onClick={() => {
-            const v = vendors.find((x) => x._id === invoice.vendorId);
-            setVendorToEdit(v || null);
-            setShowVendor(true);
-          }}>
-          {invoice.vendorId ? "Edit Vendor" : "+ Vendor"}
-        </button>
-
-        <select
-          className="border p-2 outline-none"
-          value={invoice.purchaseMethod}
-          onChange={(e) =>
-            setInvoice({
-              ...invoice,
-              purchaseMethod: e.target.value,
-              chequeNumber: "",
-            })
-          }>
-          <option value="cash">Cash</option>
-          <option value="upi">UPI</option>
-          <option value="credit">Credit</option>
-          <option value="cheque">Cheque</option>
-        </select>
-
-        {/* ✅ CHEQUE NUMBER */}
-        {invoice.purchaseMethod === "cheque" && (
-          <input
-            className="border p-2 outline-none"
-            placeholder="Cheque Number"
-            value={invoice.chequeNumber}
-            onChange={(e) =>
-              setInvoice({
-                ...invoice,
-                chequeNumber: e.target.value,
-              })
-            }
-          />
-        )}
-
-        <input
-          type="date"
-          className="border p-2 outline-none"
-          onChange={(e) => setInvoice({ ...invoice, date: e.target.value })}
-        />
-      </div>
-
-      {/* ITEM ENTRY HEADER */}
-      <div className="grid grid-cols-14 gap-2 bg-gray-100 p-2 text-xs font-semibold">
-        <div>Product</div>
-        <div>Variant</div>
-        <div>Qty</div>
-        <div>Unit</div>
-        <div>MRP</div>
-        <div>Purchase Price</div>
-        <div>Sell Type</div>
-        <div>Sell %</div>
-        <div>Selling</div>
-        <div>Comp %</div>
-        <div>Vend %</div>
-        <div>Profit</div>
-        <div>Reorder Level</div>
-      </div>
-
-      {/* ITEM ENTRY */}
-      <div className="grid grid-cols-14 gap-2 bg-gray-50 p-2">
-        <SearchProduct
-          onSelect={(p) => {
-            setItem({
-              ...item,
-              productId: p._id,
-              productName: p.name,
-              mrp: p.price,
-              purchasePrice: p.lastPurchasePrice || 0,
-              sellingPrice: calculateSellingFromMRP(
-                p.price,
-                item.sellType,
-                item.sellValue
-              ),
-              reorderLevel: p.reorderLevel || 0,
-            });
-            setProductVariants(p.colorVariants || []);
-          }}
-          clearSignal={searchClearSignal}
-          initialValue={searchInitial}
-        />
-
-        {/* VARIANT */}
-        <select
-          className="border p-2 outline-none"
-          value={item.variantSku || ""}
-          onChange={(e) => {
-            const sku = e.target.value || null;
-            const v = productVariants.find(
-              (x) => String(x.sku) === String(sku)
-            );
-            setItem({
-              ...item,
-              variantSku: sku,
-              variantName: v?.Colorname || "",
-            });
-          }}>
-          <option value="">Variant</option>
-          {productVariants.map((v) => (
-            <option key={v.sku} value={v.sku}>
-              {v.Colorname}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="number"
-          className="border p-2 outline-none"
-          value={item.qty}
-          onChange={(e) => setItem({ ...item, qty: +e.target.value })}
-        />
-
-        <input
-          className="border p-2 outline-none"
-          value={item.unit}
-          onChange={(e) => setItem({ ...item, unit: e.target.value })}
-        />
-
-        {/* ✅ MRP DISPLAY */}
-        <input
-          type="number"
-          className="border p-2 outline-none"
-          placeholder="MRP"
-          value={item.mrp}
-          onChange={(e) => {
-            const mrp = e.target.value;
-            setItem({
-              ...item,
-              mrp,
-              sellingPrice: calculateSellingFromMRP(
-                mrp,
-                item.sellType,
-                item.sellValue
-              ),
-            });
-          }}
-        />
-
-        <input
-          type="number"
-          className="border p-2 outline-none"
-          placeholder="Purchase Price"
-          value={item.purchasePrice}
-          onChange={(e) => setItem({ ...item, purchasePrice: +e.target.value })}
-        />
-
-        <select
-          className="border p-2 outline-none"
-          value={item.sellType}
-          onChange={(e) => {
-            const type = e.target.value;
-            setItem({
-              ...item,
-              sellType: type,
-              sellingPrice: calculateSellingFromMRP(
-                item.mrp,
-                type,
-                item.sellValue
-              ),
-            });
-          }}>
-          <option value="percentage">%</option>
-          <option value="flat">₹</option>
-        </select>
-
-        <input
-          type="number"
-          className="border p-2 outline-none"
-          placeholder={item.sellType === "percentage" ? "Sell %" : "Sell ₹"}
-          value={item.sellValue}
-          onChange={(e) => {
-            const v = e.target.value;
-            setItem({
-              ...item,
-              sellValue: v,
-              sellingPrice: calculateSellingFromMRP(item.mrp, item.sellType, v),
-            });
-          }}
-        />
-
-        <input
-          className="border p-2 bg-gray-100 outline-none"
-          value={item.sellingPrice.toFixed(2)}
-          readOnly
-        />
-
-        <input
-          type="number"
-          className="border p-2 outline-none"
-          value={item.purchaseDiscount}
-          onChange={(e) =>
-            setItem({
-              ...item,
-              purchaseDiscount: +e.target.value,
-            })
-          }
-        />
-
-        <input
-          type="number"
-          className="border p-2 outline-none"
-          value={item.extraDiscount}
-          onChange={(e) =>
-            setItem({
-              ...item,
-              extraDiscount: +e.target.value,
-            })
-          }
-        />
-
-        <div className="text-xs font-semibold outline-none font-PublicSans">
-          ₹{calculateProfit(item).profitPerUnit} (
-          {calculateProfit(item).profitPercent}%)
+    <div className="min-h-screen bg-gray-200 rounded-lg p-6">
+      <div className="w-full mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">
+            Previous Purchases
+          </h1>
+          <button
+            onClick={handleAddNew}
+            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors">
+            New Purchase
+          </button>
         </div>
 
-        <input
-          type="number"
-          className="border p-2 outline-none"
-          placeholder="Reorder Level"
-          value={item.reorderLevel}
-          onChange={(e) => setItem({ ...item, reorderLevel: +e.target.value })}
-        />
-
-        <button
-          onClick={addItem}
-          className="bg-green-600 outline-none text-white rounded">
-          Add
-        </button>
-      </div>
-
-      {/* TABLE */}
-      {items.length > 0 && (
-        <table className="w-full mt-6 border">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Product</th>
-              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Variant</th>
-              <th className="border-r-1 p-2 font-Inter uppercase text-sm">MRP</th>
-              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Purchase Price</th>
-              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Cost</th>
-              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Selling</th>
-              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Profit</th>
-              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Reorder Level</th>
-              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Qty</th>
-              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Total</th>
-              <th className="border-r-1 p-2 font-Inter uppercase text-sm">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((i, idx) => {
-              const { cost, profitPerUnit, profitPercent } = calculateProfit(i);
-
-              return (
-                <tr key={idx} className="text-center border-t">
-                  <td className="border-r-1 text-sm">{i.productName}</td>
-                  <td className="border-r-1 text-sm">{i.variantName || "-"}</td>
-                  <td className="border-r-1 text-sm">₹{i.mrp}</td>
-                  <td className="border-r-1 text-sm">₹{i.purchasePrice}</td>
-                  <td className="border-r-1 text-sm">₹{cost}</td>
-                  <td className="border-r-1 text-sm">₹{i.sellingPrice}</td>
-                  <td
-                    className={
-                      profitPerUnit >= 0
-                        ? "text-green-600 border-black border-r-1"
-                        : "text-red-600 border-black border-r-1"
-                    }>
-                    {profitPerUnit > 0 ? (
-                      <TiArrowUp className="inline mb-1 text-lg" />
-                    ) : (
-                      <TiArrowUp className="inline mb-1 text-lg rotate-180" />
-                    )}
-                    ₹{profitPerUnit} ({profitPercent}%)
-                  </td>                  <td className="border-r-1">{i.reorderLevel}</td>                  <td className="border-r-1">{i.qty}</td>
-                  <td className="font-semibold border-r-1 text-sm px-1">
-                    ₹{(i.sellingPrice * i.qty).toFixed(2)}
-                  </td>
-                  <td className="p-2 flex justify-center gap-x-2">
-                    <button
-                      onClick={() => handleEditItem(idx)}
-                      className="px-2 py-1 w-full bg-amber-500 cursor-pointer outline-none uppercase font-PublicSans text-white rounded transition-colors hover:bg-amber-700">
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteItem(idx)}
-                      className="px-2 py-1 w-full bg-rose-500 outline-none cursor-pointer uppercase font-PublicSans text-white rounded transition-colors hover:bg-rose-700">
-                      Delete
-                    </button>
-                  </td>
+        {/* PURCHASES TABLE */}
+        <div className="bg-white p-2 rounded-lg shadow-md">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs text-center font-PublicSans">
+              <thead className="bg-gray-100 xl:text-sm 2xl:text-lg uppercase">
+                <tr>
+                  <th className="border border-gray-300 p-3 font-semibold text-gray-700">
+                    Invoice
+                  </th>
+                  <th className="border border-gray-300 p-3 font-semibold text-gray-700">
+                    Date
+                  </th>
+                  <th className="border border-gray-300 p-3 font-semibold text-gray-700">
+                    Product
+                  </th>
+                  <th className="border border-gray-300 p-3 font-semibold text-gray-700">
+                    Variant
+                  </th>
+                  <th className="border border-gray-300 p-3 font-semibold text-gray-700">
+                    MRP
+                  </th>
+                  <th className="border border-gray-300 p-3 font-semibold text-gray-700">
+                    Purchase Price
+                  </th>
+                  <th className="border border-gray-300 p-3 font-semibold text-gray-700">
+                    Cost
+                  </th>
+                  <th className="border border-gray-300 p-3 font-semibold text-gray-700">
+                    Selling
+                  </th>
+                  <th className="border border-gray-300 p-3 font-semibold text-gray-700">
+                    Profit
+                  </th>
+                  <th className="border border-gray-300 p-3 font-semibold text-gray-700">
+                    Qty
+                  </th>
+                  <th className="border border-gray-300 p-3 font-semibold text-gray-700">
+                    Total
+                  </th>
+                  <th className="border border-gray-300 p-3 font-semibold text-gray-700">
+                    Actions
+                  </th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+              </thead>
+              <tbody>
+                {purchases.map((p) => {
+                  const { cost, profitPerUnit, profitPercent } =
+                    calculateProfit(p);
+                  return (
+                    <tr key={p._id} className="hover:bg-gray-50">
+                      <td className="border border-gray-300 p-3">
+                        {p.purchaseInvoice}
+                      </td>
+                      <td className="border border-gray-300 p-3">
+                       {formatDate(p.date)}
+                      </td>
+                      <td className="border border-gray-300 p-3">
+                        {p.productName}
+                      </td>
+                      <td className="border border-gray-300 uppercase p-3">
+                        {p.variantName || "-"}
+                      </td>
+                      <td className="border border-gray-300 p-3 font-semibold">₹{p.mrp}</td>
+                      <td className="border border-gray-300 p-3 font-semibold">
+                        ₹{p.purchasePrice}
+                      </td>
+                      <td className="border border-gray-300 p-3">₹{cost}</td>
+                      <td className="border border-gray-300 p-3">
+                        ₹{p.sellingPrice}
+                      </td>
+                      <td
+                        className={`border border-gray-300 p-3 ${profitPerUnit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {profitPerUnit > 0 ? (
+                          <TiArrowUp className="inline mr-1" />
+                        ) : (
+                          <TiArrowUp className="inline mr-1 rotate-180" />
+                        )}
+                        ₹{profitPerUnit} ({profitPercent}%)
+                      </td>
+                      <td className="border border-gray-300 p-3">{p.qty}</td>
+                      <td className="border border-gray-300 p-3 font-semibold">
+                        ₹{(p.sellingPrice * p.qty).toFixed(2)}
+                      </td>
+                      <td className="border border-gray-300 p-3">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditPurchase(p)}
+                            className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors">
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeletePurchase(p._id)}
+                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-      <button
-        onClick={saveInvoice}
-        className="mt-6 bg-black text-white px-4 py-2 rounded">
-        Save Invoice
-      </button>
+        {/* MODAL */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <h2 className="text-xl font-bold mb-4">
+                {editingPurchase ? "Edit Purchase" : "New Purchase"}
+              </h2>
 
-      {showVendor && (
-        <VendorModal
-          vendor={vendorToEdit}
-          onClose={() => setShowVendor(false)}
-          onCreated={(v) => setVendors([v, ...vendors])}
-        />
-      )}
+              {/* HEADER */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Invoice Number
+                  </label>
+                  <input
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Auto-generated if empty"
+                    value={invoice.purchaseInvoice}
+                    onChange={(e) =>
+                      setInvoice({
+                        ...invoice,
+                        purchaseInvoice: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Vendor
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={invoice.vendorId}
+                      onChange={(e) =>
+                        setInvoice({ ...invoice, vendorId: e.target.value })
+                      }>
+                      <option value="">Select Vendor</option>
+                      {vendors.map((v) => (
+                        <option key={v._id} value={v._id}>
+                          {v.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className={`px-3 py-2 rounded-md text-white ${
+                        invoice.vendorId
+                          ? "bg-yellow-500 hover:bg-yellow-600"
+                          : "bg-green-500 hover:bg-green-600"
+                      }`}
+                      onClick={() => {
+                        const v = vendors.find(
+                          (x) => x._id === invoice.vendorId,
+                        );
+                        setVendorToEdit(v || null);
+                        setShowVendor(true);
+                      }}>
+                      {invoice.vendorId ? "Edit" : "+"}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Payment Method
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={invoice.purchaseMethod}
+                    onChange={(e) =>
+                      setInvoice({
+                        ...invoice,
+                        purchaseMethod: e.target.value,
+                        chequeNumber: "",
+                      })
+                    }>
+                    <option value="cash">Cash</option>
+                    <option value="upi">UPI</option>
+                    <option value="credit">Credit</option>
+                    <option value="cheque">Cheque</option>
+                  </select>
+                </div>
+
+                {invoice.purchaseMethod === "cheque" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
+                      Cheque Number
+                    </label>
+                    <input
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter cheque number"
+                      value={invoice.chequeNumber}
+                      onChange={(e) =>
+                        setInvoice({
+                          ...invoice,
+                          chequeNumber: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={invoice.date}
+                    onChange={(e) =>
+                      setInvoice({ ...invoice, date: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* ITEM ENTRY FORM */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Product
+                  </label>
+                  <SearchProduct
+                    onSelect={(p) => {
+                      setItem({
+                        ...item,
+                        productId: p._id,
+                        productName: p.name,
+                        mrp: p.price,
+                        purchasePrice: p.lastPurchasePrice || 0,
+                        sellingPrice: calculateSellingFromMRP(
+                          p.price,
+                          item.sellType,
+                          item.sellValue,
+                        ),
+                        reorderLevel: p.reorderLevel || 0,
+                      });
+                      setProductVariants(p.colorVariants || []);
+                    }}
+                    clearSignal={searchClearSignal}
+                    initialValue={searchInitial}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Variant
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={item.variantSku || ""}
+                    onChange={(e) => {
+                      const sku = e.target.value || null;
+                      const v = productVariants.find(
+                        (x) => String(x.sku) === String(sku),
+                      );
+                      setItem({
+                        ...item,
+                        variantSku: sku,
+                        variantName: v?.Colorname || "",
+                      });
+                    }}>
+                    <option value="">Select Variant</option>
+                    {productVariants.map((v) => (
+                      <option key={v.sku} value={v.sku}>
+                        {v.Colorname}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Quantity
+                  </label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={item.qty}
+                    onChange={(e) => setItem({ ...item, qty: +e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Unit
+                  </label>
+                  <input
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={item.unit}
+                    onChange={(e) => setItem({ ...item, unit: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    MRP
+                  </label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="MRP"
+                    value={item.mrp}
+                    onChange={(e) => {
+                      const mrp = e.target.value;
+                      setItem({
+                        ...item,
+                        mrp,
+                        sellingPrice: calculateSellingFromMRP(
+                          mrp,
+                          item.sellType,
+                          item.sellValue,
+                        ),
+                      });
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Purchase Price
+                  </label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Purchase Price"
+                    value={item.purchasePrice}
+                    onChange={(e) =>
+                      setItem({ ...item, purchasePrice: +e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Sell Type
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={item.sellType}
+                    onChange={(e) => {
+                      const type = e.target.value;
+                      setItem({
+                        ...item,
+                        sellType: type,
+                        sellingPrice: calculateSellingFromMRP(
+                          item.mrp,
+                          type,
+                          item.sellValue,
+                        ),
+                      });
+                    }}>
+                    <option value="percentage">Percentage</option>
+                    <option value="flat">Flat</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    {item.sellType === "percentage" ? "Sell %" : "Sell ₹"}
+                  </label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={item.sellValue}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setItem({
+                        ...item,
+                        sellValue: v,
+                        sellingPrice: calculateSellingFromMRP(
+                          item.mrp,
+                          item.sellType,
+                          v,
+                        ),
+                      });
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Selling Price
+                  </label>
+                  <input
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                    value={item.sellingPrice.toFixed(2)}
+                    readOnly
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Purchase Discount (%)
+                  </label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={item.purchaseDiscount}
+                    onChange={(e) =>
+                      setItem({
+                        ...item,
+                        purchaseDiscount: +e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Extra Discount (%)
+                  </label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={item.extraDiscount}
+                    onChange={(e) =>
+                      setItem({
+                        ...item,
+                        extraDiscount: +e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Profit
+                  </label>
+                  <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-sm font-semibold">
+                    ₹{calculateProfit(item).profitPerUnit} (
+                    {calculateProfit(item).profitPercent}%)
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Reorder Level
+                  </label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Reorder Level"
+                    value={item.reorderLevel}
+                    onChange={(e) =>
+                      setItem({ ...item, reorderLevel: +e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-center mb-4">
+                <button
+                  onClick={addItem}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                  Add Product
+                </button>
+              </div>
+
+              {items.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold mb-2">Added Products</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-300">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="border border-gray-300 p-2">
+                            Product
+                          </th>
+                          <th className="border border-gray-300 p-2">
+                            Variant
+                          </th>
+                          <th className="border border-gray-300 p-2">Qty</th>
+                          <th className="border border-gray-300 p-2">MRP</th>
+                          <th className="border border-gray-300 p-2">
+                            Purchase Price
+                          </th>
+                          <th className="border border-gray-300 p-2">Cost</th>
+                          <th className="border border-gray-300 p-2">
+                            Selling Price
+                          </th>
+                          <th className="border border-gray-300 p-2">Profit</th>
+                          <th className="border border-gray-300 p-2">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((it, index) => {
+                          const { cost, profitPerUnit, profitPercent } =
+                            calculateProfit(it);
+                          return (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="border border-gray-300 p-2">
+                                {it.productName}
+                              </td>
+                              <td className="border border-gray-300 p-2">
+                                {it.variantName || "-"}
+                              </td>
+                              <td className="border border-gray-300 p-2">
+                                {it.qty}
+                              </td>
+                              <td className="border border-gray-300 p-2">
+                                ₹{it.mrp}
+                              </td>
+                              <td className="border border-gray-300 p-2">
+                                ₹{it.purchasePrice}
+                              </td>
+                              <td className="border border-gray-300 p-2">
+                                ₹{cost}
+                              </td>
+                              <td className="border border-gray-300 p-2">
+                                ₹{it.sellingPrice}
+                              </td>
+                              <td
+                                className={`border border-gray-300 p-2 ${profitPerUnit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                ₹{profitPerUnit} ({profitPercent}%)
+                              </td>
+                              <td className="border border-gray-300 p-2">
+                                <button
+                                  onClick={() => handleEditItem(index)}
+                                  className="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 mr-1">
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteItem(index)}
+                                  className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600">
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end mt-4">
+                <button
+                  onClick={saveInvoice}
+                  className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition-colors mr-2">
+                  {editingPurchase ? "Update" : "Save"}
+                </button>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600 transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showVendor && (
+          <VendorModal
+            vendor={vendorToEdit}
+            onClose={() => setShowVendor(false)}
+            onCreated={(v) => setVendors([v, ...vendors])}
+          />
+        )}
+      </div>
     </div>
   );
 };

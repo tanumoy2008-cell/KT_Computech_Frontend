@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "../config/axios";
+import axios from "../../config/axios";
 import Swal from "sweetalert2";
 import { FaArrowRight } from "react-icons/fa6";
 import { VscDebugContinue } from "react-icons/vsc";
@@ -310,8 +310,8 @@ const Billing = () => {
           ...p, 
           cogs: totalCost, 
           unitCogs: updatedQty ? totalCost / updatedQty : null,
-          basePrice: Math.ceil(averageSellingPrice),
-          price: Math.ceil(averageSellingPrice * (1 - p.off / 100))
+          basePrice: averageSellingPrice,
+          price: Math.round(averageSellingPrice * (1 - p.off / 100) * 100) / 100
         } : p));
       } catch (err) {
         console.error("Failed to update COGS preview:", err?.response?.data || err.message);
@@ -348,8 +348,8 @@ const Billing = () => {
           ...p, 
           cogs: totalCost, 
           unitCogs: updatedQty ? totalCost / updatedQty : null,
-          basePrice: Math.ceil(averageSellingPrice),
-          price: Math.ceil(averageSellingPrice * (1 - p.off / 100))
+          basePrice: averageSellingPrice,
+          price: Math.round(averageSellingPrice * (1 - p.off / 100) * 100) / 100
         } : p));
       } catch (err) {
         console.error("Failed to update COGS preview on variant change:", err?.response?.data || err.message);
@@ -371,11 +371,11 @@ const Billing = () => {
   }, 0);
 
   const discountAmount = customDiscount ? Number(customDiscount) || 0 : 0;
-  const baseTotal = Math.max(0, subtotal - discountAmount);
   let discount = Number(discountPercent) || 0;
   if (discount < 0) discount = 0;
   if (discount > 100) discount = 100;
-  const totalAmount = baseTotal * (1 - discount / 100);
+  const percentDiscountValue = subtotal * (discount / 100);
+  const totalAmount = Math.max(0, subtotal - percentDiscountValue - discountAmount);
 
   // 🧮 Cash Drawer Calculation
   const handleCashChange = (value) => {
@@ -612,7 +612,7 @@ const createOrder = async (extra = {}) => {
     paymentMode,
     discountPercent: Number(discount),
     clientDiscountAmount: Number(discountAmount.toFixed(2)),
-    // Backend validation expects a total (clientTotal or total). Use ceiled total (no fractions).
+    // Backend requires a total field (clientTotal or total). Send ceiled total.
     clientTotal: Math.ceil(totalAmount),
     ...(extra.customer ? { customer: extra.customer } : {}),
   };
@@ -795,7 +795,6 @@ const createOrder = async (extra = {}) => {
               <th className="px-4 py-2">Product</th>
               <th className="px-4 py-2">Options</th>
               <th className="px-4 py-2">Price</th>
-                <th className="px-4 py-2">Cost (COGS)</th>
               <th className="px-4 py-2">Discount (%)</th>
               <th className="px-4 py-2">After Discount</th>
               <th className="px-4 py-2">Qty</th>
@@ -837,13 +836,6 @@ const createOrder = async (extra = {}) => {
                     <div className="font-semibold">
                       ₹{Math.ceil(Number(p.price || 0))}
                     </div>
-                  )}
-                </td>
-                <td className="px-4 py-2">
-                  {p.unitCogs != null ? (
-                    <div className="text-sm">₹{Number(p.unitCogs).toFixed(2)} / unit<br/><span className="text-xs text-gray-500">Total: ₹{Number(p.cogs || 0).toFixed(2)}</span></div>
-                  ) : (
-                    <div className="text-sm text-gray-500">—</div>
                   )}
                 </td>
                 <td className="px-4 py-2">{Number(p.off || 0).toFixed(1)}%</td>

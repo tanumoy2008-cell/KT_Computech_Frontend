@@ -30,7 +30,6 @@ import PlaceOrder from '../components/PlaceOrder';
 import AdminProducts from '../components/AdminProducts';
 import Settings from '../components/Settings';
 import ProductAdder from '../components/ProductAdder';
-import Billing from '../components/Billing';
 import Order from '../components/Order';
 import PinCode from '../components/PinCode';
 import Customer from '../components/Customer';
@@ -40,7 +39,7 @@ import BarcodePrint from '../components/BarcodePrint';
 // ERP Components
 import ERPDashboard from '../components/erp/ERPDashboard';
 import Purchase from '../components/erp/Purchase';
-import Sale from '../components/erp/Sale';
+import Billing from '../components/erp/Billing';
 import Expenses from '../components/erp/Expenses';
 import ProfitLoss from '../components/erp/ProfitLoss';
 import BalanceSheet from '../components/erp/BalanceSheet';
@@ -99,21 +98,22 @@ const AllRouter = () => {
         </Route>
 
         {/* Delivery Partner Routes */}
-        <Route path="/delivery-otp-verification" element={<DeliveryAgentOtpPage />} />
+        <Route
+          path="/delivery-otp-verification"
+          element={<DeliveryAgentOtpPage />}
+        />
         <Route path="/delivery-login" element={<DeliveryLogin />} />
         <Route path="/delivery-register" element={<DeliveryRegister />} />
-      
-        
+
         {/* Protected Delivery Partner Routes */}
         <Route element={<DeliveryAuth />}>
-          <Route path="/delivery" element={<Delivery />} >
-          <Route index element={<Navigate to='dashboard' replace />} />
+          <Route path="/delivery" element={<Delivery />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<DeliveryDashboard />} />
             <Route path="orders" element={<DeliveryOrders />} />
             <Route path="settings" element={<DeliverySettings />} />
           </Route>
         </Route>
-
 
         {/* Protected Admin Routes */}
         <Route element={<AdminAuth />}>
@@ -125,16 +125,15 @@ const AllRouter = () => {
             <Route path="orders" element={<Order />} />
             <Route path="settings" element={<Settings />} />
             <Route path="pincode" element={<PinCode />} />
-            <Route path="billing" element={<Billing />} />
             <Route path="customers" element={<Customer />} />
             <Route path="barcode" element={<BarcodePrint />} />
-            
+
             {/* Accounting & ERP Routes */}
             <Route path="accounting" element={<Accounting />}>
               <Route index element={<Navigate to="erp" replace />} />
               <Route path="erp" element={<ERPDashboard />} />
               <Route path="erp/purchase" element={<Purchase />} />
-              <Route path="erp/sale" element={<Sale />} />
+              <Route path="erp/billing" element={<Billing />} />
               <Route path="erp/expenses" element={<Expenses />} />
               <Route path="erp/profit-loss" element={<ProfitLoss />} />
               <Route path="erp/balance-sheet" element={<BalanceSheet />} />
