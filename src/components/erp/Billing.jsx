@@ -489,7 +489,7 @@ const Billing = () => {
     r += "-".repeat(LINE_WIDTH) + "\n";
     r +=
       pad("Subtotal:", LINE_WIDTH - 10) +
-      pad((saleData.subtotal || 0).toFixed(2), 10, true) +
+      pad((Math.ceil(saleData.subtotal || 0)).toFixed(2), 10, true) +
       "\n";
 
     const discPercent = Number(saleData.discountPercent || 0);
