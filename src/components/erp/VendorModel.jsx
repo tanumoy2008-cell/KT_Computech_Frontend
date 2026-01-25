@@ -48,7 +48,7 @@ const VendorModal = ({ onClose, onCreated, vendor, onSaved, v }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex justify-center items-center">
+    <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center">
       <div className="bg-white p-5 w-[400px] rounded">
         <h2 className="font-bold text-lg mb-3">{vendor ? "Edit Vendor" : "Add Vendor"}</h2>
 
