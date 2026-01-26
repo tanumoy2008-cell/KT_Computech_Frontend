@@ -183,14 +183,27 @@ const Navbar = () => {
     { name: "Contact Us", to: "/contact" },
   ];
 
-  const productLinks = [
-    { name: "School Stationery", link: "/product/school" },
-    { name: "Office Stationery", link: "/product/office" },
-    { name: "Art & Craft Items", link: "/product/art" },
-    { name: "Gift Items", link: "/product/gift" },
-    { name: "Household Products", link: "/product/house" },
-    { name: "All Products", link: "/product/all" },
-  ];
+
+  const [mainCategories, setMainCategories] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchMainCats = async () => {
+      try {
+        const res = await axios.get('/api/category/main');
+        if (!mounted) return;
+        // backend may return { maincategories: [...] } or an array
+        const data = Array.isArray(res.data) ? res.data : res.data.maincategories ?? [];
+        setMainCategories(['All Products', ...data.filter(Boolean)]);
+      } catch (err) {
+        console.error('Failed to fetch main categories for navbar:', err);
+      }
+    };
+
+    fetchMainCats();
+    return () => { mounted = false; };
+  }, []);
+  
 
   return (
     <div
@@ -265,16 +278,19 @@ const Navbar = () => {
                     exit={{ height: 0 }}
                     className="overflow-hidden text-xl"
                   >
-                    {productLinks.map((item) => (
-                      <Link
-                        key={item.link}
-                        to={item.link}
-                        className="block py-2"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        {item.name}
-                      </Link>
-                    ))}
+                    {mainCategories.map((cat) => {
+                      const link = cat === 'All Products' ? '/product/all' : `/product/all?main=${encodeURIComponent(cat)}`;
+                      return (
+                        <Link
+                          key={cat}
+                          to={link}
+                          className="block py-2"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          {cat}
+                        </Link>
+                      );
+                    })}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -384,15 +400,16 @@ const Navbar = () => {
                   transition={{ duration: 0.15 }}
                   className="absolute left-0 top-full mt-1 w-56 bg-emerald-900 text-white rounded-lg shadow-xl overflow-hidden"
                 >
-                  {productLinks.map((item) => (
-                    <Link
-                      key={item.link}
-                      to={item.link}
-                      className="block px-4 py-3 hover:bg-emerald-700"
-                    >
-                      {item.name}
-                    </Link>
-                  ))}
+                  {mainCategories.map((cat) => {
+                    // Use the same /product/all?main= query format as mobile so
+                    // category names with spaces/special chars are encoded correctly.
+                    const link = cat === 'All Products' ? '/product/all' : `/product/all?main=${encodeURIComponent(cat)}`;
+                    return (
+                      <Link key={cat} to={link} className="block px-4 py-3 capitalize font-PublicSans hover:bg-emerald-700">
+                        {cat}
+                      </Link>
+                    );
+                  })}
                 </motion.div>
               )}
             </AnimatePresence>

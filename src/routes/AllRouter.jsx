@@ -61,6 +61,7 @@ import DeliveryIdConfirm from '../components/DeliveryIdConfirm';
 import DeliveryOrders from '../components/DeliveryOrders';
 import DeliverySettings from '../components/DeliverySettings';
 import Delivery from '../Pages/Delivery';
+import Vendor from '../components/erp/Vendor';
 
 const AllRouter = () => {
   return (
@@ -71,6 +72,8 @@ const AllRouter = () => {
         <Route path="/" element={<MainPage />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/product" element={<Product />} />
+        <Route path="/product/all" element={<Product />} />
         <Route path="/product/:Maincategory" element={<Product />} />
         <Route path="/product-dets/:id" element={<ProductDets />} />
 
@@ -133,6 +136,7 @@ const AllRouter = () => {
               <Route index element={<Navigate to="erp" replace />} />
               <Route path="erp" element={<ERPDashboard />} />
               <Route path="erp/purchase" element={<Purchase />} />
+              <Route path="erp/vendor" element={<Vendor />} />
               <Route path="erp/billing" element={<Billing />} />
               <Route path="erp/expenses" element={<Expenses />} />
               <Route path="erp/profit-loss" element={<ProfitLoss />} />

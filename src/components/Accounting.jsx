@@ -2,15 +2,24 @@ import React, { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { HiMiniArrowLeftOnRectangle } from "react-icons/hi2";
 import { HiMiniArrowRightEndOnRectangle } from "react-icons/hi2";
+import { FaChartArea } from "react-icons/fa";
+import { FaUserTie } from "react-icons/fa";
+import { GiTakeMyMoney } from "react-icons/gi";
+import { FaMoneyBillTransfer } from "react-icons/fa6";
+import { GiExpense } from "react-icons/gi";
+import { GiProfit } from "react-icons/gi";
+import { MdAccountBalance } from "react-icons/md";
+import { TbReport } from "react-icons/tb";
 
 const navItems = [
-  { name: "Dashboard", path: "/admin/accounting/erp", icon: "📊" },
-  { name: "Purchase", path: "/admin/accounting/erp/purchase", icon: "🛒" },
-  { name: "Sale", path: "/admin/accounting/erp/billing", icon: "💰" },
-  { name: "Expenses", path: "/admin/accounting/erp/expenses", icon: "💸" },
-  { name: "Profit/Loss", path: "/admin/accounting/erp/profit-loss", icon: "📈" },
-  { name: "Balance Sheet", path: "/admin/accounting/erp/balance-sheet", icon: "📋" },
-  { name: "Reports", path: "/admin/accounting/erp/reports", icon: "📑" },
+  { name: "Dashboard", path: "/admin/accounting/erp", icon: <FaChartArea /> },
+  { name: "Vendors", path: "/admin/accounting/erp/vendor", icon: <FaUserTie /> },
+  { name: "Purchase", path: "/admin/accounting/erp/purchase", icon: <GiTakeMyMoney /> },
+  { name: "Sale", path: "/admin/accounting/erp/billing", icon: <FaMoneyBillTransfer /> },
+  { name: "Expenses", path: "/admin/accounting/erp/expenses", icon: <GiExpense /> },
+  { name: "Profit/Loss", path: "/admin/accounting/erp/profit-loss", icon: <GiProfit /> },
+  { name: "Balance Sheet", path: "/admin/accounting/erp/balance-sheet", icon: <MdAccountBalance /> },
+  { name: "Reports", path: "/admin/accounting/erp/reports", icon: <TbReport /> },
 ];
 
 const Accounting = () => {
@@ -23,7 +32,7 @@ const Accounting = () => {
       <aside
         className={`
           relative transition-all duration-300 
-          bg-emerald-900 text-emerald-100 shadow-xl
+          bg-emerald-300 text-emerald-700 shadow-xl
           ${sidebarOpen ? "w-64" : "w-20"}
         `}>
         {/* Logo */}
@@ -44,17 +53,17 @@ const Accounting = () => {
                 to={item.path}
                 title={!sidebarOpen ? item.name : ""}
                 className={`
-                  flex items-center gap-3 px-4 py-2 rounded-xl
+                  flex items-center gap-3 px-4 py-4 rounded-xl
                   transition-all duration-200
                   ${
                     active
-                      ? "bg-emerald-600/90 text-white shadow-md"
-                      : "text-white hover:bg-emerald-700 hover:text-white"
+                      ? "bg-emerald-700/90 text-white shadow-md"
+                      : "text-black hover:bg-emerald-700/90 hover:text-white"
                   }
                 `}>
-                <span className="text-lg">{item.icon}</span>
+                <span className="text-xl">{item.icon}</span>
                 {sidebarOpen && (
-                  <span className="text-sm font-medium">{item.name}</span>
+                  <span className="text-base font-medium">{item.name}</span>
                 )}
               </Link>
             );

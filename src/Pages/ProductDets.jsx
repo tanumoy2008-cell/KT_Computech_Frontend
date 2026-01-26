@@ -40,7 +40,7 @@ const ProductDets = () => {
   const [avgRating, setAvgRating] = useState(0);
   const [relatedProducts, setRelatedProducts] = useState([]);
   // Configurable zoom multiplier (1 = no zoom). Lower = gentler zoom.
-  const ZOOM_SCALE = 0.5; // try 1.1 - 1.5
+  const ZOOM_SCALE = 1.3; // try 1.1 - 1.5
 
   // Handle mouse enter/leave for zoom effect
   const handleMouseEnter = () => {
@@ -66,8 +66,8 @@ const ProductDets = () => {
     if (!imageRef.current) return;
     
     const rect = containerRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const x = ((e.clientX - rect.left) / rect.width) * 120;
+    const y = ((e.clientY - rect.top) / rect.height) * 130;
     
     setZoomPosition({ x, y });
     // For a fixed-position zoom bubble, use viewport coordinates (clientX/clientY)

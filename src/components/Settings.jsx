@@ -287,29 +287,29 @@ const Settings = () => {
       <div className="flex flex-col md:flex-row gap-8">
         {/* Sidebar */}
         <div className="w-full md:w-64 flex-shrink-0">
-          <div className="bg-emerald-200 rounded-xl shadow p-4 mb-6">
+          <div className="bg-emerald-600 rounded-xl shadow p-4 mb-6">
             <div className="flex flex-col items-center py-4">
               <div className="relative mb-4">
-                <div className="w-24 h-24 rounded-full border-2 border-emerald-700 bg-gray-200 flex items-center justify-center overflow-hidden">
-                  <FiUser className="w-12 h-12 text-gray-400" />
+                <div className="w-24 h-24 rounded-full border-2 border-emerald-700 flex items-center justify-center overflow-hidden">
+                  {logoPreview ? <img src={logoPreview} alt="Logo Preview" className="w-full h-full object-cover" /> : <FiUser className="w-12 h-12 text-gray-400" />}
                 </div>
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-white">
                 {adminData?.name || "Admin User"}
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-200">
                 {adminData?.role === "superAdmin" ? "Super Admin" : "Admin"}
               </p>
             </div>
           </div>
 
-          <nav className="space-y-1 border border-zinc-300 px-2 py-10 rounded-md flex flex-col gap-y-4">
+          <nav className="space-y-1 border border-zinc-400 shadow-lg shadow-black/50 px-6 py-4 rounded-md flex flex-col gap-y-4">
             <button
               onClick={() => setCurrentTab("profile")}
               className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${
                 currentTab === "profile"
-                  ? "bg-emerald-200 text-emerald-700"
-                  : "text-gray-700 hover:bg-gray-100"
+                  ? "bg-emerald-800 cursor-pointer text-white"
+                  : "text-gray-700 cursor-pointer hover:bg-emerald-300"
               }`}>
               <FiUser className="w-5 h-5 mr-3" />
               Profile
@@ -318,8 +318,8 @@ const Settings = () => {
               onClick={() => setCurrentTab("password")}
               className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${
                 currentTab === "password"
-                  ? "bg-emerald-200 text-emerald-700"
-                  : "text-gray-700 hover:bg-gray-100"
+                  ? "bg-emerald-800 cursor-pointer text-white"
+                  : "text-gray-700 cursor-pointer hover:bg-emerald-300"
               }`}>
               <FiLock className="w-5 h-5 mr-3" />
               Password
@@ -328,8 +328,8 @@ const Settings = () => {
               onClick={() => setCurrentTab("shop")}
               className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${
                 currentTab === "shop"
-                  ? "bg-emerald-200 text-emerald-700"
-                  : "text-gray-700 hover:bg-gray-100"
+                  ? "bg-emerald-800 cursor-pointer text-white"
+                  : "text-gray-700 cursor-pointer hover:bg-gray-100"
               }`}>
               <FiGlobe className="w-5 h-5 mr-3" />
               Shop Settings

@@ -3,7 +3,7 @@ import Navbar from "../components/Navbar";
 import ProductCard from "../components/ProductCard";
 import InfiniteScroll from "react-infinite-scroll-component";
 import axios from "../config/axios";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { IoMdArrowDropdown } from "react-icons/io";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -21,7 +21,13 @@ import {
 const Product = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { Maincategory } = useParams();
+  const params = useParams();
+  const location = useLocation();
+
+  // Support both route param and query param for main category.
+  // Prefer query `?main=...` (used by Navbar) and fall back to route param.
+  const queryMain = new URLSearchParams(location.search).get("main") || "";
+  const Maincategory = queryMain || params.Maincategory || "all";
 
   const { items, categories, start, hasMore, Subcategory, query, scrollY } =
     useSelector((state) => state.ProductReducer);

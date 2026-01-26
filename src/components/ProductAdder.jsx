@@ -21,6 +21,12 @@ const fadeIn = {
 
 const ProductAdder = () => {
   const [totalProduct, setTotalProduct] = useState(0);
+  const [mainCategories, setMainCategories] = useState([]);
+  const [subCategories, setSubCategories] = useState([]);
+  const [showMainModal, setShowMainModal] = useState(false);
+  const [showSubModal, setShowSubModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryParent, setNewCategoryParent] = useState("");
   const [currentCrop, setCurrentCrop] = useState(null); 
   const [rawImage, setRawImage] = useState(null);
   const [showCropper, setShowCropper] = useState(false);
@@ -42,7 +48,6 @@ const ProductAdder = () => {
       company: "",
       Subcategory: "",
       Maincategory: "",
-      price: "",
       productDescription: "",
       off: "",
       barcodes: [],
@@ -50,6 +55,8 @@ const ProductAdder = () => {
   });
 
   const barcodes = watch("barcodes") || [];
+
+  const currentMainSelected = watch("Maincategory");
 
   useEffect(() => {
     const fetchProductCount = async () => {
@@ -67,6 +74,51 @@ const ProductAdder = () => {
     
     fetchProductCount();
   }, []);
+
+  // Fetch main categories on mount
+  useEffect(() => {
+    const fetchMains = async () => {
+      try {
+        const res = await axios.get("/api/category/main");
+        if (Array.isArray(res.data.maincategories)) {
+          // filter out any empty or 'all' placeholders
+          const mains = res.data.maincategories.filter(Boolean).filter(m => String(m).toLowerCase() !== 'all');
+          setMainCategories(mains);
+          const curr = (watch("Maincategory") || "");
+          if (!curr && mains.length > 0) setValue("Maincategory", mains[0]);
+          // default parent for sub modal
+          if (mains.length > 0 && !newCategoryParent) setNewCategoryParent(mains[0]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch main categories:", err);
+      }
+    };
+
+    fetchMains();
+  }, [setValue]);
+
+  // Fetch subcategories when Maincategory changes
+  useEffect(() => {
+    const mainSelected = watch("Maincategory") || "";
+    const fetchSubs = async (parent) => {
+      try {
+        const res = await axios.get("/api/category/sub", { params: parent ? { main: parent } : {} });
+        if (Array.isArray(res.data.subcategories)) {
+          setSubCategories(res.data.subcategories);
+          const currS = (watch("Subcategory") || "");
+          if (!currS && res.data.subcategories.length > 0) setValue("Subcategory", res.data.subcategories[0]);
+        } else {
+          setSubCategories([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch subcategories:", err);
+        setSubCategories([]);
+      }
+    };
+
+    if (mainSelected) fetchSubs(mainSelected);
+    else setSubCategories([]);
+  }, [watch("Maincategory")]);
 
   const handleAddVariantImage = (variantIndex) => {
     fileInputRef.current?.click();
@@ -114,7 +166,7 @@ const ProductAdder = () => {
   const addColorVariant = () => {
     setColorVariants((prev) => [
       ...prev,
-      { name: "", colorCode: "#009966", stock: 0, images: [] },
+      { name: "", colorCode: "#009966", images: [] },
     ]);
   };
 
@@ -140,9 +192,19 @@ const ProductAdder = () => {
       // Convert number fields to numbers
       const processedData = {
         ...data,
-        price: data.price ? Number(data.price) : 0,
         off: data.off ? Number(data.off) : 0,
       };
+
+      // Normalize productDescription: split on '#' markers into an array.
+      // Example: "#i  #have #it" => ["i","have","it"]
+      if (typeof processedData.productDescription === "string") {
+        const parts = processedData.productDescription
+          .split("#")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        // send as JSON string so backend receives it reliably in multipart/form-data
+        processedData.productDescription = JSON.stringify(parts);
+      }
       
       // Add basic product info
       Object.entries(processedData).forEach(([key, value]) => {
@@ -155,7 +217,6 @@ const ProductAdder = () => {
       const variantsForBackend = colorVariants.map((cv) => ({
         Colorname: cv.name,
         colorCode: cv.colorCode,
-        stock: cv.stock ? Number(cv.stock) : 0,
       }));
       formData.append("colorVariants", JSON.stringify(variantsForBackend));
 
@@ -190,6 +251,71 @@ const ProductAdder = () => {
     }
   };
 
+  // Add new main/sub category locally (visible in dropdown immediately)
+  const handleAddCategory = (type) => {
+    (async () => {
+      const name = newCategoryName.trim();
+      if (!name) {
+        toast.error("Please enter a category name");
+        return;
+      }
+
+      const token = localStorage.getItem("adminToken");
+
+      try {
+        if (type === "main") {
+          // avoid duplicates (case-insensitive)
+          if (mainCategories.some((m) => m.toLowerCase() === name.toLowerCase())) {
+            toast.error("Main category already exists");
+            return;
+          }
+
+          const res = await axios.post(
+            "/api/category/main",
+            { name },
+            { headers: { [env.VITE_ADMIN_TOKEN_NAME]: token } }
+          );
+
+          const created = res.data.category?.name || name;
+          setMainCategories((prev) => [...prev, created]);
+          setValue("Maincategory", created);
+          toast.success(res.data.message || "Main category added");
+          setShowMainModal(false);
+        } else {
+          // subcategory: need a parent main category
+          const parent = currentMainSelected || mainCategories[0];
+          if (!parent) {
+            toast.error("Please select or create a Main Category first");
+            return;
+          }
+
+          // avoid duplicates (case-insensitive)
+          if (subCategories.some((s) => s.toLowerCase() === name.toLowerCase())) {
+            toast.error("Subcategory already exists");
+            return;
+          }
+
+          const res = await axios.post(
+            "/api/category/sub",
+            { name, parent },
+            { headers: { [env.VITE_ADMIN_TOKEN_NAME]: token } }
+          );
+
+          const created = res.data.category?.name || name;
+          setSubCategories((prev) => [...prev, created]);
+          setValue("Subcategory", created);
+          toast.success(res.data.message || "Subcategory added");
+          setShowSubModal(false);
+        }
+      } catch (err) {
+        console.error("Failed to add category:", err);
+        toast.error(err.response?.data?.message || "Failed to add category");
+      } finally {
+        setNewCategoryName("");
+      }
+    })();
+  };
+
   return (
     <div className="min-h-screen w-full bg-gray-200 p-4 md:p-6 lg:p-8">
       {/* Header with Stats */}
@@ -219,7 +345,8 @@ const ProductAdder = () => {
             exit="exit"
             variants={fadeIn}
             className="bg-white rounded-2xl border border-black/20 shadow-md overflow-hidden">
-            <div className="p-6 border-b border-gray-300">
+              <div className="flex justify-between border-b border-gray-300">
+            <div className="p-6">
               <h2 className="text-2xl font-bold text-gray-800 flex items-center">
                 <FiPackage className="mr-2" />
                 Add New Product
@@ -227,7 +354,22 @@ const ProductAdder = () => {
               <p className="text-gray-500 mt-1">
                 Fill in the details below to add a new product
               </p>
-            </div>
+              </div>
+              <div className=" p-4 m-6 rounded-lg flex gap-x-4">
+                <button
+                  type="button"
+                  onClick={() => { setNewCategoryParent(watch("Maincategory") || mainCategories[0] || ""); setShowSubModal(true); }}
+                  className="bg-emerald-600 cursor-pointer hover:bg-emerald-700 transition-colors duration-200 text-white px-4 py-2 rounded-lg">
+                  Add Sub-Categories
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowMainModal(true)}
+                  className="bg-emerald-600 cursor-pointer hover:bg-emerald-700 transition-colors duration-200 text-white px-4 py-2 rounded-lg">
+                  Add Main-Categories
+                </button>
+                </div>
+              </div>
 
             <form onSubmit={handleSubmit(formSubmit)} className="p-4">
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
@@ -286,29 +428,6 @@ const ProductAdder = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Price
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          {...register("price", {
-                            required: "Price is required",
-                          })}
-                          className={`w-full px-4 py-2 border rounded-lg outline-none transition-all duration-200 ${
-                            errors.price
-                              ? "border-rose-400"
-                              : "border-emerald-300"
-                          }`}
-                          placeholder="0.00"
-                        />
-                        {errors.price && (
-                          <p className="mt-1 text-sm text-rose-500">
-                            {errors.price.message}
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           Discount (%)
                         </label>
                         <input
@@ -353,8 +472,7 @@ const ProductAdder = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Main Category
                         </label>
-                        <input
-                          type="text"
+                        <select
                           {...register("Maincategory", {
                             required: "Main category is required",
                           })}
@@ -362,9 +480,14 @@ const ProductAdder = () => {
                             errors.Maincategory
                               ? "border-rose-400"
                               : "border-emerald-300"
-                          }`}
-                          placeholder="e.g., Study"
-                        />
+                          }`}>
+                          <option value="">Select Main Category</option>
+                          {mainCategories.map((mc, i) => (
+                            <option key={i} value={mc}>
+                              {mc}
+                            </option>
+                          ))}
+                        </select>
                         {errors.Maincategory && (
                           <p className="mt-1 text-sm text-rose-500">
                             {errors.Maincategory.message}
@@ -375,8 +498,7 @@ const ProductAdder = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Subcategory
                         </label>
-                        <input
-                          type="text"
+                        <select
                           {...register("Subcategory", {
                             required: "Subcategory is required",
                           })}
@@ -384,9 +506,14 @@ const ProductAdder = () => {
                             errors.Subcategory
                               ? "border-rose-400"
                               : "border-emerald-300"
-                          }`}
-                          placeholder="e.g., Pencil"
-                        />
+                          }`}>
+                          <option value="">Select Subcategory</option>
+                          {subCategories.map((sc, i) => (
+                            <option key={i} value={sc}>
+                              {sc}
+                            </option>
+                          ))}
+                        </select>
                         {errors.Subcategory && (
                           <p className="mt-1 text-sm text-rose-500">
                             {errors.Subcategory.message}
@@ -515,24 +642,7 @@ const ProductAdder = () => {
                                 </div>
                               </div>
 
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Stock
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={cv.stock}
-                                  onChange={(e) => {
-                                    const newVariants = [...colorVariants];
-                                    newVariants[idx].stock =
-                                      parseInt(e.target.value) || 0;
-                                    setColorVariants(newVariants);
-                                  }}
-                                  className="w-full px-3 py-2 border border-emerald-300 rounded-md shadow-sm outline-none"
-                                  placeholder="Quantity in stock"
-                                />
-                              </div>
+                              {/* stock is derived from purchase batches on the backend; removed from frontend form */}
 
                               {/* Image Upload */}
                               <div>
@@ -722,6 +832,59 @@ const ProductAdder = () => {
                 className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                 Crop & Apply
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Add Category Modals */}
+      {showMainModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="text-lg font-medium">Add Main Category</h3>
+              <button type="button" onClick={() => { setShowMainModal(false); setNewCategoryName(""); }} className="text-gray-500 hover:text-gray-700">
+                <FiX />
+              </button>
+            </div>
+            <div className="p-4">
+              <label className="block text-sm mb-2">Category Name</label>
+              <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="w-full px-3 py-2 border rounded-md" placeholder="e.g., Study" />
+            </div>
+            <div className="p-4 border-t text-right">
+              <button type="button" onClick={() => { setShowMainModal(false); setNewCategoryName(""); }} className="mr-3 px-4 py-2 rounded-md bg-white border">Cancel</button>
+              <button type="button" onClick={() => handleAddCategory("main")} className="px-4 py-2 rounded-md bg-emerald-600 text-white">Add</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSubModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="text-lg font-medium">Add Subcategory</h3>
+              <button type="button" onClick={() => { setShowSubModal(false); setNewCategoryName(""); }} className="text-gray-500 hover:text-gray-700">
+                <FiX />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-sm mb-2">Parent Main Category</label>
+                <select value={newCategoryParent} onChange={(e) => setNewCategoryParent(e.target.value)} className="w-full px-3 py-2 border rounded-md">
+                  <option value="">Select Main Category</option>
+                  {mainCategories.map((m, i) => (
+                    <option key={i} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm mb-2">Subcategory Name</label>
+                <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="w-full px-3 py-2 border rounded-md" placeholder="e.g., Pencil" />
+              </div>
+            </div>
+            <div className="p-4 border-t text-right">
+              <button type="button" onClick={() => { setShowSubModal(false); setNewCategoryName(""); }} className="mr-3 px-4 py-2 rounded-md bg-white border">Cancel</button>
+              <button type="button" onClick={() => handleAddCategory("sub")} className="px-4 py-2 rounded-md bg-emerald-600 text-white">Add</button>
             </div>
           </div>
         </div>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Bar, Pie } from 'react-chartjs-2';
+import { Bar, Pie, Line } from 'react-chartjs-2';
 import axios from '../../config/axios';
 import { toast } from 'react-toastify';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
+import { LineElement, PointElement } from 'chart.js';
 import Lottie from 'lottie-react';
 import SandLoading from '../../assets/Sandy Loading.json';
 
@@ -10,6 +11,8 @@ ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
+  LineElement,
+  PointElement,
   Title,
   Tooltip,
   Legend,
@@ -94,6 +97,7 @@ const ERPDashboard = () => {
     lowStockProducts: [],
     categories: []
   });
+  const [inventoryChartType, setInventoryChartType] = useState('pie');
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -156,42 +160,85 @@ const salesChartData = {
       {
         label: 'Orders',
         data: salesData.orderCounts || [],
-         backgroundColor: (context) => {
-        const chart = context.chart;
-        const { ctx, chartArea } = chart;
+        backgroundColor: (context) => {
+          const chart = context.chart;
+          const { ctx, chartArea } = chart;
 
-        if (!chartArea) return null;
+          if (!chartArea) return null;
 
-        const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+          const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+          gradient.addColorStop(0, "rgba(16, 185, 129, 0.1)");
+          gradient.addColorStop(1, "rgba(16, 185, 129, 0.9)");
 
-        gradient.addColorStop(0, "rgba(16, 185, 129, 0.1)");
-        gradient.addColorStop(1, "rgba(16, 185, 129, 0.9)"); 
-
-        return gradient;
-      },
+          return gradient;
+        },
         borderColor: 'rgba(16, 185, 129, 1)',
         borderWidth: 1,
       },
     ],
   };
 
-// Update the inventory chart data
-const inventoryChartData = {
-  labels: inventoryData.mainCategories?.map(cat => cat._id || 'Uncategorized') || [],
-  datasets: [
-    {
-      data: inventoryData.mainCategories?.map(cat => cat.totalStock) || [],
-      backgroundColor: [
-        'rgba(239, 68, 68, 0.9)',
-        'rgba(59, 130, 246, 0.9)',
-        'rgba(234, 179, 8, 0.9)',
-        'rgba(16, 185, 129, 0.9)',
-        'rgba(139, 92, 246, 0.9)',
-      ],
-      borderWidth: 1,
-      borderColor: 'rgba(0, 0, 0, 1)',
-    },
-  ],
+// Inventory chart data generator (supports Pie/Bar/Line)
+const getInventoryChartData = () => {
+  const cats = inventoryData.mainCategories || [];
+  const labels = cats.map((cat) => cat.name || 'Uncategorized');
+  const values = cats.map((cat) => Number(cat.totalStock || 0));
+
+  // generate palette with enough colors
+  const base = [
+    'rgba(239, 68, 68, 0.9)',
+    'rgba(59, 130, 246, 0.9)',
+    'rgba(234, 179, 8, 0.9)',
+    'rgba(16, 185, 129, 0.9)',
+    'rgba(139, 92, 246, 0.9)',
+    'rgba(6, 182, 212, 0.9)',
+    'rgba(249, 115, 22, 0.9)'
+  ];
+
+  const backgroundColor = labels.map((_, i) => base[i % base.length]);
+
+  const pieData = {
+    labels,
+    datasets: [
+      {
+        data: values,
+        backgroundColor,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.6)',
+      },
+    ],
+  };
+
+  const barData = {
+    labels,
+    datasets: [
+      {
+        label: 'Stock',
+        data: values,
+        backgroundColor: backgroundColor.map((c) => c.replace(/0\.9\)$/, '0.8)')),
+        borderColor: backgroundColor,
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const lineData = {
+    labels,
+    datasets: [
+      {
+        label: 'Stock',
+        data: values,
+        backgroundColor: 'rgba(59,130,246,0.15)',
+        borderColor: 'rgba(59,130,246,1)',
+        tension: 0.3,
+        fill: true,
+        pointBackgroundColor: backgroundColor,
+        pointBorderColor: '#000',
+      },
+    ],
+  };
+
+  return { pieData, barData, lineData };
 };
 
 
@@ -203,7 +250,7 @@ const inventoryChartOptions = {
     legend: {
       position: "top",
       labels: {
-        color: "#fff",
+        color: "#000",
         font: {
           size: 18
         }
@@ -226,7 +273,7 @@ const inventoryChartOptions = {
           return `${label}: ${value} units (${percentage}%)`;
         },
       },
-      titleColor: "#fff",  
+      titleColor: "#000",  
       bodyColor: "#dadada",  
     },
   },
@@ -395,14 +442,41 @@ const inventoryChartOptions = {
       {/* Inventory Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Inventory by Category */}
-        <div className="bg-black border border-zinc-500/50 shadow-lg shadow-zinc-500/60 rounded-lg p-6">
+        <div className="bg-white border border-zinc-500/50 shadow-lg shadow-zinc-500/60 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">
+            <h2 className="text-xl font-semibold text-black">
               Inventory by Category
             </h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setInventoryChartType('pie')}
+                className={`px-3 py-1 rounded text-sm cursor-pointer ${inventoryChartType === 'pie' ? 'bg-black text-white' : 'bg-black/20 text-black'}`}>
+                Pie
+              </button>
+              <button
+                onClick={() => setInventoryChartType('bar')}
+                className={`px-3 py-1 rounded text-sm cursor-pointer ${inventoryChartType === 'bar' ? 'bg-black text-white' : 'bg-black/20 text-black'}`}>
+                Bar
+              </button>
+              <button
+                onClick={() => setInventoryChartType('line')}
+                className={`px-3 py-1 rounded text-sm cursor-pointer ${inventoryChartType === 'line' ? 'bg-black text-white' : 'bg-black/20 text-black'}`}>
+                Line
+              </button>
+            </div>
           </div>
           <div className="h-80">
-            <Pie data={inventoryChartData} options={inventoryChartOptions} />
+            {(() => {
+              const { pieData, barData, lineData } = getInventoryChartData();
+              const labelsCount = pieData.labels.length;
+              if (labelsCount === 0) {
+                return <div className="flex items-center justify-center h-full text-white">No category data</div>;
+              }
+
+              if (inventoryChartType === 'pie') return <Pie data={pieData} options={inventoryChartOptions} />;
+              if (inventoryChartType === 'bar') return <Bar data={barData} options={{ ...currencyChartOptions, scales: { y: { beginAtZero: true } } }} />;
+              return <Line data={lineData} options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }} />;
+            })()}
           </div>
         </div>
 

@@ -119,8 +119,8 @@ const Billing = () => {
             0
         ) || 0;
 
-      // Display prices as integer rupees (no fractional part)
-      const displayPrice = Math.ceil(basePrice * (1 - offVal / 100));
+      const displayPrice =
+        Math.round(basePrice * (1 - offVal / 100) * 100) / 100;
 
       const primaryBarcode =
         product.barcode ||
@@ -164,9 +164,8 @@ const Billing = () => {
             ...p, 
             cogs: totalCost, 
             unitCogs: totalCost / (p.quantity || 1),
-            // Ceil displayed prices to avoid fractional rupees
-            basePrice: Math.ceil(averageSellingPrice),
-            price: Math.ceil(averageSellingPrice * (1 - p.off / 100))
+            basePrice: averageSellingPrice,
+            price: Math.round(averageSellingPrice * (1 - p.off / 100) * 100) / 100
           } : p));
         } catch (err) {
           console.error("Failed to fetch COGS preview:", err?.response?.data || err.message);
@@ -365,9 +364,9 @@ const Billing = () => {
   const subtotal = products.reduce((acc, p) => {
     const base = Number(p.basePrice ?? p.price) || 0;
     const off = Number(p.off) || 0;
-    // Ceil unit prices so we don't show fractions
-    const discountedUnit = Math.ceil(base * (1 - off / 100));
-    return acc + discountedUnit * (Number(p.quantity) || 0);
+    const discountedUnit =
+      Math.round(base * (1 - off / 100) * 100) / 100;
+    return acc + discountedUnit * (Number(p.quantity) || 0);``
   }, 0);
 
   const discountAmount = customDiscount ? Number(customDiscount) || 0 : 0;
@@ -381,8 +380,7 @@ const Billing = () => {
   const handleCashChange = (value) => {
     setCashGiven(value);
     const cashNum = parseFloat(value) || 0;
-    // Use ceiled total for cash calculations so change is integer
-    const change = cashNum - Math.ceil(totalAmount);
+    const change = cashNum - totalAmount;
     setChangeToGive(change > 0 ? change : 0);
   };
 
@@ -469,16 +467,16 @@ const Billing = () => {
       const name = pad(item.name || "", ITEM_W);
       const qty = pad(item.quantity || item.qty || 0, QTY_W, true);
       const rate = pad(
-        (Math.ceil(item.rate || item.price || 0)).toFixed(2),
+        (item.rate || item.price || 0).toFixed(2),
         RATE_W,
         true
       );
       const total = pad(
-        (Math.ceil(
+        (
           item.total ||
           (item.quantity || item.qty || 0) *
             (item.rate || item.price || 0)
-        )).toFixed(2),
+        ).toFixed(2),
         FINAL_W,
         true
       );
@@ -489,7 +487,7 @@ const Billing = () => {
     r += "-".repeat(LINE_WIDTH) + "\n";
     r +=
       pad("Subtotal:", LINE_WIDTH - 10) +
-      pad((Math.ceil(saleData.subtotal || 0)).toFixed(2), 10, true) +
+      pad((saleData.subtotal || 0).toFixed(2), 10, true) +
       "\n";
 
     const discPercent = Number(saleData.discountPercent || 0);
@@ -510,7 +508,7 @@ const Billing = () => {
     r +=
       pad("Total:", LINE_WIDTH - 10) +
       pad(
-        (Math.ceil(saleData.totalAfterDiscount || saleData.total || 0)).toFixed(2),
+        (saleData.totalAfterDiscount || saleData.total || 0).toFixed(2),
         10,
         true
       ) +
@@ -612,8 +610,6 @@ const createOrder = async (extra = {}) => {
     paymentMode,
     discountPercent: Number(discount),
     clientDiscountAmount: Number(discountAmount.toFixed(2)),
-    // Backend requires a total field (clientTotal or total). Send ceiled total.
-    clientTotal: Math.ceil(totalAmount),
     ...(extra.customer ? { customer: extra.customer } : {}),
   };
 
@@ -826,20 +822,20 @@ const createOrder = async (extra = {}) => {
                   {p.off > 0 ? (
                     <div className="flex flex-col items-center">
                       <div className="text-sm text-gray-500 line-through">
-                        ₹{Math.ceil(Number(p.basePrice || 0))}
+                        ₹{Number(p.basePrice).toFixed(2)}
                       </div>
                       <div className="font-semibold">
-                        ₹{Math.ceil(Number(p.price || 0))}
+                        ₹{Number(p.price).toFixed(2)}
                       </div>
                     </div>
                   ) : (
                     <div className="font-semibold">
-                      ₹{Math.ceil(Number(p.price || 0))}
+                      ₹{Number(p.price).toFixed(2)}
                     </div>
                   )}
                 </td>
                 <td className="px-4 py-2">{Number(p.off || 0).toFixed(1)}%</td>
-                <td className="px-4 py-2">₹{Math.ceil(Number(p.price || 0))}</td>
+                <td className="px-4 py-2">₹{Number(p.price).toFixed(2)}</td>
                 <td>
                   <input
                     type="number"
@@ -850,7 +846,7 @@ const createOrder = async (extra = {}) => {
                   />
                 </td>
                 <td>
-                  {Math.ceil(Number(p.price || 0)) * Number(p.quantity || 0)}
+                  {(Number(p.price) * Number(p.quantity || 0)).toFixed(2)}
                 </td>
                 <td>
                   <button
@@ -917,20 +913,20 @@ const createOrder = async (extra = {}) => {
               placeholder="Enter amount"
             />
             <span className="font-semibold text-lg text-emerald-700">
-              Change: ₹{Math.ceil(changeToGive)}
+              Change: ₹{changeToGive.toFixed(2)}
             </span>
           </div>
         )}
 
         <div className="flex justify-between items-center mt-4 flex-wrap">
           <div className="font-bold text-lg">
-            Subtotal: ₹{Math.ceil(subtotal)}
+            Subtotal: ₹{subtotal.toFixed(2)}
           </div>
           <div className="font-bold text-lg">
-            Custom Discount: -₹{Math.ceil(discountAmount)}
+            Custom Discount: -₹{discountAmount.toFixed(2)}
           </div>
           <div className="font-bold text-lg">
-            Total After Discount: ₹{Math.ceil(totalAmount)}
+            Total After Discount: ₹{totalAmount.toFixed(2)}
           </div>
           <button
             disabled={isProcessing}

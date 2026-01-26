@@ -466,11 +466,7 @@ const ProductEditPage = () => {
                     type="number"
                     placeholder="Stock"
                     value={cv.stock}
-                    onChange={(e) => {
-                      const updated = [...colorVariants];
-                      updated[idx].stock = Number(e.target.value);
-                      setValue("colorVariants", updated);
-                    }}
+                    readOnly
                     className="rounded-lg border border-slate-400 px-3 py-2 w-full bg-zinc-200 outline-none focus:bg-white transition duration-300"
                   />
                 </div>

@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
 import axios from "../../config/axios";
 import SearchProduct from "./SearchProduct";
-import VendorModal from "./VendorModel";
 import { toast } from "react-toastify";
 import { TiArrowUp } from "react-icons/ti";
 
 const Purchase = () => {
   const [vendors, setVendors] = useState([]);
-  const [showVendor, setShowVendor] = useState(false);
-  const [vendorToEdit, setVendorToEdit] = useState(null);
-
   const [purchases, setPurchases] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState(null);
+
+  // Filters
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
+  const [filterVendorId, setFilterVendorId] = useState("");
+  const [filterInvoice, setFilterInvoice] = useState("");
 
   const [items, setItems] = useState([]);
   const [productVariants, setProductVariants] = useState([]);
@@ -66,20 +68,34 @@ const Purchase = () => {
   // FETCH VENDORS
   // ======================
   useEffect(() => {
-    axios.get("/api/vendor/get").then((res) => {
-      setVendors(res.data.data || []);
+    axios.get("/api/vendor").then((res) => {
+      setVendors(res.data.vendors || []);
     });
   }, []);
 
   // ======================
   // FETCH PURCHASES
   // ======================
-  const fetchPurchases = () => {
-    axios.get("/api/purchase-products/get-all").then((res) => {
+  const fetchPurchases = async (opts = {}) => {
+    try {
+      const params = {};
+      // allow passing overrides via opts
+      const sDate = opts.startDate ?? filterStartDate;
+      const eDate = opts.endDate ?? filterEndDate;
+      const vId = opts.vendorId ?? filterVendorId;
+      const invoice = opts.invoice ?? filterInvoice;
+
+      if (sDate) params.startDate = sDate;
+      if (eDate) params.endDate = eDate;
+      if (vId) params.vendorId = vId;
+      if (invoice) params.invoice = invoice.trim();
+
+      const res = await axios.get("/api/purchase-products/get-all", { params });
       setPurchases(res.data.data || []);
-    }).catch((err) => {
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to fetch purchases");
-    });
+    }
   };
 
   useEffect(() => {
@@ -289,21 +305,12 @@ const Purchase = () => {
     }
   };
 
-  const formatDate = (d) => {
-    if (!d) return "-";
-    const dt = new Date(d);
-    if (isNaN(dt.getTime())) return String(d);
-    const yyyy = dt.getFullYear();
-    const mm = String(dt.getMonth() + 1).padStart(2, "0");
-    const dd = String(dt.getDate()).padStart(2, "0");
-    return `${dd}-${mm}-${yyyy}`;
-  };
   // ======================
   // UI
   // ======================
   return (
     <div className="min-h-screen bg-gray-200 rounded-lg p-6">
-      <div className="w-full mx-auto">
+      <div className="max-w-8xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800">
             Previous Purchases
@@ -315,17 +322,43 @@ const Purchase = () => {
           </button>
         </div>
 
+        {/* Filters */}
+        <div className="bg-white p-4 rounded-lg mb-4 flex flex-col md:flex-row gap-3 items-center">
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <label className="text-sm text-gray-600 mr-2">From</label>
+            <input type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} className="border px-2 py-1 rounded" />
+          </div>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <label className="text-sm text-gray-600 mr-2">To</label>
+            <input type="date" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} className="border px-2 py-1 rounded" />
+          </div>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <label className="text-sm text-gray-600 mr-2">Vendor</label>
+            <select value={filterVendorId} onChange={(e) => setFilterVendorId(e.target.value)} className="border px-2 py-1 rounded">
+              <option value="">All Vendors</option>
+              {vendors.map((v) => (
+                <option key={v._id} value={v._id}>{v.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <label className="text-sm text-gray-600 mr-2">Invoice</label>
+            <input type="text" value={filterInvoice} onChange={(e) => setFilterInvoice(e.target.value)} placeholder="Invoice# or partial" className="border px-2 py-1 rounded" />
+          </div>
+          <div className="ml-auto flex gap-2">
+            <button onClick={() => fetchPurchases()} className="px-4 py-2 bg-emerald-600 text-white rounded">Filter</button>
+            <button onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setFilterVendorId(''); setFilterInvoice(''); fetchPurchases({ startDate: '', endDate: '', vendorId: '', invoice: '' }); }} className="px-4 py-2 bg-gray-200 rounded">Clear</button>
+          </div>
+        </div>
+
         {/* PURCHASES TABLE */}
-        <div className="bg-white p-2 rounded-lg shadow-md">
+        <div className="bg-white p-2 rounded-lg w-full shadow-md">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-xs text-center font-PublicSans">
-              <thead className="bg-gray-100 xl:text-sm 2xl:text-lg uppercase">
+              <thead className="bg-gray-100 text-sm">
                 <tr>
                   <th className="border border-gray-300 p-3 font-semibold text-gray-700">
                     Invoice
-                  </th>
-                  <th className="border border-gray-300 p-3 font-semibold text-gray-700">
-                    Date
                   </th>
                   <th className="border border-gray-300 p-3 font-semibold text-gray-700">
                     Product
@@ -367,9 +400,6 @@ const Purchase = () => {
                     <tr key={p._id} className="hover:bg-gray-50">
                       <td className="border border-gray-300 p-3">
                         {p.purchaseInvoice}
-                      </td>
-                      <td className="border border-gray-300 p-3">
-                       {formatDate(p.date)}
                       </td>
                       <td className="border border-gray-300 p-3">
                         {p.productName}
@@ -422,7 +452,7 @@ const Purchase = () => {
 
         {/* MODAL */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-lg bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <h2 className="text-xl font-bold mb-4">
                 {editingPurchase ? "Edit Purchase" : "New Purchase"}
@@ -451,36 +481,19 @@ const Purchase = () => {
                   <label className="block text-sm font-medium text-gray-600 mb-1">
                     Vendor
                   </label>
-                  <div className="flex gap-2">
-                    <select
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={invoice.vendorId}
-                      onChange={(e) =>
-                        setInvoice({ ...invoice, vendorId: e.target.value })
-                      }>
-                      <option value="">Select Vendor</option>
-                      {vendors.map((v) => (
-                        <option key={v._id} value={v._id}>
-                          {v.name}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      className={`px-3 py-2 rounded-md text-white ${
-                        invoice.vendorId
-                          ? "bg-yellow-500 hover:bg-yellow-600"
-                          : "bg-green-500 hover:bg-green-600"
-                      }`}
-                      onClick={() => {
-                        const v = vendors.find(
-                          (x) => x._id === invoice.vendorId,
-                        );
-                        setVendorToEdit(v || null);
-                        setShowVendor(true);
-                      }}>
-                      {invoice.vendorId ? "Edit" : "+"}
-                    </button>
-                  </div>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={invoice.vendorId}
+                    onChange={(e) =>
+                      setInvoice({ ...invoice, vendorId: e.target.value })
+                    }>
+                    <option value="">Select Vendor</option>
+                    {vendors.map((v) => (
+                      <option key={v._id} value={v._id}>
+                        {v.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -776,7 +789,7 @@ const Purchase = () => {
               <div className="flex justify-center mb-4">
                 <button
                   onClick={addItem}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                  className="bg-emerald-600 cursor-pointer text-white px-6 py-2 rounded-md hover:bg-emerald-700 transition-colors">
                   Add Product
                 </button>
               </div>
@@ -864,25 +877,17 @@ const Purchase = () => {
               <div className="flex justify-end mt-4">
                 <button
                   onClick={saveInvoice}
-                  className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition-colors mr-2">
+                  className="bg-emerald-600 cursor-pointer text-white px-6 py-2 rounded-md hover:bg-emerald-700 transition-colors mr-2">
                   {editingPurchase ? "Update" : "Save"}
                 </button>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600 transition-colors">
+                  className="bg-gray-500 cursor-pointer text-white px-6 py-2 rounded-md hover:bg-gray-600 transition-colors">
                   Cancel
                 </button>
               </div>
             </div>
           </div>
-        )}
-
-        {showVendor && (
-          <VendorModal
-            vendor={vendorToEdit}
-            onClose={() => setShowVendor(false)}
-            onCreated={(v) => setVendors([v, ...vendors])}
-          />
         )}
       </div>
     </div>

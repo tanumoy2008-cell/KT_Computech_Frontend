@@ -3,6 +3,17 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
+import { IoHome } from "react-icons/io5";
+import { FaProductHunt } from "react-icons/fa6";
+import { AiFillProduct } from "react-icons/ai";
+import { FaTruck } from "react-icons/fa";
+import { GoPackageDependents } from "react-icons/go";
+import { FaUsers } from "react-icons/fa6";
+import { IoMdPin } from "react-icons/io";
+import { IoSettings } from "react-icons/io5";
+import { MdAccountBalanceWallet } from "react-icons/md";
+import { IoMdBarcode } from "react-icons/io";
+import { CiLogout } from "react-icons/ci";
 import { logout, fetchAdminProfile, selectIsAuthenticated, selectIsLoading, selectUser, selectError, clearError } from "../Store/reducers/AdminReducer";
 
 const Admin = () => {
@@ -86,7 +97,7 @@ const Admin = () => {
     <div className="relative w-full min-h-screen flex bg-gray-50">
       {/* Sidebar */}
       <div
-        className={`h-screen bg-white shadow-lg fixed left-0 top-0 overflow-y-auto transition-all duration-300 ${
+        className={`h-screen bg-white shadow-xl shadow-black/80 fixed left-0 top-0 overflow-y-auto transition-all duration-300 ${
           collapsed ? "w-20" : "w-80"
         }`}>
         <div className="flex flex-col items-center py-6 px-3 h-full">
@@ -126,13 +137,13 @@ const Admin = () => {
 
           <div className="w-full mt-6 space-y-2 px-2 py-4 flex flex-col gap-y-2">
             <abbr title="Home" className="no-underline">
-              <NavItem to="/" text="Home" icon="🏠" collapsed={collapsed} />
+              <NavItem to="/" text="Home" icon={<IoHome />} collapsed={collapsed} />
             </abbr>
             <abbr title="Product's Add" className="no-underline">
               <NavItem
                 to="/admin/dashboard"
                 text="Product Add"
-                icon="🏗️"
+                icon={<FaProductHunt />}
                 collapsed={collapsed}
               />
             </abbr>
@@ -140,7 +151,7 @@ const Admin = () => {
               <NavItem
                 to="/admin/products"
                 text="Products"
-                icon="📦"
+                icon={<AiFillProduct />}
                 collapsed={collapsed}
               />
             </abbr>
@@ -148,7 +159,7 @@ const Admin = () => {
               <NavItem
                 to="/admin/deliveryId"
                 text="Del. Agent ID"
-                icon="📰"
+                icon={<FaTruck />}
                 collapsed={collapsed}
               />
             </abbr>
@@ -156,7 +167,7 @@ const Admin = () => {
               <NavItem
                 to="/admin/orders"
                 text="Orders"
-                icon="📝"
+                icon={<GoPackageDependents />}
                 collapsed={collapsed}
               />
             </abbr>
@@ -164,7 +175,7 @@ const Admin = () => {
               <NavItem
                 to="/admin/customers"
                 text="Customers"
-                icon="👥"
+                icon={<FaUsers />}
                 collapsed={collapsed}
               />
             </abbr>
@@ -172,7 +183,7 @@ const Admin = () => {
               <NavItem
                 to="/admin/pincode"
                 text="Pincodes"
-                icon="📍"
+                icon={<IoMdPin />}
                 collapsed={collapsed}
               />
             </abbr>
@@ -180,7 +191,7 @@ const Admin = () => {
               <NavItem
                 to="/admin/settings"
                 text="Settings"
-                icon="⚙️"
+                icon={<IoSettings />}
                 collapsed={collapsed}
               />
             </abbr>
@@ -188,7 +199,7 @@ const Admin = () => {
               <NavItem
                 to="/admin/accounting"
                 text="Accounting"
-                icon="⚙️"
+                icon={<MdAccountBalanceWallet />}
                 collapsed={collapsed}
               />
             </abbr>
@@ -196,7 +207,7 @@ const Admin = () => {
               <NavItem
                 to="/admin/barcode"
                 text="Barcode Print"
-                icon="💲"
+                icon={<IoMdBarcode />}
                 collapsed={collapsed}
               />
             </abbr>
@@ -207,7 +218,7 @@ const Admin = () => {
                   collapsed ? "justify-center" : "justify-start"
                 } gap-2 py-3 px-4 mt-6 text-lg text-red-600 hover:bg-red-50 rounded-lg transition-colors`}
                 aria-label="Logout">
-                <span>👋</span>
+                <span><CiLogout /></span>
                 {!collapsed && <span>Logout</span>}
               </button>
             </abbr>
@@ -282,8 +293,8 @@ const NavItem = ({ to, text, icon, collapsed }) => (
 
       ${
         isActive
-          ? "bg-blue-300 text-white shadow-md shadow-zinc-400"
-          : "text-gray-700 hover:bg-blue-200 hover:text-blue-700"
+          ? "bg-emerald-500 text-white shadow-md shadow-zinc-400"
+          : "text-gray-700 hover:bg-emerald-200 hover:text-emerald-700"
       }
     `}>
     <span className="text-xl">{icon}</span>

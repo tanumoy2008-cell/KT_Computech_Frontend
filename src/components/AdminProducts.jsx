@@ -23,6 +23,9 @@ const AdminProducts = () => {
 
   const [maincategories, setMaincategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [allCategories, setAllCategories] = useState([]);
+  const [manageLoading, setManageLoading] = useState(false);
   // Local search state to avoid input lag while typing
   const [searchTerm, setSearchTerm] = useState(query || "");
   const [isLoading, setIsLoading] = useState(false);
@@ -36,6 +39,61 @@ const AdminProducts = () => {
   const [lastMainCategory, setLastMainCategory] = useState(maincategory);
   const [lastSubCategory, setLastSubCategory] = useState(subcategory);
   const [lastQuery, setLastQuery] = useState(query);
+
+  // Fetch canonical categories (keep UI consistent even before product fetch)
+  useEffect(() => {
+    let mounted = true;
+    const fetchMainCats = async () => {
+      try {
+        const res = await axios.get("/api/category/main");
+        if (!mounted) return;
+        // Expecting an array of names, e.g. ["all", "Electronics", ...]
+        if (Array.isArray(res.data)) setMaincategories(res.data);
+        else if (res.data?.maincategories) setMaincategories(res.data.maincategories);
+      } catch (err) {
+        console.error("Failed to fetch main categories:", err);
+      }
+    };
+
+    fetchMainCats();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Fetch subcategories whenever the selected main category changes
+  useEffect(() => {
+    let mounted = true;
+    const fetchSubs = async () => {
+      try {
+        const mainParam = !maincategory || maincategory === "all" ? "" : maincategory;
+        const res = await axios.get(`/api/category/sub`, {
+          params: { main: mainParam },
+        });
+
+        if (!mounted) return;
+
+        // API returns array of subcategory objects with { name }
+        // Normalize to { key, label } for this component
+        if (Array.isArray(res.data)) {
+          const subs = res.data.map((s) => ({
+            key: (s.name || "").trim().toLowerCase(),
+            label: (s.name || "").trim(),
+          }));
+          setSubcategories([{ key: "", label: "All Products" }, ...subs]);
+        } else if (res.data?.subcategories) {
+          setSubcategories(res.data.subcategories);
+        }
+      } catch (err) {
+        console.error("Failed to fetch subcategories:", err);
+      }
+    };
+
+    fetchSubs();
+    return () => {
+      mounted = false;
+    };
+  }, [maincategory]);
 
   // ======================= FETCH PRODUCTS =======================
   const fetchData = async (reset = false) => {
@@ -201,6 +259,133 @@ const AdminProducts = () => {
     </div>
   );
 
+  // ======================= CATEGORY MANAGEMENT =======================
+  const fetchAllCategories = async () => {
+    setManageLoading(true);
+    try {
+      const res = await axios.get("/api/category/all");
+      // Normalize backend shape: backend returns { categories: [{ _id, name, subs: [...] }] }
+      // but older shapes or variations might use `subcategories` key. Ensure we provide
+      // `subcategories` array for the UI.
+      const raw = res?.data?.categories ?? (Array.isArray(res.data) ? res.data : []);
+      const normalized = raw.map((m) => ({
+        ...m,
+        subcategories: m.subs ?? m.subcategories ?? [],
+      }));
+      setAllCategories(normalized);
+    } catch (err) {
+      console.error("Failed to load categories:", err);
+      toast.error("Failed to load categories");
+    } finally {
+      setManageLoading(false);
+    }
+  };
+
+  const openManage = async () => {
+    setManageOpen(true);
+    await fetchAllCategories();
+  };
+
+  const handleRename = async (cat) => {
+    const { value: newName } = await Swal.fire({
+      title: `Rename ${cat.kind} category`,
+      input: "text",
+      inputValue: cat.name,
+      showCancelButton: true,
+    });
+
+    if (!newName || newName.trim() === "" || newName === cat.name) return;
+
+    try {
+      const res = await axios.put(`/api/category/${cat._id}`, { name: newName.trim() });
+      if (res.status === 200) {
+        toast.success(res.data.message || "Category renamed");
+        await fetchAllCategories();
+      } else toast.error(res.data.message || "Rename failed");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Rename failed");
+    }
+  };
+
+  const handleDelete = async (cat) => {
+    // Ask admin which action to take
+    const result = await Swal.fire({
+      title: `Delete ${cat.name}?`,
+      text: "Choose what to do with products belonging to this category.",
+      showDenyButton: true,
+      showCancelButton: true,
+      confirmButtonText: "Delete all products",
+      denyButtonText: "Move products to another category",
+    });
+
+    if (result.isDismissed) return;
+
+    if (result.isConfirmed) {
+      // delete all products
+      try {
+        const res = await axios.delete(`/api/category/${cat._id}`, {
+          data: { action: "delete-products" },
+        });
+        if (res.status === 200) {
+          toast.success(res.data.message || "Category and products deleted");
+          await fetchAllCategories();
+          fetchData(true);
+        } else toast.error(res.data.message || "Delete failed");
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Delete failed");
+      }
+      return;
+    }
+
+    if (result.isDenied) {
+      // Move products - ask for target category id
+      // Build list of candidate targets with same kind
+      const candidates = [];
+      allCategories.forEach((m) => {
+        // main categories
+        if (cat.kind === "main") {
+          if (m._id !== cat._id) candidates.push({ id: m._id, label: m.name });
+        } else {
+          // subcategory: collect subs from same parent except this
+          m.subcategories?.forEach((s) => {
+            if (s._id !== cat._id) candidates.push({ id: s._id, label: `${m.name} / ${s.name}` });
+          });
+        }
+      });
+
+      if (candidates.length === 0) {
+        toast.error("No candidate category available to move products to.");
+        return;
+      }
+
+      const { value: target } = await Swal.fire({
+        title: "Select target category",
+        input: "select",
+        inputOptions: candidates.reduce((acc, c) => {
+          acc[c.id] = c.label;
+          return acc;
+        }, {}),
+        inputPlaceholder: "Select a category",
+        showCancelButton: true,
+      });
+
+      if (!target) return;
+
+      try {
+        const res = await axios.delete(`/api/category/${cat._id}`, {
+          data: { action: "move-products", targetCategoryId: target },
+        });
+        if (res.status === 200) {
+          toast.success(res.data.message || "Products moved and category deleted");
+          await fetchAllCategories();
+          fetchData(true);
+        } else toast.error(res.data.message || "Move failed");
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Move failed");
+      }
+    }
+  };
+
   // ======================= UI =======================
   return (
     <div className="min-h-screen w-full bg-gray-200 p-4 flex flex-col gap-y-6 text-gray-800">
@@ -320,7 +505,94 @@ const AdminProducts = () => {
               </div>
             )}
           </div>
+          {/* Manage Categories button */}
+          <div className="w-full sm:w-auto">
+            <button
+              onClick={openManage}
+              className="border px-4 py-2 rounded-md whitespace-nowrap cursor-pointer bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              Manage Categories
+            </button>
+          </div>
         </div>
+
+        {/* Manage Categories Modal */}
+        {manageOpen && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-6 bg-black/40">
+            <div className="w-full max-w-3xl bg-white rounded-lg shadow-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold">Manage Categories</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setManageOpen(false);
+                    }}
+                    className="px-3 py-1 rounded bg-gray-100"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              <div className="max-h-[60vh] overflow-auto">
+                {manageLoading ? (
+                  <div className="text-center py-8">Loading...</div>
+                ) : (
+                  allCategories.map((m) => (
+                    <div key={m._id} className="border rounded mb-3 p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <strong className="text-sm uppercase">{m.name}</strong>
+                          <span className="text-xs text-gray-700">(Main)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleRename({ ...m, kind: "main" })}
+                            className="px-2 py-1 text-xs bg-yellow-300 rounded border"
+                          >
+                            Rename
+                          </button>
+                          <button
+                            onClick={() => handleDelete({ ...m, kind: "main" })}
+                            className="px-2 py-1 text-xs bg-rose-300 rounded border"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-2 pl-1 flex flex-col gap-2">
+                        {m.subcategories && m.subcategories.length ? (
+                          m.subcategories.map((s) => (
+                            <div key={s._id} className="flex items-center border shadow-lg border-zinc-400 justify-between text-sm p-2 rounded transition-transform duration-200 cursor-pointer hover:-translate-y-1">
+                              <div className="text-gray-700">{s.name} (Sub)</div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleRename({ ...s, kind: "sub" })}
+                                  className="px-2 py-1 text-xs bg-yellow-300 border rounded"
+                                >
+                                  Rename
+                                </button>
+                                <button
+                                  onClick={() => handleDelete({ ...s, kind: "sub" })}
+                                  className="px-2 py-1 text-xs bg-rose-300 border rounded"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-gray-400">No subcategories</div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Product Table */}
         <div className="w-full h-[85vh] py-4 px-4 rounded-xl border-2 border-gray-100 bg-white flex flex-col mt-3">
